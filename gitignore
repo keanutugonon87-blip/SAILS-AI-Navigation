@@ -1,0 +1,14 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+
+# Never commit secrets
+.env
+.env.local
+*apikey*
+*api-key*
+secrets.json
