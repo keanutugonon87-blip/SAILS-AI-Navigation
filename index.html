@@ -572,6 +572,1188 @@ const MODEL = "claude-sonnet-4-6";
 // the request to Anthropic. Point this at your deployed Apps Script Web App
 // URL (or any other proxy you build) — see backend/apps-script-proxy.gs and
 // README.md for a ready-made Google Apps Script version.
+const BACKEND_ENDPOINT = "https://script.google.com/macros/s/AKfycbwf70kxNk6Js0UHK7kxmQFUw_1upmGOc3X3as5W2RJ9z40k6sdjYMPwW7RltNvxK1coOw/exec";
+
+async function callClaude(systemPrompt, messages, maxTokens){
+  if(!BACKEND_ENDPOINT || BACKEND_ENDPOINT.startsWith("PASTE_")){
+    throw new Error("Backend not configured yet — set BACKEND_ENDPOINT at the top of the <script> block to your proxy URL. See README.md.");
+  }
+  const response = await fetch(BACKEND_ENDPOINT, {
+    method: "POST",
+    // NOTE: text/plain (not application/json) on purpose — this keeps the
+    // request a CORS "simple request" with no OPTIONS preflight, which
+    // matters if your proxy is a Google Apps Script Web App (it can't
+    // respond to preflight). The body is still valid JSON text; your proxy
+    // should JSON.parse() it. If you're using a proxy that DOES support
+    // preflight (Cloudflare Worker, Node/Express, etc.) this still works fine.
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens || 1500,
+      system: systemPrompt,
+      messages: messages,
+      tools: [{ type: "web_search_20250305", name: "web_search" }]
+    })
+  });
+  if(!response.ok) throw new Error("API error " + response.status);
+  const data = await response.json();
+  const blocks = (data.content || []).filter(b => b.type === 'text');
+  const text = blocks.map(b => b.text).join('\n').trim();
+  const sources = extractSources(data.content || []);
+  return { text, sources, raw: data };
+}
+
+function extractSources(contentBlocks){
+  const seen = new Map();
+  contentBlocks.forEach(block => {
+    if(block.type === 'text' && Array.isArray(block.citations)){
+      block.citations.forEach(c => {
+        if(c.url && !seen.has(c.url)) seen.set(c.url, { url: c.url, title: c.title || c.url });
+      });
+    }
+  });
+  return Array.from(seen.values());
+}
+
+function parseJsonLoose(raw){
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleaned);
+}
+
+/* =====================================================================
+   SHARED: Storage helpers (personal, non-shared)
+   On claude.ai this used window.storage (artifact-only sandbox storage).
+   On a real hosted site there's no such API, so this uses plain
+   localStorage instead — same key/value shape, persists per-browser.
+   Kept as async functions so nothing else in the app had to change.
+   ===================================================================== */
+async function storeGet(key, fallback){
+  try{
+    const raw = localStorage.getItem('bridgewatch:' + key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  }catch(e){ return fallback; }
+}
+async function storeSet(key, value){
+  try{ localStorage.setItem('bridgewatch:' + key, JSON.stringify(value)); }
+  catch(e){ console.error('storage set failed', key, e); }
+}
+
+/* =====================================================================
+   SHIP'S LOG (chat)
+   ===================================================================== */
+const SYSTEM_PROMPT = `You are "Bridge Watch," a grounded reference tool for MARITIME TRANSPORTATION — not a conversationalist who speculates. You help a BSMT (Bachelor of Science in Marine Transportation) freshman student in the Philippines learn their program line upon line, precept upon precept. You have a web_search tool. Use it as your primary method of answering.
+
+HARD RULE — NO GUESSING:
+- For any factual, regulatory, technical, or numeric claim (rule text, formulas, definitions, procedures, dates, licensure/exam requirements, equipment specs, legal citations, PEME/PFT standards), you MUST search before answering. Do not answer straight from memory as if it were settled fact.
+- Only cite bonafide, authoritative sources: IMO (imo.org), COLREGS/SOLAS/MARPOL/STCW official or officially-hosted texts, PCG (Philippine Coast Guard), MARINA (Maritime Industry Authority), DMW (Department of Migrant Workers), DOH (Department of Health), CHED, official MHEI pages, USCG Navigation Center, admiralty/hydrographic offices, and reputable maritime industry/reference publishers. Avoid random blogs, forums, or unverifiable sites.
+- After searching, name the source you drew from in plain text (e.g., "Per IMO's COLREGS text..." or "Per MARINA Memorandum Circular..."). If your search does not turn up a bonafide source for a claim, say so plainly instead of filling the gap with a guess — tell the student what is uncertain and what to verify with their instructor or an official source.
+- Never present a theory, approximation, or your own inference as if it were verified fact. If something is genuinely a matter of judgment or common practice rather than a documented rule, label it explicitly as such.
+- Simple clarifying or conversational exchanges (e.g., "what do you mean") don't require a search, but any substantive question does.
+
+TEACHING STYLE:
+- You are a marine professor addressing a freshman. Teach "line upon line, precept upon precept": build from the concrete and foundational before layering nuance, check understanding, and connect each new term back to ones already taught.
+- Use correct maritime terminology, but define any acronym the first time you use it in an answer.
+- Structure answers with clear steps or short lists where helpful. Keep answers focused and study-relevant rather than exhaustively long, unless the student asks for depth.
+
+IN SCOPE (answer helpfully and in depth, grounded per the rule above):
+- COLREGS; Navigation (celestial, terrestrial, coastal, electronic — GPS, ECDIS, radar, ARPA); chartwork, tides, currents, meteorology for mariners
+- Ship stability, buoyancy, cargo operations, stowage; marine engineering basics relevant to deck officers
+- Shipboard software/network systems (ECDIS, GMDSS, AIS, bridge/ship network architecture, onboard IT) as a BSMT subject
+- Navigational instruments and compasses; ship construction, routines, and parts of the ship
+- Maritime law, SOLAS, MARPOL, STCW, ISM Code, flag/port state control
+- Seamanship, watchkeeping, bridge procedures, emergency response; ship types, terminology, maritime history relevant to transportation/shipping
+- Philippine maritime education context (MHEI system, CHED curriculum, PRC/MARINA licensure, POEA/DMW deployment)
+- PEME (Pre-Employment Medical Examination) requirements, process, validity, and Fit-to-Work standards under DOH/DMW/MLC 2006, and PFT (Physical Fitness Test) preparation relevant to cadetship
+- Career guidance specific to seafaring/BSMT (cadetship, licensure exams, BT, SDSD, onboard training/OBT)
+
+OUT OF SCOPE (politely decline and redirect back to maritime topics):
+- Anything unrelated to maritime transportation: general homework in unrelated subjects, coding help unrelated to maritime tools, general life advice, entertainment, unrelated current events, etc.
+- Do not get pulled into extended off-topic conversation even if the user pushes back — briefly and kindly decline, note that this assistant is scoped to maritime transportation, and invite a maritime-related question instead.
+
+Tone: knowledgeable, precise, and source-driven — like a training officer who always checks the manual rather than reciting from memory.`;
+
+const log = document.getElementById('log');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+
+let entryCount = 0;
+let history = [];
+
+function bellsTime(){
+  const now = new Date();
+  return now.toTimeString().slice(0,5).replace(':','') + 'H';
+}
+
+function addEntry(role, text, sources, opts){
+  entryCount++;
+  const div = document.createElement('div');
+  div.className = 'entry ' + role;
+  const label = role === 'user' ? 'YOU' : role === 'assistant' ? 'BRIDGE WATCH' : 'NOTICE';
+  div.innerHTML = `<div class="entry-meta"><span>ENTRY ${String(entryCount).padStart(3,'0')}</span><span>${bellsTime()}</span><span>${label}</span></div><div class="bubble"></div>`;
+  div.querySelector('.bubble').textContent = text;
+  if(sources && sources.length){
+    const srcWrap = document.createElement('div');
+    srcWrap.className = 'sources-block';
+    srcWrap.innerHTML = '<div class="sources-label">VERIFIED FROM</div>';
+    sources.forEach(s => {
+      const a = document.createElement('a');
+      a.href = s.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.className = 'source-link';
+      a.textContent = s.title || s.url;
+      srcWrap.appendChild(a);
+    });
+    div.appendChild(srcWrap);
+  }
+  if(opts && opts.retry){
+    const btn = document.createElement('button');
+    btn.className = 'btn-ghost retry-btn';
+    btn.textContent = 'RETRY';
+    btn.addEventListener('click', opts.retry);
+    div.appendChild(btn);
+  }
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+function addThinking(){
+  const div = document.createElement('div');
+  div.className = 'entry assistant';
+  div.id = 'thinking-entry';
+  div.innerHTML = `<div class="thinking"><div class="mini-compass"></div><span>CHECKING BONAFIDE SOURCES...</span></div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+function removeThinking(){
+  const el = document.getElementById('thinking-entry');
+  if(el) el.remove();
+}
+
+async function sendMessage(prefill){
+  const text = (prefill !== undefined ? prefill : input.value).trim();
+  if(!text) return;
+  if(prefill === undefined){ input.value = ''; input.style.height = 'auto'; }
+  sendBtn.disabled = true;
+
+  addEntry('user', text);
+  history.push({role:'user', content: text});
+  addThinking();
+
+  try{
+    const { text: replyText, sources } = await callClaude(SYSTEM_PROMPT, history, 1500);
+    removeThinking();
+    const finalText = replyText || "Unable to log a response — try rephrasing your question.";
+    addEntry('assistant', finalText, sources);
+    history.push({role:'assistant', content: finalText});
+    persistLog();
+  }catch(err){
+    removeThinking();
+    history.pop();
+    addEntry('system', 'Signal lost — could not reach the log. Please try again.', null, { retry: () => sendMessage(text) });
+    console.error(err);
+  }finally{
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+async function persistLog(){
+  // keep last 40 turns to stay well under the 5MB value limit
+  const trimmed = history.slice(-40);
+  await storeSet('log:history', trimmed);
+}
+
+sendBtn.addEventListener('click', () => sendMessage());
+input.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+});
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+});
+
+async function initLog(){
+  const saved = await storeGet('log:history', null);
+  if(saved && saved.length){
+    history = saved;
+    addEntry('assistant', "Bridge Watch online. Picking up your ship's log where you left off — ask your next question, or start a new line of inquiry.");
+    history.forEach(turn => {
+      addEntry(turn.role, typeof turn.content === 'string' ? turn.content : JSON.stringify(turn.content));
+    });
+  }else{
+    addEntry('assistant', "Bridge Watch online. I check bonafide sources (IMO, PCG, MARINA, DOH, official texts) before answering — no guessing, no unverified theory. Ask me anything on COLREGS, navigation, chartwork, ship stability, maritime law, PEME, or your BSMT coursework.");
+    const chips = document.createElement('div');
+    chips.className = 'suggest-row';
+    [
+      "What's the difference between NAV 5 and NAV 6?",
+      "What is PEME and when do I need it?",
+      "Explain the head-on rule under COLREGS."
+    ].forEach(q => {
+      const c = document.createElement('button');
+      c.className = 'suggest-chip';
+      c.textContent = q;
+      c.addEventListener('click', () => sendMessage(q));
+      chips.appendChild(c);
+    });
+    log.appendChild(chips);
+  }
+}
+
+/* =====================================================================
+   TAB SWITCHING
+   ===================================================================== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.view).classList.add('active');
+  });
+});
+
+/* =====================================================================
+   COURSE MAP — the voyage, drawn from the BSMT cadet curriculum
+   ===================================================================== */
+const VOYAGE = [
+  {
+    year: 1, title: "Becoming a Sailor", narrative: "Foundational vocabulary — you cannot understand ARPA in Year 2 if you don't already know how a chart and compass work.",
+    waypoints: [
+      "<b>NAV 1 — Terrestrial Navigation I:</b> fixing position with landmarks, bearings, and charts.",
+      "<b>SEAM 1 — Ships &amp; Ship Routines:</b> ship construction and the daily rhythm of duties aboard.",
+      "<b>COLREGS:</b> your first pass through the rules of the road at sea.",
+      "<b>MET-O:</b> reading weather basics. <b>ICT:</b> computer literacy groundwork.",
+      "<b>NAV 2:</b> advanced plotting and positioning (2nd sem).",
+      "<b>SEAM 2:</b> ropework, rigging, deck maintenance fundamentals (2nd sem).",
+      "<b>Summer — NAV 3 &amp; 4</b> and <b>MARENV</b> (MARPOL pollution-prevention law) close the year."
+    ]
+  },
+  {
+    year: 2, title: "The Simulator Gauntlet", narrative: "Isolated subjects start talking to each other — D-WATCH proves you can run radar, charts, weather, and comms at once.",
+    waypoints: [
+      "<b>NAV 5 (Radar/ARPA):</b> reading and trusting, then double-checking, collision-avoidance calculations.",
+      "<b>NAV 6 (ECDIS):</b> paper-chart thinking transitions to fully electronic navigation.",
+      "<b>MARCOM (GMDSS):</b> distress communication systems, by the book.",
+      "<b>SEAM 3 &amp; 4:</b> stability, trim, and cargo handling math.",
+      "<b>D-WATCH (first pass):</b> the integrated 24-hour bridge simulator, closing the year."
+    ]
+  },
+  {
+    year: 3, title: "Onboard Training (OBT)", narrative: "Theory becomes muscle memory — real weather, real cargo, real watches, real fatigue.",
+    waypoints: [
+      "<b>BT — Basic Training:</b> Personal Survival Techniques, Fire Prevention &amp; Fire Fighting, Elementary First Aid, Personal Safety &amp; Social Responsibility. No BT, no ship.",
+      "<b>SDSD:</b> Security Training for Seafarers with Designated Security Duties.",
+      "<b>OBT — 40 units</b> of supervised seagoing service aboard an actual merchant vessel, logged in a training record book."
+    ]
+  },
+  {
+    year: 4, title: "Closing the Loop", narrative: "You return from sea a different person — this year formalizes the judgment you already started building offshore.",
+    waypoints: [
+      "<b>NGECs:</b> Ethics, Readings in Philippine History (Rizal), The Contemporary World, Art Appreciation.",
+      "<b>MARPOW:</b> basic marine engineering literacy to communicate with the engine room.",
+      "<b>MGMT 2:</b> Integrated Management Systems — the ISM Code and shipboard management.",
+      "<b>Graduation →</b> sit the <b>MARINA</b> licensing exam → certified <b>OICNW.</b>"
+    ]
+  }
+];
+
+const GLOSSARY = [
+  {code:"NAV 1–6", full:"Navigation, levels 1–6", why:"Knowing exactly where your ship is, using charts, stars, and instruments — each level builds on the last."},
+  {code:"ARPA", full:"Automatic Radar Plotting Aid", why:"Calculates speed, course, and closest approach distance of other ships automatically."},
+  {code:"ECDIS", full:"Electronic Chart Display and Information System", why:"The digital replacement for paper charts, with live GPS plotting."},
+  {code:"VTS", full:"Vessel Traffic System / Service", why:"Shore-based 'air traffic control' for busy ports and channels."},
+  {code:"COLREGS", full:"International Regulations for Preventing Collisions at Sea, 1972", why:"The traffic rules of the ocean: give-way, lights, shapes, sound signals."},
+  {code:"MARENV", full:"Marine Environmental Protection", why:"Covers MARPOL — legal handling of oil, garbage, ballast water, emissions."},
+  {code:"BT", full:"Basic Training (STCW Basic Safety Training)", why:"The four foundational survival courses every seafarer must hold before boarding."},
+  {code:"SDSD", full:"Security Training for Seafarers with Designated Security Duties", why:"Recognizing security threats and carrying out assigned duties under the ship security plan."},
+  {code:"SEAM 1–5", full:"Seamanship, levels 1–5", why:"Ship construction, ropework, cargo handling, stability, and — at SEAM 5 — ship handling and maneuvering."},
+  {code:"MET-O", full:"Meteorology and Oceanography", why:"Reading weather systems, wind, pressure, waves, and currents."},
+  {code:"MARCOM", full:"Maritime Communications", why:"Radio procedures, centered on GMDSS."},
+  {code:"GMDSS", full:"Global Maritime Distress and Safety System", why:"The standardized satellite/radio system for distress signals and safety info."},
+  {code:"D-WATCH", full:"Deck Watchkeeping with Bridge Resource Management", why:"The capstone: realistic 24-hour bridge simulator scenarios integrating everything prior."},
+  {code:"BRM", full:"Bridge Resource Management", why:"Teamwork and decision-making discipline: cross-checking, speaking up, avoiding human error."},
+  {code:"MARLAW", full:"Maritime Law", why:"Legal framework for ships, contracts, liability, and seafarers' rights."},
+  {code:"MARPOW", full:"Basic Marine Engineering (Marine Power)", why:"Enough propulsion/machinery knowledge to work with the engine room in an emergency."},
+  {code:"MGMT 2", full:"Integrated Management Systems", why:"The ISM Code and how a modern ship organizes safety on paper and in practice."},
+  {code:"OBT", full:"Onboard Training", why:"Your supervised sea apprenticeship — 40 credit units aboard an actual merchant vessel."},
+  {code:"NGEC", full:"New General Education Courses", why:"CHED-mandated general education: Ethics, Rizal, Contemporary World, Art Appreciation."},
+  {code:"ICT", full:"Information and Communications Technology", why:"Computer literacy groundwork before ECDIS and navigation software."},
+  {code:"CHED", full:"Commission on Higher Education", why:"Regulates all Philippine college-level programs, including BSMT."},
+  {code:"MARINA", full:"Maritime Industry Authority", why:"Issues your professional license after school, once you pass their exam."},
+  {code:"MHEI", full:"Maritime Higher Education Institution", why:"Any college or university authorized to run BSMT or BSMarE programs."},
+  {code:"OICNW", full:"Officer in Charge of a Navigational Watch", why:"Your first command-track rank, certified after passing the MARINA exam."},
+  {code:"STCW", full:"Standards of Training, Certification and Watchkeeping for Seafarers, 1978, as amended", why:"The international treaty baseline every signatory nation trains officers against."},
+  {code:"PEME", full:"Pre-Employment Medical Examination", why:"DOH/DMW-regulated fitness screening that certifies you Fit-to-Work before deployment, tied to MLC 2006 validity periods."}
+];
+
+function renderVoyage(){
+  const wrap = document.getElementById('voyage-legs');
+  wrap.innerHTML = '';
+  VOYAGE.forEach(leg => {
+    const el = document.createElement('div');
+    el.className = 'voyage-leg';
+    el.innerHTML = `
+      <button class="leg-head">
+        <div class="leg-badge">${leg.year}</div>
+        <div class="leg-title"><b>Year ${leg.year} — ${leg.title}</b><span>${leg.waypoints.length} waypoints</span></div>
+        <div class="leg-chevron">▶</div>
+      </button>
+      <div class="leg-body"><div class="leg-body-inner">
+        <div class="leg-narrative">${leg.narrative}</div>
+        ${leg.waypoints.map(w => `<div class="waypoint"><div class="wp-dot"></div><div>${w}</div></div>`).join('')}
+      </div></div>`;
+    el.querySelector('.leg-head').addEventListener('click', () => el.classList.toggle('open'));
+    wrap.appendChild(el);
+  });
+}
+
+function renderGlossary(filter){
+  const results = document.getElementById('gloss-results');
+  const q = (filter || '').trim().toLowerCase();
+  const matches = q ? GLOSSARY.filter(g => g.code.toLowerCase().includes(q) || g.full.toLowerCase().includes(q) || g.why.toLowerCase().includes(q)) : GLOSSARY;
+  results.innerHTML = '';
+  if(!matches.length){
+    results.innerHTML = '<div class="empty-state">No glossary term matches yet — try a shorter fragment, or ask Bridge Watch in the Ship\\'s Log.</div>';
+    return;
+  }
+  matches.slice(0, q ? matches.length : 8).forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'gloss-card';
+    card.innerHTML = `<b>${g.code}</b><div class="gloss-full">${g.full}</div><div class="gloss-why">${g.why}</div>`;
+    results.appendChild(card);
+  });
+}
+
+document.getElementById('gloss-search').addEventListener('input', (e) => renderGlossary(e.target.value));
+
+/* =====================================================================
+   QUIZ MODE
+   ===================================================================== */
+const QUIZ_SYSTEM = `You generate multiple-choice quiz questions strictly about MARITIME TRANSPORTATION topics (COLREGS, navigation, ship stability, maritime law/SOLAS/MARPOL/STCW, seamanship, BT/SDSD, and PEME/PFT for Filipino seafarers) for a BSMT freshman student in the Philippines. You have a web_search tool — use it to verify the exact rule text, number, or fact before writing the question. Do not invent or guess rule numbers, figures, or definitions; base them on what you find from bonafide sources (IMO, PCG, MARINA, DMW, DOH, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references).
+
+After searching, respond with ONLY a raw JSON object as your final output, no markdown fences, no preamble, in exactly this shape:
+{"question": "...", "options": ["A text","B text","C text","D text"], "correctIndex": 0, "explanation": "...", "source": "short source name, e.g. 'IMO COLREGS Rule 15'"}
+
+The question must be non-trivial and exam-relevant. Exactly 4 options, only one correct. Explanation should be 1-3 sentences teaching why the answer is correct, grounded in what you verified.`;
+
+let quizTopic = 'COLREGS';
+let quizCorrect = 0;
+let quizTotal = 0;
+
+document.getElementById('quiz-topics').addEventListener('click', (e) => {
+  const chip = e.target.closest('.topic-chip');
+  if(!chip) return;
+  document.querySelectorAll('#quiz-topics .topic-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  quizTopic = chip.dataset.topic;
+});
+
+document.getElementById('quiz-body').addEventListener('click', (e) => {
+  if(e.target.id === 'quiz-start' || e.target.id === 'quiz-next') loadQuizQuestion();
+  if(e.target.id === 'quiz-retry') loadQuizQuestion();
+});
+
+function updateScore(){
+  document.getElementById('quiz-score').innerHTML = `Score: <b>${quizCorrect}</b> / ${quizTotal}`;
+}
+
+async function loadQuizQuestion(){
+  const body = document.getElementById('quiz-body');
+  body.innerHTML = `<div class="thinking"><div class="mini-compass"></div><span>VERIFYING AGAINST SOURCES...</span></div>`;
+  try{
+    const { text } = await callClaude(QUIZ_SYSTEM, [{role:'user', content: `Topic: ${quizTopic}. Give me one fresh multiple-choice question.`}], 1500);
+    const q = parseJsonLoose(text);
+    renderQuizQuestion(q);
+  }catch(err){
+    body.innerHTML = `<div class="empty-state">Couldn't draw up a verified question — try again.<br><br><button class="btn-primary" id="quiz-retry">RETRY</button></div>`;
+    console.error(err);
+  }
+}
+
+function renderQuizQuestion(q){
+  const body = document.getElementById('quiz-body');
+  const card = document.createElement('div');
+  card.className = 'quiz-card';
+  card.innerHTML = `
+    <div class="quiz-question">${q.question}</div>
+    <div id="quiz-options"></div>
+    <div id="quiz-explain" style="display:none" class="quiz-explain"></div>
+    <div class="quiz-actions" id="quiz-actions" style="display:none">
+      <button class="btn-primary" id="quiz-next">NEXT QUESTION</button>
+    </div>`;
+  body.innerHTML = '';
+  body.appendChild(card);
+
+  const optsWrap = card.querySelector('#quiz-options');
+  q.options.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.className = 'quiz-option';
+    b.textContent = opt;
+    b.addEventListener('click', async () => {
+      quizTotal++;
+      const correct = i === q.correctIndex;
+      if(correct) quizCorrect++;
+      card.querySelectorAll('.quiz-option').forEach((el, j) => {
+        el.disabled = true;
+        if(j === q.correctIndex) el.classList.add('correct');
+        else if(j === i) el.classList.add('incorrect');
+      });
+      const explain = card.querySelector('#quiz-explain');
+      let explainText = (correct ? 'Correct. ' : 'Not quite. ') + q.explanation;
+      if(q.source) explainText += `  [Source: ${q.source}]`;
+      explain.textContent = explainText;
+      explain.style.display = 'block';
+      card.querySelector('#quiz-actions').style.display = 'flex';
+      updateScore();
+      await storeSet('quiz:stats:' + quizTopic, await tallyQuizStat(quizTopic, correct));
+    });
+    optsWrap.appendChild(b);
+  });
+}
+
+async function tallyQuizStat(topic, correct){
+  const cur = await storeGet('quiz:stats:' + topic, {correct:0, total:0});
+  cur.total += 1;
+  if(correct) cur.correct += 1;
+  return cur;
+}
+
+/* =====================================================================
+   FLASHCARD MODE
+   ===================================================================== */
+const CORE_COLREGS_DECK = [
+  {tag:'RULE 5', front:'Look-out', back:'Every vessel shall at all times maintain a proper look-out by sight and hearing, as well as by all available means, to make a full appraisal of the situation and risk of collision.'},
+  {tag:'RULE 6', front:'Safe Speed', back:'Every vessel shall proceed at a safe speed so she can take proper and effective action to avoid collision, factoring visibility, traffic density, maneuverability, and background lights.'},
+  {tag:'RULE 7', front:'Risk of Collision', back:'Assume risk of collision exists if compass bearing to an approaching vessel does not appreciably change. When in doubt, assume risk exists.'},
+  {tag:'RULE 8', front:'Action to Avoid Collision', back:'Actions must be positive, made in ample time, and with due regard to good seamanship — avoid a succession of small alterations.'},
+  {tag:'RULE 13', front:'Overtaking', back:'An overtaking vessel must keep clear of the vessel being overtaken, regardless of which is the give-way vessel under other rules.'},
+  {tag:'RULE 14', front:'Head-on Situation', back:'When two power-driven vessels meet head-on, both shall alter course to starboard so each passes on the port side of the other.'},
+  {tag:'RULE 15', front:'Crossing Situation', back:'When two power-driven vessels are crossing, the vessel with the other on her own starboard side is the give-way vessel and shall keep clear.'},
+  {tag:'RULE 17', front:'Action by Stand-on Vessel', back:'The stand-on vessel shall keep her course and speed, but may act to avoid collision if it becomes apparent the give-way vessel is not taking appropriate action.'},
+];
+
+const FLASH_SYSTEM = `You generate concise study flashcards strictly about MARITIME TRANSPORTATION topics for a BSMT freshman student in the Philippines. You have a web_search tool — use it to verify each fact, rule number, or definition against a bonafide source (IMO, PCG, MARINA, DMW, DOH, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references) before writing the card. Do not invent or guess.
+
+After searching, respond with ONLY a raw JSON array as your final output, no markdown fences, no preamble, in exactly this shape:
+[{"tag":"short label e.g. rule/concept number or category","front":"short term or question (max 8 words)","back":"concise 1-3 sentence explanation","source":"short source name, e.g. 'IMO SOLAS Ch. V'"}]
+
+Generate exactly 6 cards on the given topic. Avoid duplicating extremely basic COLREGS Rules 5,6,7,8,13,14,15,17 unless the topic specifically requires them.`;
+
+let flashDeck = [...CORE_COLREGS_DECK];
+let flashIndex = 0;
+let flashTopic = 'core';
+let masteredSet = new Set();
+
+function cardKey(topic, card){ return topic + '::' + card.front; }
+
+async function loadMastery(){
+  const saved = await storeGet('flash:mastered:' + flashTopic, []);
+  masteredSet = new Set(saved);
+}
+async function saveMastery(){
+  await storeSet('flash:mastered:' + flashTopic, Array.from(masteredSet));
+}
+
+function renderFlashcard(){
+  const c = flashDeck[flashIndex];
+  const key = cardKey(flashTopic, c);
+  const isMastered = masteredSet.has(key);
+  document.getElementById('flashcard').classList.remove('flipped');
+  document.getElementById('flash-tag-front').textContent = c.tag;
+  document.getElementById('flash-front-text').textContent = c.front;
+  document.getElementById('flash-back-text').textContent = c.back + (c.source ? `  [Source: ${c.source}]` : '');
+  document.getElementById('flash-counter').textContent = `Card ${flashIndex + 1} of ${flashDeck.length}`;
+  document.getElementById('flash-mastery').textContent = `${masteredSet.size} mastered`;
+  document.getElementById('flash-prev').disabled = flashIndex === 0;
+  document.getElementById('flash-next').disabled = flashIndex === flashDeck.length - 1;
+  document.getElementById('flash-face-front').classList.toggle('mastered', isMastered);
+  document.getElementById('flash-face-back').classList.toggle('mastered', isMastered);
+  document.getElementById('flash-known').textContent = isMastered ? '✓ MASTERED' : '✓ GOT IT';
+}
+
+document.getElementById('flashcard').addEventListener('click', () => {
+  document.getElementById('flashcard').classList.toggle('flipped');
+});
+document.getElementById('flash-prev').addEventListener('click', () => {
+  if(flashIndex > 0){ flashIndex--; renderFlashcard(); }
+});
+document.getElementById('flash-next').addEventListener('click', () => {
+  if(flashIndex < flashDeck.length - 1){ flashIndex++; renderFlashcard(); }
+});
+document.getElementById('flash-known').addEventListener('click', async () => {
+  const key = cardKey(flashTopic, flashDeck[flashIndex]);
+  if(masteredSet.has(key)) masteredSet.delete(key); else masteredSet.add(key);
+  await saveMastery();
+  renderFlashcard();
+});
+
+document.getElementById('flash-topics').addEventListener('click', async (e) => {
+  const chip = e.target.closest('.topic-chip');
+  if(!chip) return;
+  document.querySelectorAll('#flash-topics .topic-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  flashTopic = chip.dataset.topic;
+  flashIndex = 0;
+  if(flashTopic === 'core'){
+    flashDeck = [...CORE_COLREGS_DECK];
+  }else{
+    const saved = await storeGet('flash:deck:' + flashTopic, null);
+    flashDeck = saved && saved.length ? saved : [{tag:'—', front:'No cards yet', back:'Tap "Generate 6 more" below to build a verified deck for this topic.'}];
+  }
+  await loadMastery();
+  renderFlashcard();
+});
+
+document.getElementById('flash-more').addEventListener('click', async () => {
+  const btn = document.getElementById('flash-more');
+  btn.disabled = true;
+  btn.textContent = 'VERIFYING...';
+  try{
+    const topicForPrompt = flashTopic === 'core' ? 'Core COLREGS rules beyond 5,6,7,8,13,14,15,17' : flashTopic;
+    const { text } = await callClaude(FLASH_SYSTEM, [{role:'user', content: `Topic: ${topicForPrompt}. Generate 6 flashcards.`}], 1500);
+    const cards = parseJsonLoose(text);
+    if(Array.isArray(cards) && cards.length){
+      if(flashDeck.length === 1 && flashDeck[0].tag === '—') flashDeck = [];
+      const startIdx = flashDeck.length;
+      flashDeck = flashDeck.concat(cards);
+      flashIndex = startIdx;
+      if(flashTopic !== 'core') await storeSet('flash:deck:' + flashTopic, flashDeck);
+      renderFlashcard();
+    }
+  }catch(err){
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '+ GENERATE 6 MORE (VERIFIED)';
+  }
+});
+
+/* =====================================================================
+   MILESTONES — PEME / BT / SDSD / OBT / MARINA pathway
+   ===================================================================== */
+const MILESTONES = [
+  {id:'peme', title:'PEME cleared', desc:'Pre-Employment Medical Examination — Fit-to-Work certification from a DOH/DMW-accredited clinic.'},
+  {id:'pft', title:'PFT-ready', desc:'Physical Fitness Test conditioning — push-ups, sit-ups, squat-thrusts, flutter-kicks, mountain climbers, jogging.'},
+  {id:'bt', title:'BT complete', desc:'Basic Training: Personal Survival Techniques, Fire Prevention & Fire Fighting, Elementary First Aid, Personal Safety & Social Responsibility.'},
+  {id:'sdsd', title:'SDSD complete', desc:'Security Training for Seafarers with Designated Security Duties.'},
+  {id:'dwatch', title:'D-WATCH passed', desc:'Capstone bridge simulator course — integrated navigation, COLREGS, and communications under realistic pressure.'},
+  {id:'obt', title:'OBT (40 units) complete', desc:'Supervised seagoing apprenticeship logged in your training record book.'},
+  {id:'marina', title:'MARINA licensing exam passed', desc:'Certified as OICNW — Officer in Charge of a Navigational Watch.'}
+];
+
+let milestoneState = {};
+
+async function loadMilestones(){
+  milestoneState = await storeGet('milestones:v1', {});
+  renderMilestones();
+}
+function renderMilestones(){
+  const list = document.getElementById('milestone-list');
+  list.innerHTML = '';
+  MILESTONES.forEach(m => {
+    const done = !!milestoneState[m.id];
+    const row = document.createElement('div');
+    row.className = 'milestone-row' + (done ? ' done' : '');
+    row.innerHTML = `<div class="m-check">${done ? '✓' : ''}</div><div class="m-body"><b>${m.title}</b><span>${m.desc}</span></div>`;
+    row.addEventListener('click', async () => {
+      milestoneState[m.id] = !milestoneState[m.id];
+      await storeSet('milestones:v1', milestoneState);
+      renderMilestones();
+    });
+    list.appendChild(row);
+  });
+  const doneCount = MILESTONES.filter(m => milestoneState[m.id]).length;
+  const pct = Math.round((doneCount / MILESTONES.length) * 100);
+  document.getElementById('milestone-progress-fill').style.width = pct + '%';
+  document.getElementById('milestone-progress-label').textContent = `${doneCount} of ${MILESTONES.length} cleared`;
+}
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+(async function init(){
+  renderVoyage();
+  renderGlossary('');
+  await initLog();
+  await loadMastery();
+  renderFlashcard();
+  await loadMilestones();
+})();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bridge Watch — BSMT Study Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#0A1B2E;
+    --navy-panel:#122A45;
+    --navy-panel-2:#0E2438;
+    --navy-line:#22415F;
+    --gold:#C79A3D;
+    --gold-bright:#E0B85C;
+    --parchment:#F3ECDA;
+    --parchment-dim:#C9C0A8;
+    --teal:#3E7382;
+    --rust:#B6552E;
+    --green:#5C9C6C;
+    --shadow:rgba(0,0,0,0.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; height:100%;
+    background: radial-gradient(ellipse at top, #102640 0%, var(--navy-deep) 55%);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:rgba(199,154,61,0.35);}
+  *:focus-visible{outline:2px solid var(--gold-bright); outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+  }
+  #app{
+    max-width:800px;
+    margin:0 auto;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    padding:0 18px;
+  }
+
+  /* ---- Header: brass plate ---- */
+  header{
+    padding:20px 4px 14px;
+    border-bottom:1px solid var(--navy-line);
+    display:flex;
+    align-items:center;
+    gap:16px;
+    flex-shrink:0;
+  }
+  .compass{
+    width:44px; height:44px; flex-shrink:0;
+    border-radius:50%;
+    border:2px solid var(--gold);
+    position:relative;
+    background:radial-gradient(circle at 35% 30%, #1a3552, #0d1f34 70%);
+    box-shadow:0 0 0 3px rgba(199,154,61,0.12), inset 0 0 10px rgba(0,0,0,0.6);
+  }
+  .compass::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      linear-gradient(90deg, transparent 49%, var(--gold) 49.5%, var(--gold) 50.5%, transparent 51%),
+      linear-gradient(0deg, transparent 49%, var(--gold-bright) 49.5%, var(--gold-bright) 50.5%, transparent 51%);
+    opacity:0.85;
+    border-radius:50%;
+  }
+  .compass .needle{
+    position:absolute; left:50%; top:50%;
+    width:2px; height:15px;
+    background:var(--gold-bright);
+    transform-origin:bottom center;
+    transform:translate(-50%,-100%) rotate(0deg);
+    animation:swing 6s ease-in-out infinite;
+  }
+  @keyframes swing{
+    0%,100%{transform:translate(-50%,-100%) rotate(-8deg);}
+    50%{transform:translate(-50%,-100%) rotate(10deg);}
+  }
+  .titles{flex:1; min-width:0;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.18em;
+    color:var(--gold);
+    text-transform:uppercase;
+  }
+  h1{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:21px;
+    margin:2px 0 0;
+    letter-spacing:0.01em;
+  }
+  .subtitle{
+    font-size:11.5px;
+    color:var(--parchment-dim);
+    margin-top:2px;
+  }
+  .scope-badge{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    letter-spacing:0.1em;
+    color:var(--rust);
+    border:1px solid var(--rust);
+    padding:2px 6px;
+    border-radius:2px;
+    margin-left:8px;
+    vertical-align:middle;
+  }
+
+  /* ---- Tabs ---- */
+  #tabs{
+    display:flex;
+    gap:2px;
+    padding:12px 2px 0;
+    flex-shrink:0;
+    overflow-x:auto;
+  }
+  .tab-btn{
+    flex:1;
+    min-width:78px;
+    background:transparent;
+    border:1px solid var(--navy-line);
+    border-bottom:none;
+    color:var(--parchment-dim);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:0.08em;
+    padding:9px 4px;
+    cursor:pointer;
+    border-radius:4px 4px 0 0;
+    transition:all 0.15s;
+  }
+  .tab-btn.active{
+    background:var(--navy-panel);
+    color:var(--gold);
+    border-color:var(--navy-line);
+  }
+  .tab-btn:hover:not(.active){color:var(--parchment);}
+  .view{display:none; flex:1; min-height:0; flex-direction:column;}
+  .view.active{display:flex;}
+
+  /* ---- Log (chat area) ---- */
+  #log{
+    flex:1;
+    overflow-y:auto;
+    padding:20px 2px 10px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  #log::-webkit-scrollbar, .scrolly::-webkit-scrollbar{width:6px;}
+  #log::-webkit-scrollbar-thumb, .scrolly::-webkit-scrollbar-thumb{background:var(--navy-line); border-radius:3px;}
+
+  .entry{max-width:100%;}
+  .entry-meta{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:0.08em;
+    color:var(--parchment-dim);
+    margin-bottom:4px;
+    display:flex;
+    gap:10px;
+  }
+  .entry.user .entry-meta{color:#8FAEC2;}
+  .entry.assistant .entry-meta{color:var(--gold);}
+  .entry.system .entry-meta{color:var(--rust);}
+
+  .bubble{
+    padding:12px 14px;
+    border-radius:3px;
+    line-height:1.6;
+    font-size:14.5px;
+    white-space:pre-wrap;
+    border-left:3px solid transparent;
+  }
+  .entry.user .bubble{
+    background:rgba(62,115,130,0.14);
+    border-left-color:var(--teal);
+  }
+  .entry.assistant .bubble{
+    background:var(--navy-panel);
+    border-left-color:var(--gold);
+  }
+  .entry.system .bubble{
+    background:rgba(182,85,46,0.10);
+    border-left-color:var(--rust);
+    color:var(--parchment-dim);
+    font-style:italic;
+  }
+  .entry.system .retry-btn{
+    margin-top:8px;
+  }
+
+  .sources-block{
+    margin-top:8px;
+    padding:10px 14px;
+    background:rgba(199,154,61,0.06);
+    border-left:3px solid var(--gold);
+    border-radius:0 3px 3px 0;
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+  }
+  .sources-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    letter-spacing:0.12em;
+    color:var(--gold);
+  }
+  .source-link{
+    font-size:12px;
+    color:#9FC3D6;
+    text-decoration:none;
+    word-break:break-word;
+  }
+  .source-link:hover{color:var(--gold-bright); text-decoration:underline;}
+
+  .thinking{
+    display:flex; align-items:center; gap:10px;
+    color:var(--parchment-dim);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+  }
+  .mini-compass{
+    width:16px; height:16px; border-radius:50%;
+    border:1.5px solid var(--gold);
+    position:relative;
+    animation:spin 1.4s linear infinite;
+    flex-shrink:0;
+  }
+  .mini-compass::before{
+    content:"";
+    position:absolute; top:1px; left:50%;
+    width:1.5px; height:5px;
+    background:var(--gold-bright);
+    transform:translateX(-50%);
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---- Suggested chips (empty-state helpers on log) ---- */
+  .suggest-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;}
+  .suggest-chip{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    color:var(--parchment-dim);
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:16px;
+    cursor:pointer;
+    transition:all .15s;
+  }
+  .suggest-chip:hover{border-color:var(--gold); color:var(--gold);}
+
+  /* ---- Composer ---- */
+  #composer{
+    flex-shrink:0;
+    padding:14px 2px 20px;
+    border-top:1px solid var(--navy-line);
+  }
+  .composer-row{
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+  }
+  textarea{
+    flex:1;
+    resize:none;
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-radius:4px;
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    font-size:14.5px;
+    padding:11px 12px;
+    line-height:1.4;
+    max-height:120px;
+    min-height:44px;
+  }
+  textarea:focus{outline:none; border-color:var(--gold);}
+  textarea::placeholder{color:#5A7284;}
+  button#send{
+    background:var(--gold);
+    color:#1a1305;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.03em;
+    padding:0 18px;
+    height:44px;
+    border-radius:4px;
+    cursor:pointer;
+    transition:background 0.15s;
+  }
+  button#send:hover{background:var(--gold-bright);}
+  button#send:disabled{background:var(--navy-line); color:var(--parchment-dim); cursor:not-allowed;}
+
+  .hint{
+    font-size:11px;
+    color:var(--parchment-dim);
+    margin-top:8px;
+    text-align:center;
+  }
+
+  /* ---- Shared: sections/cards ---- */
+  .scrolly{padding:18px 2px 24px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;}
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.16em;
+    color:var(--gold);
+    text-transform:uppercase;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after{content:""; flex:1; height:1px; background:var(--navy-line);}
+  .topic-picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px;}
+  .topic-chip{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    color:var(--parchment-dim);
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    padding:7px 13px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .topic-chip.active{border-color:var(--gold); color:var(--gold); background:rgba(199,154,61,0.08);}
+
+  /* ---- Quiz view ---- */
+  .quiz-score{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--parchment-dim); letter-spacing:0.05em;}
+  .quiz-score b{color:var(--gold);}
+  .quiz-card{background:var(--navy-panel); border:1px solid var(--navy-line); border-radius:6px; padding:20px;}
+  .quiz-question{font-family:'Playfair Display', serif; font-size:17px; line-height:1.45; margin-bottom:16px;}
+  .quiz-option{
+    display:block; width:100%; text-align:left;
+    background:rgba(255,255,255,0.02); border:1px solid var(--navy-line); color:var(--parchment);
+    font-family:'Inter',sans-serif; font-size:13.5px; padding:11px 14px; border-radius:4px;
+    margin-bottom:8px; cursor:pointer; transition:all 0.15s;
+  }
+  .quiz-option:hover:not(:disabled){border-color:var(--gold);}
+  .quiz-option:disabled{cursor:default;}
+  .quiz-option.correct{border-color:var(--green); background:rgba(92,156,108,0.14); color:#BFE6C8;}
+  .quiz-option.incorrect{border-color:var(--rust); background:rgba(182,85,46,0.14); color:#F0B8A0;}
+  .quiz-explain{margin-top:12px; font-size:13px; color:var(--parchment-dim); line-height:1.5; border-top:1px dashed var(--navy-line); padding-top:12px;}
+  .quiz-actions{display:flex; justify-content:center; margin-top:16px;}
+  .btn-primary{
+    background:var(--gold); color:#1a1305; border:none; font-family:'Inter',sans-serif;
+    font-weight:600; font-size:13px; letter-spacing:0.03em; padding:10px 22px; border-radius:4px; cursor:pointer;
+  }
+  .btn-primary:hover{background:var(--gold-bright);}
+  .btn-primary:disabled{background:var(--navy-line); color:var(--parchment-dim); cursor:not-allowed;}
+  .empty-state{text-align:center; color:var(--parchment-dim); font-size:13px; padding:30px 10px;}
+
+  /* ---- Flashcard view ---- */
+  #flash-view .scrolly{align-items:center;}
+  .flash-topic-row{width:100%; display:flex; justify-content:center;}
+  .flash-counter{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--parchment-dim); letter-spacing:0.08em;}
+  .flash-mastery{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--green); letter-spacing:0.05em;}
+  .flashcard{width:100%; max-width:420px; aspect-ratio:3/2; perspective:1200px; cursor:pointer;}
+  .flashcard-inner{position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform 0.5s;}
+  .flashcard.flipped .flashcard-inner{transform:rotateY(180deg);}
+  .flash-face{
+    position:absolute; inset:0; backface-visibility:hidden; border-radius:8px; border:1px solid var(--gold);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;
+  }
+  .flash-face.mastered{border-color:var(--green);}
+  .flash-front{background:var(--navy-panel);}
+  .flash-back{background:var(--navy-panel-2); transform:rotateY(180deg); font-size:14px; line-height:1.5;}
+  .flash-tag{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.15em; color:var(--gold); margin-bottom:10px;}
+  .flash-title{font-family:'Playfair Display', serif; font-size:19px; line-height:1.4;}
+  .flash-hint{font-size:11px; color:var(--parchment-dim); margin-top:14px;}
+  .flash-controls{display:flex; gap:8px; align-items:center; justify-content:center; width:100%; flex-wrap:wrap;}
+  .btn-ghost{
+    background:transparent; border:1px solid var(--navy-line); color:var(--parchment);
+    font-family:'Inter',sans-serif; font-size:13px; padding:9px 14px; border-radius:4px; cursor:pointer;
+  }
+  .btn-ghost:hover{border-color:var(--gold); color:var(--gold);}
+  .btn-ghost:disabled{opacity:0.4; cursor:not-allowed;}
+  .btn-ghost.mark-known{border-color:var(--green); color:var(--green);}
+  .btn-ghost.mark-known:hover{background:rgba(92,156,108,0.1);}
+
+  /* ---- Course Map view ---- */
+  .glossary-search{
+    background:var(--navy-panel); border:1px solid var(--navy-line); border-radius:4px;
+    color:var(--parchment); font-family:'Inter',sans-serif; font-size:13.5px; padding:10px 12px; width:100%;
+  }
+  .glossary-search:focus{outline:none; border-color:var(--gold);}
+  .voyage-leg{border:1px solid var(--navy-line); border-radius:6px; overflow:hidden; background:var(--navy-panel);}
+  .leg-head{
+    width:100%; display:flex; align-items:center; gap:12px; padding:14px 16px; background:transparent;
+    border:none; color:var(--parchment); cursor:pointer; text-align:left;
+  }
+  .leg-badge{
+    flex-shrink:0; width:34px; height:34px; border-radius:50%; border:1.5px solid var(--gold); color:var(--gold);
+    display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-weight:700; font-size:14px;
+  }
+  .leg-badge.done{background:var(--gold); color:#1a1305;}
+  .leg-title{flex:1; min-width:0;}
+  .leg-title b{font-family:'Playfair Display', serif; font-size:15.5px; display:block;}
+  .leg-title span{font-size:11.5px; color:var(--parchment-dim);}
+  .leg-chevron{color:var(--gold); font-size:12px; transition:transform .2s; flex-shrink:0;}
+  .voyage-leg.open .leg-chevron{transform:rotate(90deg);}
+  .leg-body{max-height:0; overflow:hidden; transition:max-height .3s ease;}
+  .voyage-leg.open .leg-body{max-height:2000px;}
+  .leg-body-inner{padding:0 16px 16px; display:flex; flex-direction:column; gap:10px; border-top:1px dashed var(--navy-line); margin:0 16px; padding-top:12px;}
+  .waypoint{display:flex; gap:10px; font-size:13px; line-height:1.5;}
+  .waypoint .wp-dot{flex-shrink:0; width:7px; height:7px; border-radius:50%; background:var(--teal); margin-top:6px;}
+  .waypoint b{color:var(--gold-bright); font-weight:600;}
+  .leg-narrative{font-size:12.5px; color:var(--parchment-dim); font-style:italic; line-height:1.55;}
+
+  .glossary-grid{display:flex; flex-direction:column; gap:8px;}
+  .gloss-card{background:var(--navy-panel); border:1px solid var(--navy-line); border-left:3px solid var(--teal); border-radius:0 4px 4px 0; padding:10px 14px;}
+  .gloss-card b{font-family:'IBM Plex Mono', monospace; color:var(--gold); font-size:12.5px; letter-spacing:0.03em;}
+  .gloss-card .gloss-full{font-size:13px; color:var(--parchment); margin:3px 0;}
+  .gloss-card .gloss-why{font-size:12px; color:var(--parchment-dim); line-height:1.5;}
+
+  /* ---- Milestones (PEME / BT / SDSD / OBT) ---- */
+  .milestone-row{
+    display:flex; align-items:flex-start; gap:12px; background:var(--navy-panel); border:1px solid var(--navy-line);
+    border-radius:6px; padding:12px 14px; cursor:pointer;
+  }
+  .milestone-row.done{border-color:var(--green);}
+  .m-check{
+    flex-shrink:0; width:20px; height:20px; border-radius:50%; border:2px solid var(--navy-line); margin-top:1px;
+    display:flex; align-items:center; justify-content:center; font-size:11px; color:transparent; transition:all .15s;
+  }
+  .milestone-row.done .m-check{border-color:var(--green); background:var(--green); color:#0A1B2E;}
+  .m-body b{display:block; font-size:13.5px;}
+  .m-body span{font-size:12px; color:var(--parchment-dim); line-height:1.5;}
+  .progress-track{height:6px; background:var(--navy-line); border-radius:3px; overflow:hidden;}
+  .progress-fill{height:100%; background:linear-gradient(90deg, var(--teal), var(--gold)); transition:width .4s ease;}
+  .progress-caption{display:flex; justify-content:space-between; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--parchment-dim); letter-spacing:0.05em;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="compass"><div class="needle"></div></div>
+    <div class="titles">
+      <div class="eyebrow">BSMT Study Console</div>
+      <h1>Bridge Watch<span class="scope-badge">MARITIME ONLY</span></h1>
+      <div class="subtitle">COLREGS · Navigation · Seamanship · Maritime Law · PEME &amp; PFT</div>
+    </div>
+  </header>
+
+  <div id="tabs">
+    <button class="tab-btn active" data-view="log-view">SHIP'S LOG</button>
+    <button class="tab-btn" data-view="map-view">COURSE MAP</button>
+    <button class="tab-btn" data-view="quiz-view">QUIZ</button>
+    <button class="tab-btn" data-view="flash-view">FLASHCARDS</button>
+    <button class="tab-btn" data-view="milestone-view">MILESTONES</button>
+  </div>
+
+  <!-- ============ SHIP'S LOG (chat) ============ -->
+  <div id="log-view" class="view active">
+    <div id="log"></div>
+    <div id="composer">
+      <div class="composer-row">
+        <textarea id="input" placeholder="Ask about COLREGS, chartwork, tides, ship stability, maritime law, PEME, PFT..." rows="1"></textarea>
+        <button id="send">LOG ENTRY</button>
+      </div>
+      <div class="hint">Every answer is checked against bonafide maritime sources (IMO, PCG, MARINA, DOH, official texts) — no guessing, no unverified theory.</div>
+    </div>
+  </div>
+
+  <!-- ============ COURSE MAP ============ -->
+  <div id="map-view" class="view">
+    <div class="scrolly" id="map-scrolly">
+      <div class="section-label">The voyage — CHED → MHEI → MARINA → OICNW</div>
+      <input class="glossary-search" id="gloss-search" placeholder="Search a term — e.g. ARPA, ECDIS, BT, D-WATCH...">
+      <div id="voyage-legs"></div>
+      <div class="section-label" style="margin-top:6px;">Glossary — matches for your search</div>
+      <div class="glossary-grid" id="gloss-results"></div>
+    </div>
+  </div>
+
+  <!-- ============ QUIZ ============ -->
+  <div id="quiz-view" class="view">
+    <div class="scrolly">
+      <div class="topic-picker" id="quiz-topics">
+        <button class="topic-chip active" data-topic="COLREGS">COLREGS</button>
+        <button class="topic-chip" data-topic="Navigational Instruments with Compasses (Nav 1)">Nav Instruments &amp; Compasses</button>
+        <button class="topic-chip" data-topic="Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)">Ship IT &amp; Network Systems</button>
+        <button class="topic-chip" data-topic="Ship, Ship Routines, and Ship Construction (Seamanship 1)">Ship Construction &amp; Routines</button>
+        <button class="topic-chip" data-topic="Ship Stability">Stability</button>
+        <button class="topic-chip" data-topic="Maritime Law (SOLAS/MARPOL/STCW)">Maritime Law</button>
+        <button class="topic-chip" data-topic="Seamanship & Watchkeeping">Seamanship</button>
+        <button class="topic-chip" data-topic="Basic Training (BT) and Security Training (SDSD)">BT &amp; SDSD</button>
+        <button class="topic-chip" data-topic="Pre-Employment Medical Examination (PEME) for Filipino Seafarers">PEME</button>
+      </div>
+      <div class="quiz-score" id="quiz-score">Score: <b>0</b> / 0</div>
+      <div id="quiz-body">
+        <div class="empty-state">Pick a topic, then start the quiz.<br><br>
+          <button class="btn-primary" id="quiz-start">START QUIZ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FLASHCARDS ============ -->
+  <div id="flash-view" class="view">
+    <div class="scrolly">
+      <div class="flash-topic-row">
+        <div class="topic-picker" id="flash-topics">
+          <button class="topic-chip active" data-topic="core">Core COLREGS</button>
+          <button class="topic-chip" data-topic="Navigational Instruments with Compasses (Nav 1)">Nav Instruments &amp; Compasses</button>
+          <button class="topic-chip" data-topic="Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)">Ship IT &amp; Network Systems</button>
+          <button class="topic-chip" data-topic="Ship, Ship Routines, and Ship Construction (Seamanship 1)">Ship Construction &amp; Routines</button>
+          <button class="topic-chip" data-topic="Ship Stability">Stability</button>
+          <button class="topic-chip" data-topic="Maritime Law (SOLAS/MARPOL/STCW)">Maritime Law</button>
+          <button class="topic-chip" data-topic="Pre-Employment Medical Examination (PEME) for Filipino Seafarers">PEME</button>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; width:100%; max-width:420px;">
+        <div class="flash-counter" id="flash-counter">Card 1 of 8</div>
+        <div class="flash-mastery" id="flash-mastery">0 mastered</div>
+      </div>
+      <div class="flashcard" id="flashcard">
+        <div class="flashcard-inner">
+          <div class="flash-face flash-front" id="flash-face-front">
+            <div class="flash-tag" id="flash-tag-front">RULE</div>
+            <div class="flash-title" id="flash-front-text">Loading...</div>
+            <div class="flash-hint">Tap to reveal</div>
+          </div>
+          <div class="flash-face flash-back" id="flash-face-back">
+            <div class="flash-tag">ANSWER</div>
+            <div id="flash-back-text">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="flash-controls">
+        <button class="btn-ghost" id="flash-prev">◀ PREV</button>
+        <button class="btn-ghost mark-known" id="flash-known">✓ GOT IT</button>
+        <button class="btn-ghost" id="flash-next">NEXT ▶</button>
+      </div>
+      <div class="flash-controls">
+        <button class="btn-ghost" id="flash-more">+ GENERATE 6 MORE (VERIFIED)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MILESTONES ============ -->
+  <div id="milestone-view" class="view">
+    <div class="scrolly">
+      <div class="section-label">Your pathway to OICNW</div>
+      <div class="progress-track"><div class="progress-fill" id="milestone-progress-fill" style="width:0%"></div></div>
+      <div class="progress-caption"><span id="milestone-progress-label">0 of 0 cleared</span><span>CHED → MHEI → MARINA</span></div>
+      <div id="milestone-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <div class="hint" style="text-align:left;">This tracker is a personal study checklist only — it is not an official record. Your MHEI registrar and MARINA hold your actual clearance status.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   SHARED: Claude API bridge
+   ===================================================================== */
+const MODEL = "claude-sonnet-4-6";
+
+// Bridge Watch does NOT call api.anthropic.com directly. A browser page can't
+// hold an API key safely (anyone can read it via view-source), so instead this
+// calls YOUR OWN backend proxy, which holds the key server-side and forwards
+// the request to Anthropic. Point this at your deployed Apps Script Web App
+// URL (or any other proxy you build) — see backend/apps-script-proxy.gs and
+// README.md for a ready-made Google Apps Script version.
 const BACKEND_ENDPOINT = "PASTE_YOUR_BACKEND_PROXY_URL_HERE";
 
 async function callClaude(systemPrompt, messages, maxTokens){
