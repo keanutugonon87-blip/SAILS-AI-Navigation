@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bridge Watch — BSMT Study Console</title>
+<title>Bridge Watch — Maritime Transportation Study Aid</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --navy-deep:#0A1B2E;
     --navy-panel:#122A45;
-    --navy-panel-2:#0E2438;
     --navy-line:#22415F;
     --gold:#C79A3D;
     --gold-bright:#E0B85C;
@@ -18,34 +17,50 @@
     --parchment-dim:#C9C0A8;
     --teal:#3E7382;
     --rust:#B6552E;
-    --green:#5C9C6C;
     --shadow:rgba(0,0,0,0.35);
   }
   *{box-sizing:border-box;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+  }
   html,body{
     margin:0; height:100%;
-    background: radial-gradient(ellipse at top, #102640 0%, var(--navy-deep) 55%);
+    background:
+      radial-gradient(ellipse at top, #102640 0%, var(--navy-deep) 55%);
     color:var(--parchment);
     font-family:'Inter',sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  ::selection{background:rgba(199,154,61,0.35);}
-  *:focus-visible{outline:2px solid var(--gold-bright); outline-offset:2px;}
-  @media (prefers-reduced-motion: reduce){
-    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
-  }
   #app{
-    max-width:800px;
+    max-width:760px;
     margin:0 auto;
     height:100vh;
     display:flex;
     flex-direction:column;
     padding:0 18px;
+    opacity:0;
+    animation:appIn 0.5s cubic-bezier(.16,.8,.3,1) forwards;
+  }
+  @keyframes appIn{
+    from{ opacity:0; transform:translateY(6px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeInUp{
+    from{ opacity:0; transform:translateY(10px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeIn{
+    from{ opacity:0; }
+    to{ opacity:1; }
+  }
+  @keyframes popIn{
+    from{ opacity:0; transform:scale(0.96); }
+    to{ opacity:1; transform:scale(1); }
   }
 
   /* ---- Header: brass plate ---- */
   header{
-    padding:20px 4px 14px;
+    padding:22px 4px 16px;
     border-bottom:1px solid var(--navy-line);
     display:flex;
     align-items:center;
@@ -53,7 +68,7 @@
     flex-shrink:0;
   }
   .compass{
-    width:44px; height:44px; flex-shrink:0;
+    width:46px; height:46px; flex-shrink:0;
     border-radius:50%;
     border:2px solid var(--gold);
     position:relative;
@@ -71,7 +86,7 @@
   }
   .compass .needle{
     position:absolute; left:50%; top:50%;
-    width:2px; height:15px;
+    width:2px; height:16px;
     background:var(--gold-bright);
     transform-origin:bottom center;
     transform:translate(-50%,-100%) rotate(0deg);
@@ -92,26 +107,14 @@
   h1{
     font-family:'Playfair Display', serif;
     font-weight:700;
-    font-size:21px;
+    font-size:22px;
     margin:2px 0 0;
     letter-spacing:0.01em;
   }
   .subtitle{
-    font-size:11.5px;
+    font-size:12px;
     color:var(--parchment-dim);
     margin-top:2px;
-  }
-  .scope-badge{
-    display:inline-block;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:9.5px;
-    letter-spacing:0.1em;
-    color:var(--rust);
-    border:1px solid var(--rust);
-    padding:2px 6px;
-    border-radius:2px;
-    margin-left:8px;
-    vertical-align:middle;
   }
 
   /* ---- Tabs ---- */
@@ -120,31 +123,42 @@
     gap:2px;
     padding:12px 2px 0;
     flex-shrink:0;
-    overflow-x:auto;
   }
   .tab-btn{
+    position:relative;
     flex:1;
-    min-width:78px;
     background:transparent;
     border:1px solid var(--navy-line);
     border-bottom:none;
     color:var(--parchment-dim);
     font-family:'IBM Plex Mono', monospace;
-    font-size:10px;
-    letter-spacing:0.08em;
-    padding:9px 4px;
+    font-size:10.5px;
+    letter-spacing:0.1em;
+    padding:9px 6px;
     cursor:pointer;
     border-radius:4px 4px 0 0;
-    transition:all 0.15s;
+    transition:color 0.2s ease, background 0.25s ease, transform 0.15s ease;
+  }
+  .tab-btn::after{
+    content:"";
+    position:absolute; left:10%; right:10%; bottom:-1px;
+    height:2px;
+    background:var(--gold);
+    border-radius:2px 2px 0 0;
+    transform:scaleX(0);
+    transform-origin:center;
+    transition:transform 0.25s cubic-bezier(.16,.8,.3,1);
   }
   .tab-btn.active{
     background:var(--navy-panel);
     color:var(--gold);
     border-color:var(--navy-line);
   }
-  .tab-btn:hover:not(.active){color:var(--parchment);}
+  .tab-btn.active::after{ transform:scaleX(1); }
+  .tab-btn:hover:not(.active){color:var(--parchment); transform:translateY(-1px);}
+  .tab-btn:active{ transform:translateY(0) scale(0.98); }
   .view{display:none; flex:1; min-height:0; flex-direction:column;}
-  .view.active{display:flex;}
+  .view.active{display:flex; animation:fadeInUp 0.35s cubic-bezier(.16,.8,.3,1);}
 
   /* ---- Log (chat area) ---- */
   #log{
@@ -155,10 +169,10 @@
     flex-direction:column;
     gap:16px;
   }
-  #log::-webkit-scrollbar, .scrolly::-webkit-scrollbar{width:6px;}
-  #log::-webkit-scrollbar-thumb, .scrolly::-webkit-scrollbar-thumb{background:var(--navy-line); border-radius:3px;}
+  #log::-webkit-scrollbar{width:6px;}
+  #log::-webkit-scrollbar-thumb{background:var(--navy-line); border-radius:3px;}
 
-  .entry{max-width:100%;}
+  .entry{max-width:100%; animation:fadeInUp 0.4s cubic-bezier(.16,.8,.3,1);}
   .entry-meta{
     font-family:'IBM Plex Mono', monospace;
     font-size:10px;
@@ -175,10 +189,11 @@
   .bubble{
     padding:12px 14px;
     border-radius:3px;
-    line-height:1.6;
+    line-height:1.55;
     font-size:14.5px;
     white-space:pre-wrap;
     border-left:3px solid transparent;
+    transition:background 0.25s ease, box-shadow 0.25s ease;
   }
   .entry.user .bubble{
     background:rgba(62,115,130,0.14);
@@ -194,19 +209,45 @@
     color:var(--parchment-dim);
     font-style:italic;
   }
-  .entry.system .retry-btn{
-    margin-top:8px;
-  }
 
   .sources-block{
     margin-top:8px;
-    padding:10px 14px;
-    background:rgba(199,154,61,0.06);
     border-left:3px solid var(--gold);
     border-radius:0 3px 3px 0;
+    background:rgba(199,154,61,0.06);
+  }
+  .sources-block summary{
+    cursor:pointer;
+    padding:9px 14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    letter-spacing:0.12em;
+    color:var(--gold);
+    list-style:none;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    user-select:none;
+  }
+  .sources-block summary::-webkit-details-marker{display:none;}
+  .sources-block summary::before{
+    content:"▸";
+    font-size:11px;
+    transition:transform 0.15s;
+  }
+  .sources-block[open] summary::before{
+    transform:rotate(90deg);
+  }
+  .sources-block summary .sources-count{
+    color:var(--parchment-dim);
+    letter-spacing:0.05em;
+    text-transform:none;
+  }
+  .sources-block-body{
+    padding:2px 14px 12px;
     display:flex;
     flex-direction:column;
-    gap:5px;
+    gap:10px;
   }
   .sources-label{
     font-family:'IBM Plex Mono', monospace;
@@ -222,6 +263,46 @@
   }
   .source-link:hover{color:var(--gold-bright); text-decoration:underline;}
 
+  /* cited-text highlighting in the answer body */
+  .cited-highlight{
+    background:rgba(199,154,61,0.16);
+    border-bottom:1px dashed var(--gold);
+    padding:0 1px;
+  }
+  .footnote-marker{
+    font-size:10px;
+    color:var(--gold);
+    vertical-align:super;
+    margin-left:1px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .source-item{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+  }
+  .source-item-head{
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+  }
+  .source-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--gold);
+    flex-shrink:0;
+  }
+  .source-quote{
+    display:block;
+    margin:2px 0 0 18px;
+    padding-left:10px;
+    border-left:2px solid var(--navy-line);
+    font-style:italic;
+    font-size:12.5px;
+    line-height:1.45;
+    color:var(--parchment-dim);
+  }
+
   .thinking{
     display:flex; align-items:center; gap:10px;
     color:var(--parchment-dim);
@@ -234,7 +315,6 @@
     border:1.5px solid var(--gold);
     position:relative;
     animation:spin 1.4s linear infinite;
-    flex-shrink:0;
   }
   .mini-compass::before{
     content:"";
@@ -244,20 +324,6 @@
     transform:translateX(-50%);
   }
   @keyframes spin{to{transform:rotate(360deg);}}
-
-  /* ---- Suggested chips (empty-state helpers on log) ---- */
-  .suggest-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;}
-  .suggest-chip{
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    color:var(--parchment-dim);
-    font-size:12px;
-    padding:7px 12px;
-    border-radius:16px;
-    cursor:pointer;
-    transition:all .15s;
-  }
-  .suggest-chip:hover{border-color:var(--gold); color:var(--gold);}
 
   /* ---- Composer ---- */
   #composer{
@@ -309,19 +375,37 @@
     margin-top:8px;
     text-align:center;
   }
-
-  /* ---- Shared: sections/cards ---- */
-  .scrolly{padding:18px 2px 24px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;}
-  .section-label{
+  .scope-badge{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    letter-spacing:0.1em;
+    color:var(--rust);
+    border:1px solid var(--rust);
+    padding:2px 6px;
+    border-radius:2px;
+    margin-left:8px;
+    vertical-align:middle;
+  }
+  .log-clear-link{
+    background:none;
+    border:none;
+    color:var(--rust);
+    text-decoration:underline;
     font-family:'IBM Plex Mono', monospace;
     font-size:10.5px;
-    letter-spacing:0.16em;
-    color:var(--gold);
-    text-transform:uppercase;
-    display:flex; align-items:center; gap:8px;
+    cursor:pointer;
+    padding:0;
+    margin-left:4px;
   }
-  .section-label::after{content:""; flex:1; height:1px; background:var(--navy-line);}
-  .topic-picker{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px;}
+  .log-clear-link:hover{color:#D97A4C;}
+
+  /* ---- Quiz view ---- */
+  #quiz-view{padding:18px 2px; overflow-y:auto; gap:16px;}
+  .topic-picker{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin-bottom:6px;
+  }
   .topic-chip{
     background:var(--navy-panel);
     border:1px solid var(--navy-line);
@@ -331,346 +415,490 @@
     padding:7px 13px;
     border-radius:20px;
     cursor:pointer;
-    transition:all 0.15s;
+    transition:border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.15s ease;
   }
-  .topic-chip.active{border-color:var(--gold); color:var(--gold); background:rgba(199,154,61,0.08);}
-
-  /* ---- Quiz view ---- */
-  .quiz-score{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--parchment-dim); letter-spacing:0.05em;}
+  .topic-chip:hover{ transform:translateY(-1px); }
+  .topic-chip:active{ transform:translateY(0) scale(0.96); }
+  .topic-chip.active{
+    border-color:var(--gold);
+    color:var(--gold);
+    background:rgba(199,154,61,0.08);
+  }
+  .quiz-score{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--parchment-dim);
+    letter-spacing:0.05em;
+  }
   .quiz-score b{color:var(--gold);}
-  .quiz-card{background:var(--navy-panel); border:1px solid var(--navy-line); border-radius:6px; padding:20px;}
-  .quiz-question{font-family:'Playfair Display', serif; font-size:17px; line-height:1.45; margin-bottom:16px;}
+  .quiz-card{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-radius:6px;
+    padding:20px;
+    animation:fadeInUp 0.4s cubic-bezier(.16,.8,.3,1);
+  }
+  .quiz-question{
+    font-family:'Playfair Display', serif;
+    font-size:17px;
+    line-height:1.45;
+    margin-bottom:16px;
+  }
   .quiz-option{
-    display:block; width:100%; text-align:left;
-    background:rgba(255,255,255,0.02); border:1px solid var(--navy-line); color:var(--parchment);
-    font-family:'Inter',sans-serif; font-size:13.5px; padding:11px 14px; border-radius:4px;
-    margin-bottom:8px; cursor:pointer; transition:all 0.15s;
+    display:block;
+    width:100%;
+    text-align:left;
+    background:rgba(255,255,255,0.02);
+    border:1px solid var(--navy-line);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    padding:11px 14px;
+    border-radius:4px;
+    margin-bottom:8px;
+    cursor:pointer;
+    transition:border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.12s ease;
   }
-  .quiz-option:hover:not(:disabled){border-color:var(--gold);}
+  .quiz-option:hover:not(:disabled){border-color:var(--gold); transform:translateX(2px);}
+  .quiz-option:active:not(:disabled){transform:translateX(2px) scale(0.99);}
   .quiz-option:disabled{cursor:default;}
-  .quiz-option.correct{border-color:var(--green); background:rgba(92,156,108,0.14); color:#BFE6C8;}
-  .quiz-option.incorrect{border-color:var(--rust); background:rgba(182,85,46,0.14); color:#F0B8A0;}
-  .quiz-explain{margin-top:12px; font-size:13px; color:var(--parchment-dim); line-height:1.5; border-top:1px dashed var(--navy-line); padding-top:12px;}
-  .quiz-actions{display:flex; justify-content:center; margin-top:16px;}
-  .btn-primary{
-    background:var(--gold); color:#1a1305; border:none; font-family:'Inter',sans-serif;
-    font-weight:600; font-size:13px; letter-spacing:0.03em; padding:10px 22px; border-radius:4px; cursor:pointer;
+  .quiz-option.correct{border-color:#5C9C6C; background:rgba(92,156,108,0.14); color:#BFE6C8; animation:popIn 0.3s ease;}
+  .quiz-option.incorrect{border-color:var(--rust); background:rgba(182,85,46,0.14); color:#F0B8A0; animation:shake 0.4s ease;}
+  @keyframes shake{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-4px);}
+    40%{transform:translateX(4px);}
+    60%{transform:translateX(-3px);}
+    80%{transform:translateX(3px);}
   }
-  .btn-primary:hover{background:var(--gold-bright);}
+  .quiz-explain{
+    margin-top:12px;
+    font-size:13px;
+    color:var(--parchment-dim);
+    line-height:1.5;
+    border-top:1px dashed var(--navy-line);
+    padding-top:12px;
+  }
+  .quiz-actions{
+    display:flex; justify-content:center;
+    margin-top:16px;
+  }
+  .btn-primary{
+    background:var(--gold);
+    color:#1a1305;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.03em;
+    padding:10px 22px;
+    border-radius:4px;
+    cursor:pointer;
+    transition:background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  .btn-primary:hover:not(:disabled){background:var(--gold-bright); transform:translateY(-1px); box-shadow:0 4px 14px rgba(199,154,61,0.25);}
+  .btn-primary:active:not(:disabled){transform:translateY(0) scale(0.97); box-shadow:none;}
   .btn-primary:disabled{background:var(--navy-line); color:var(--parchment-dim); cursor:not-allowed;}
-  .empty-state{text-align:center; color:var(--parchment-dim); font-size:13px; padding:30px 10px;}
+  .empty-state{
+    text-align:center;
+    color:var(--parchment-dim);
+    font-size:13px;
+    padding:30px 10px;
+    animation:fadeIn 0.4s ease;
+  }
 
   /* ---- Flashcard view ---- */
-  #flash-view .scrolly{align-items:center;}
+  #flash-view{padding:18px 2px; overflow-y:auto; gap:16px; align-items:center;}
   .flash-topic-row{width:100%; display:flex; justify-content:center;}
-  .flash-counter{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--parchment-dim); letter-spacing:0.08em;}
-  .flash-mastery{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--green); letter-spacing:0.05em;}
-  .flashcard{width:100%; max-width:420px; aspect-ratio:3/2; perspective:1200px; cursor:pointer;}
-  .flashcard-inner{position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform 0.5s;}
+  .flash-counter{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--parchment-dim);
+    letter-spacing:0.08em;
+  }
+  .flashcard{
+    width:100%;
+    max-width:420px;
+    aspect-ratio:3/2;
+    perspective:1200px;
+    cursor:pointer;
+    animation:popIn 0.35s cubic-bezier(.16,.8,.3,1);
+  }
+  .flashcard-inner{
+    position:relative;
+    width:100%; height:100%;
+    transform-style:preserve-3d;
+    transition:transform 0.55s cubic-bezier(.34,1.2,.64,1);
+  }
+  .flashcard:hover .flashcard-inner{ transform:translateY(-2px) scale(1.01); }
+  .flashcard.flipped:hover .flashcard-inner{ transform:rotateY(180deg) translateY(-2px) scale(1.01); }
   .flashcard.flipped .flashcard-inner{transform:rotateY(180deg);}
   .flash-face{
-    position:absolute; inset:0; backface-visibility:hidden; border-radius:8px; border:1px solid var(--gold);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;
+    position:absolute; inset:0;
+    backface-visibility:hidden;
+    border-radius:8px;
+    border:1px solid var(--gold);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+    padding:24px;
+    transition:box-shadow 0.3s ease;
   }
-  .flash-face.mastered{border-color:var(--green);}
-  .flash-front{background:var(--navy-panel);}
-  .flash-back{background:var(--navy-panel-2); transform:rotateY(180deg); font-size:14px; line-height:1.5;}
-  .flash-tag{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.15em; color:var(--gold); margin-bottom:10px;}
-  .flash-title{font-family:'Playfair Display', serif; font-size:19px; line-height:1.4;}
-  .flash-hint{font-size:11px; color:var(--parchment-dim); margin-top:14px;}
-  .flash-controls{display:flex; gap:8px; align-items:center; justify-content:center; width:100%; flex-wrap:wrap;}
+  .flashcard:hover .flash-face{ box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+  .flash-front{
+    background:var(--navy-panel);
+  }
+  .flash-back{
+    background:#0E2438;
+    transform:rotateY(180deg);
+    font-size:14px;
+    line-height:1.5;
+  }
+  .flash-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:0.15em;
+    color:var(--gold);
+    margin-bottom:10px;
+  }
+  .flash-title{
+    font-family:'Playfair Display', serif;
+    font-size:19px;
+    line-height:1.4;
+  }
+  .flash-hint{
+    font-size:11px;
+    color:var(--parchment-dim);
+    margin-top:14px;
+  }
+  .flash-controls{
+    display:flex; gap:10px; align-items:center; justify-content:center;
+    width:100%;
+  }
   .btn-ghost{
-    background:transparent; border:1px solid var(--navy-line); color:var(--parchment);
-    font-family:'Inter',sans-serif; font-size:13px; padding:9px 14px; border-radius:4px; cursor:pointer;
+    background:transparent;
+    border:1px solid var(--navy-line);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:9px 16px;
+    border-radius:4px;
+    cursor:pointer;
+    transition:border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
   }
-  .btn-ghost:hover{border-color:var(--gold); color:var(--gold);}
+  .btn-ghost:hover:not(:disabled){border-color:var(--gold); color:var(--gold); transform:translateY(-1px);}
+  .btn-ghost:active:not(:disabled){transform:translateY(0) scale(0.96);}
   .btn-ghost:disabled{opacity:0.4; cursor:not-allowed;}
-  .btn-ghost.mark-known{border-color:var(--green); color:var(--green);}
-  .btn-ghost.mark-known:hover{background:rgba(92,156,108,0.1);}
 
-  /* ---- Course Map view ---- */
-  .glossary-search{
-    background:var(--navy-panel); border:1px solid var(--navy-line); border-radius:4px;
-    color:var(--parchment); font-family:'Inter',sans-serif; font-size:13.5px; padding:10px 12px; width:100%;
+  /* ---- Navigation practice view ---- */
+  #nav-view{padding:18px 2px; overflow-y:auto; gap:14px; align-items:center;}
+  .nav-prompt{
+    width:100%;
+    max-width:440px;
+    font-size:13.5px;
+    line-height:1.5;
+    color:var(--parchment);
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-radius:6px;
+    padding:12px 14px;
   }
-  .glossary-search:focus{outline:none; border-color:var(--gold);}
-  .voyage-leg{border:1px solid var(--navy-line); border-radius:6px; overflow:hidden; background:var(--navy-panel);}
-  .leg-head{
-    width:100%; display:flex; align-items:center; gap:12px; padding:14px 16px; background:transparent;
-    border:none; color:var(--parchment); cursor:pointer; text-align:left;
+  .nav-prompt b{color:var(--gold);}
+  .nav-teach-note{
+    width:100%;
+    max-width:440px;
+    font-size:12px;
+    line-height:1.5;
+    font-style:italic;
+    color:var(--parchment-dim);
+    border-left:2px solid var(--navy-line);
+    padding-left:10px;
   }
-  .leg-badge{
-    flex-shrink:0; width:34px; height:34px; border-radius:50%; border:1.5px solid var(--gold); color:var(--gold);
-    display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-weight:700; font-size:14px;
+  .nav-chart-wrap{
+    width:100%;
+    max-width:440px;
   }
-  .leg-badge.done{background:var(--gold); color:#1a1305;}
-  .leg-title{flex:1; min-width:0;}
-  .leg-title b{font-family:'Playfair Display', serif; font-size:15.5px; display:block;}
-  .leg-title span{font-size:11.5px; color:var(--parchment-dim);}
-  .leg-chevron{color:var(--gold); font-size:12px; transition:transform .2s; flex-shrink:0;}
-  .voyage-leg.open .leg-chevron{transform:rotate(90deg);}
-  .leg-body{max-height:0; overflow:hidden; transition:max-height .3s ease;}
-  .voyage-leg.open .leg-body{max-height:2000px;}
-  .leg-body-inner{padding:0 16px 16px; display:flex; flex-direction:column; gap:10px; border-top:1px dashed var(--navy-line); margin:0 16px; padding-top:12px;}
-  .waypoint{display:flex; gap:10px; font-size:13px; line-height:1.5;}
-  .waypoint .wp-dot{flex-shrink:0; width:7px; height:7px; border-radius:50%; background:var(--teal); margin-top:6px;}
-  .waypoint b{color:var(--gold-bright); font-weight:600;}
-  .leg-narrative{font-size:12.5px; color:var(--parchment-dim); font-style:italic; line-height:1.55;}
+  #nav-chart{
+    width:100%;
+    aspect-ratio:1/1;
+    display:block;
+    border-radius:6px;
+    border:1px solid var(--navy-line);
+    background:#0E2438;
+  }
+  .nav-feedback{
+    width:100%;
+    max-width:440px;
+    min-height:18px;
+    font-size:13px;
+    line-height:1.5;
+    color:var(--parchment-dim);
+  }
+  .nav-feedback b{color:var(--gold-bright);}
+  .nav-input-row{
+    display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;
+    width:100%;
+    max-width:440px;
+  }
+  .nav-input-row label{
+    display:flex; flex-direction:column;
+    font-size:11px;
+    color:var(--parchment-dim);
+    gap:4px;
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.05em;
+  }
+  .nav-input-row input{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:8px 10px;
+    border-radius:4px;
+    width:90px;
+  }
+  .nav-input-row input:focus{outline:none; border-color:var(--gold);}
+  .nav-input-row input:disabled{opacity:0.5;}
+  .nav-actions{
+    display:flex; justify-content:center;
+    width:100%;
+    max-width:440px;
+  }
 
-  .glossary-grid{display:flex; flex-direction:column; gap:8px;}
-  .gloss-card{background:var(--navy-panel); border:1px solid var(--navy-line); border-left:3px solid var(--teal); border-radius:0 4px 4px 0; padding:10px 14px;}
-  .gloss-card b{font-family:'IBM Plex Mono', monospace; color:var(--gold); font-size:12.5px; letter-spacing:0.03em;}
-  .gloss-card .gloss-full{font-size:13px; color:var(--parchment); margin:3px 0;}
-  .gloss-card .gloss-why{font-size:12px; color:var(--parchment-dim); line-height:1.5;}
-
-  /* ---- Milestones (PEME / BT / SDSD / OBT) ---- */
-  .milestone-row{
-    display:flex; align-items:flex-start; gap:12px; background:var(--navy-panel); border:1px solid var(--navy-line);
-    border-radius:6px; padding:12px 14px; cursor:pointer;
+  /* ---- Auth overlay ---- */
+  .auth-overlay{
+    position:fixed; inset:0;
+    background: radial-gradient(ellipse at top, #102640 0%, var(--navy-deep) 55%);
+    display:flex; align-items:center; justify-content:center;
+    z-index:1000;
+    padding:20px;
+    animation:fadeIn 0.35s ease;
+    transition:opacity 0.25s ease;
   }
-  .milestone-row.done{border-color:var(--green);}
-  .m-check{
-    flex-shrink:0; width:20px; height:20px; border-radius:50%; border:2px solid var(--navy-line); margin-top:1px;
-    display:flex; align-items:center; justify-content:center; font-size:11px; color:transparent; transition:all .15s;
+  .auth-overlay.leaving{ opacity:0; pointer-events:none; }
+  .auth-card{
+    width:100%; max-width:360px;
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-radius:8px;
+    padding:28px 26px 24px;
+    text-align:center;
+    animation:popIn 0.4s cubic-bezier(.16,.8,.3,1);
   }
-  .milestone-row.done .m-check{border-color:var(--green); background:var(--green); color:#0A1B2E;}
-  .m-body b{display:block; font-size:13.5px;}
-  .m-body span{font-size:12px; color:var(--parchment-dim); line-height:1.5;}
-  .progress-track{height:6px; background:var(--navy-line); border-radius:3px; overflow:hidden;}
-  .progress-fill{height:100%; background:linear-gradient(90deg, var(--teal), var(--gold)); transition:width .4s ease;}
-  .progress-caption{display:flex; justify-content:space-between; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--parchment-dim); letter-spacing:0.05em;}
+  .auth-title{
+    font-family:'Playfair Display', serif;
+    font-size:22px;
+    margin:14px 0 4px;
+  }
+  .auth-tabs{
+    display:flex; gap:2px; margin:18px 0 16px;
+    border:1px solid var(--navy-line); border-radius:6px; overflow:hidden;
+  }
+  .auth-tab{
+    flex:1; background:transparent; border:none; color:var(--parchment-dim);
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em;
+    padding:9px 4px; cursor:pointer;
+    transition:background 0.2s ease, color 0.2s ease;
+  }
+  .auth-tab.active{ background:rgba(199,154,61,0.12); color:var(--gold); }
+  .auth-form{ display:flex; flex-direction:column; gap:12px; text-align:left; }
+  .auth-form label{
+    display:flex; flex-direction:column; gap:5px;
+    font-size:11px; letter-spacing:0.06em; color:var(--parchment-dim);
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .auth-form input{
+    background:#0E2438; border:1px solid var(--navy-line); border-radius:4px;
+    color:var(--parchment); font-family:'Inter',sans-serif; font-size:14px;
+    padding:10px 12px;
+    transition:border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .auth-form input:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(199,154,61,0.12); }
+  .auth-error{
+    font-size:12px; color:var(--rust); min-height:16px;
+    transition:opacity 0.2s ease;
+  }
+  .auth-error:not(:empty){ animation:shake 0.4s ease; }
+  .auth-submit{ width:100%; margin-top:2px; }
+  .auth-note{
+    margin-top:16px; font-size:11px; line-height:1.5; color:var(--parchment-dim);
+  }
+  .auth-setup-warning{
+    margin-top:14px; font-size:11px; line-height:1.5; color:var(--rust);
+    border:1px solid var(--rust); border-radius:4px; padding:10px;
+    text-align:left;
+    animation:fadeIn 0.4s ease;
+  }
+  .account-chip{
+    display:flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono', monospace; font-size:11px;
+    color:var(--parchment-dim); flex-shrink:0;
+    animation:fadeIn 0.4s ease;
+  }
+  .account-chip #account-username{ color:var(--gold); }
 </style>
 </head>
 <body>
-<div id="app">
+<div id="auth-overlay" class="auth-overlay">
+  <div class="auth-card">
+    <div class="compass"><div class="needle"></div></div>
+    <h2 class="auth-title">Bridge Watch</h2>
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" data-mode="login">LOG IN</button>
+      <button type="button" class="auth-tab" data-mode="signup">SIGN UP</button>
+    </div>
+    <form id="auth-form" class="auth-form">
+      <label>Username
+        <input type="text" id="auth-username" autocomplete="username" required>
+      </label>
+      <label>Password
+        <input type="password" id="auth-password" autocomplete="current-password" required>
+      </label>
+      <div class="auth-error" id="auth-error"></div>
+      <button type="submit" class="btn-primary auth-submit" id="auth-submit">LOG IN</button>
+    </form>
+    <div class="auth-note">Your Bridge Watch account is separate from your Claude.ai login — pick your own username and password. Your Ship's Log is saved to this account and follows you across devices.</div>
+    <div class="auth-setup-warning" id="auth-setup-warning" style="display:none">No auth server is configured yet. Deploy the included <code>Code.gs</code> as an Apps Script Web App, then set <code>APPS_SCRIPT_URL</code> near the top of this file's script to your deployed <code>/exec</code> URL.</div>
+  </div>
+</div>
+<div id="app" style="display:none">
   <header>
     <div class="compass"><div class="needle"></div></div>
     <div class="titles">
       <div class="eyebrow">BSMT Study Console</div>
       <h1>Bridge Watch<span class="scope-badge">MARITIME ONLY</span></h1>
-      <div class="subtitle">COLREGS · Navigation · Seamanship · Maritime Law · PEME &amp; PFT</div>
+      <div class="subtitle">Your AI Maritime Teacher — Navigation · Seamanship · Stability · Engineering · Law · Safety</div>
+    </div>
+    <div class="account-chip" id="account-chip" style="display:none">
+      <span id="account-username"></span>
+      <button type="button" id="logout-btn" class="log-clear-link">Log out</button>
     </div>
   </header>
 
   <div id="tabs">
     <button class="tab-btn active" data-view="log-view">SHIP'S LOG</button>
-    <button class="tab-btn" data-view="map-view">COURSE MAP</button>
+    <button class="tab-btn" data-view="nav-view">NAVIGATION</button>
     <button class="tab-btn" data-view="quiz-view">QUIZ</button>
     <button class="tab-btn" data-view="flash-view">FLASHCARDS</button>
-    <button class="tab-btn" data-view="milestone-view">MILESTONES</button>
   </div>
 
-  <!-- ============ SHIP'S LOG (chat) ============ -->
   <div id="log-view" class="view active">
     <div id="log"></div>
     <div id="composer">
       <div class="composer-row">
-        <textarea id="input" placeholder="Ask about COLREGS, chartwork, tides, ship stability, maritime law, PEME, PFT..." rows="1"></textarea>
+        <textarea id="input" placeholder="Ask about navigation, seamanship, stability, engineering, maritime law, safety, or any BSMT subject..." rows="1"></textarea>
         <button id="send">LOG ENTRY</button>
       </div>
-      <div class="hint">Every answer is checked against bonafide maritime sources (IMO, PCG, MARINA, DOH, official texts) — no guessing, no unverified theory.</div>
+      <div class="hint">Your AI Maritime Teacher checks bonafide sources (IMO, PCG, MARINA, official texts) before answering — no guessing, no unverified theory. Entries are saved automatically and restored on refresh. <button type="button" id="clear-log-btn" class="log-clear-link">Clear log</button></div>
     </div>
   </div>
 
-  <!-- ============ COURSE MAP ============ -->
-  <div id="map-view" class="view">
-    <div class="scrolly" id="map-scrolly">
-      <div class="section-label">The voyage — CHED → MHEI → MARINA → OICNW</div>
-      <input class="glossary-search" id="gloss-search" placeholder="Search a term — e.g. ARPA, ECDIS, BT, D-WATCH...">
-      <div id="voyage-legs"></div>
-      <div class="section-label" style="margin-top:6px;">Glossary — matches for your search</div>
-      <div class="glossary-grid" id="gloss-results"></div>
+  <div id="nav-view" class="view">
+    <div class="topic-picker" id="nav-modes">
+      <button class="topic-chip active" data-mode="plot">PLOT DR COURSE</button>
+      <button class="topic-chip" data-mode="findbd">FIND BEARING &amp; DISTANCE</button>
+    </div>
+    <div class="quiz-score" id="nav-score">Score: <b>0</b> / 0</div>
+    <div class="nav-prompt" id="nav-prompt">Loading exercise...</div>
+    <div class="nav-teach-note" id="nav-teach-note"></div>
+    <div class="nav-chart-wrap">
+      <svg id="nav-chart" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div id="nav-answer-controls"></div>
+    <div class="nav-feedback" id="nav-feedback"></div>
+    <div class="nav-actions">
+      <button class="btn-primary" id="nav-new">NEW EXERCISE</button>
     </div>
   </div>
 
-  <!-- ============ QUIZ ============ -->
   <div id="quiz-view" class="view">
-    <div class="scrolly">
-      <div class="topic-picker" id="quiz-topics">
-        <button class="topic-chip active" data-topic="COLREGS">COLREGS</button>
-        <button class="topic-chip" data-topic="Navigational Instruments with Compasses (Nav 1)">Nav Instruments &amp; Compasses</button>
-        <button class="topic-chip" data-topic="Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)">Ship IT &amp; Network Systems</button>
-        <button class="topic-chip" data-topic="Ship, Ship Routines, and Ship Construction (Seamanship 1)">Ship Construction &amp; Routines</button>
-        <button class="topic-chip" data-topic="Ship Stability">Stability</button>
-        <button class="topic-chip" data-topic="Maritime Law (SOLAS/MARPOL/STCW)">Maritime Law</button>
-        <button class="topic-chip" data-topic="Seamanship & Watchkeeping">Seamanship</button>
-        <button class="topic-chip" data-topic="Basic Training (BT) and Security Training (SDSD)">BT &amp; SDSD</button>
-        <button class="topic-chip" data-topic="Pre-Employment Medical Examination (PEME) for Filipino Seafarers">PEME</button>
-      </div>
-      <div class="quiz-score" id="quiz-score">Score: <b>0</b> / 0</div>
-      <div id="quiz-body">
-        <div class="empty-state">Pick a topic, then start the quiz.<br><br>
-          <button class="btn-primary" id="quiz-start">START QUIZ</button>
-        </div>
+    <div class="topic-picker" id="quiz-topics"></div>
+    <div class="quiz-score" id="quiz-score">Score: <b>0</b> / 0</div>
+    <div id="quiz-body">
+      <div class="empty-state">Pick a topic, then start the quiz.<br><br>
+        <button class="btn-primary" id="quiz-start">START QUIZ</button>
       </div>
     </div>
   </div>
 
-  <!-- ============ FLASHCARDS ============ -->
   <div id="flash-view" class="view">
-    <div class="scrolly">
-      <div class="flash-topic-row">
-        <div class="topic-picker" id="flash-topics">
-          <button class="topic-chip active" data-topic="core">Core COLREGS</button>
-          <button class="topic-chip" data-topic="Navigational Instruments with Compasses (Nav 1)">Nav Instruments &amp; Compasses</button>
-          <button class="topic-chip" data-topic="Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)">Ship IT &amp; Network Systems</button>
-          <button class="topic-chip" data-topic="Ship, Ship Routines, and Ship Construction (Seamanship 1)">Ship Construction &amp; Routines</button>
-          <button class="topic-chip" data-topic="Ship Stability">Stability</button>
-          <button class="topic-chip" data-topic="Maritime Law (SOLAS/MARPOL/STCW)">Maritime Law</button>
-          <button class="topic-chip" data-topic="Pre-Employment Medical Examination (PEME) for Filipino Seafarers">PEME</button>
+    <div class="flash-topic-row">
+      <div class="topic-picker" id="flash-topics"></div>
+    </div>
+    <div class="flash-counter" id="flash-counter">Card 1 of 8</div>
+    <div class="flashcard" id="flashcard">
+      <div class="flashcard-inner">
+        <div class="flash-face flash-front">
+          <div class="flash-tag" id="flash-tag-front">RULE</div>
+          <div class="flash-title" id="flash-front-text">Loading...</div>
+          <div class="flash-hint">Tap to reveal</div>
         </div>
-      </div>
-      <div style="display:flex; justify-content:space-between; width:100%; max-width:420px;">
-        <div class="flash-counter" id="flash-counter">Card 1 of 8</div>
-        <div class="flash-mastery" id="flash-mastery">0 mastered</div>
-      </div>
-      <div class="flashcard" id="flashcard">
-        <div class="flashcard-inner">
-          <div class="flash-face flash-front" id="flash-face-front">
-            <div class="flash-tag" id="flash-tag-front">RULE</div>
-            <div class="flash-title" id="flash-front-text">Loading...</div>
-            <div class="flash-hint">Tap to reveal</div>
-          </div>
-          <div class="flash-face flash-back" id="flash-face-back">
-            <div class="flash-tag">ANSWER</div>
-            <div id="flash-back-text">—</div>
-          </div>
+        <div class="flash-face flash-back">
+          <div class="flash-tag">ANSWER</div>
+          <div id="flash-back-text">—</div>
         </div>
-      </div>
-      <div class="flash-controls">
-        <button class="btn-ghost" id="flash-prev">◀ PREV</button>
-        <button class="btn-ghost mark-known" id="flash-known">✓ GOT IT</button>
-        <button class="btn-ghost" id="flash-next">NEXT ▶</button>
-      </div>
-      <div class="flash-controls">
-        <button class="btn-ghost" id="flash-more">+ GENERATE 6 MORE (VERIFIED)</button>
       </div>
     </div>
-  </div>
-
-  <!-- ============ MILESTONES ============ -->
-  <div id="milestone-view" class="view">
-    <div class="scrolly">
-      <div class="section-label">Your pathway to OICNW</div>
-      <div class="progress-track"><div class="progress-fill" id="milestone-progress-fill" style="width:0%"></div></div>
-      <div class="progress-caption"><span id="milestone-progress-label">0 of 0 cleared</span><span>CHED → MHEI → MARINA</span></div>
-      <div id="milestone-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-      <div class="hint" style="text-align:left;">This tracker is a personal study checklist only — it is not an official record. Your MHEI registrar and MARINA hold your actual clearance status.</div>
+    <div class="flash-controls">
+      <button class="btn-ghost" id="flash-prev">◀ PREV</button>
+      <button class="btn-ghost" id="flash-more">+ GENERATE MORE</button>
+      <button class="btn-ghost" id="flash-next">NEXT ▶</button>
     </div>
   </div>
 </div>
 
 <script>
-/* =====================================================================
-   SHARED: Claude API bridge
-   ===================================================================== */
-const MODEL = "claude-sonnet-4-6";
+const MARITIME_TOPICS = [
+  { key:'colregs',          label:'COLREGS',                     prompt:'COLREGS — International Regulations for Preventing Collisions at Sea' },
+  { key:'terrestrial-nav',  label:'Terrestrial & Coastal Nav',   prompt:'Terrestrial and Coastal Navigation (Navigation 1): chartwork, dead reckoning, fixes, tides and currents' },
+  { key:'celestial-nav',    label:'Celestial Navigation',        prompt:'Celestial Navigation (Navigation 2): sextant altitudes, sight reduction, nautical almanac, time and longitude' },
+  { key:'electronic-nav',   label:'Electronic Navigation',       prompt:'Electronic Navigation (Navigation 3): ECDIS, radar/ARPA, GPS/GNSS, AIS' },
+  { key:'nav-instruments',  label:'Nav Instruments & Compasses', prompt:'Navigational Instruments and Compasses: magnetic compass, gyrocompass, azimuth/bearing instruments, compass error correction' },
+  { key:'meteorology',      label:'Meteorology & Oceanography',  prompt:'Meteorology and Oceanography for mariners: weather systems, routing, sea state, tides and currents' },
+  { key:'ship-construction',label:'Ship Construction & Routines',prompt:'Ship, Ship Routines, and Ship Construction (Seamanship 1): parts of the ship, shipboard routines, ship types' },
+  { key:'ship-stability',   label:'Ship Stability & Trim',       prompt:'Ship Stability, Trim, and Buoyancy (Naval Architecture)' },
+  { key:'cargo',            label:'Cargo Handling & Stowage',    prompt:'Cargo Handling, Stowage, and Securing (Cargo Operations)' },
+  { key:'marine-engineering',label:'Marine Engineering Basics',  prompt:'Marine Engineering fundamentals relevant to deck officers: main propulsion, auxiliary machinery, basic electro-technology' },
+  { key:'brm',              label:'Bridge Resource Mgmt & Watch',prompt:'Bridge Resource Management, Watchkeeping, and Bridge Procedures (OOW duties)' },
+  { key:'maritime-law',     label:'Maritime Law',                prompt:'Maritime Law: SOLAS, MARPOL, STCW, ISM Code, MLC 2006, flag/port state control' },
+  { key:'gmdss',            label:'GMDSS & Communications',      prompt:'GMDSS and Marine Communications' },
+  { key:'firefighting',     label:'Fire Prevention & Firefighting',prompt:'Fire Prevention and Firefighting aboard ships' },
+  { key:'survival',         label:'Personal Survival Techniques',prompt:'Personal Survival Techniques and Sea Survival' },
+  { key:'sar',              label:'Search & Rescue',             prompt:'Search and Rescue (SAR) and shipboard Emergency Procedures' },
+  { key:'first-aid',        label:'Medical First Aid at Sea',    prompt:'Medical First Aid and Medical Care aboard ship' },
+  { key:'security',         label:'Maritime Security (ISPS)',    prompt:'Maritime Security and the ISPS Code' },
+  { key:'environment',      label:'Marine Environmental Protection',prompt:'Marine Environmental Protection: MARPOL annexes and pollution prevention' },
+  { key:'ships-business',   label:"Ship's Business & Docs",      prompt:"Ship's Business, Documentation, and Maritime Insurance" },
+  { key:'ship-it',          label:'Ship IT & Network Systems',   prompt:'Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)' },
+  { key:'ph-context',       label:'PH Licensure & Careers',      prompt:'Philippine maritime education context: CHED/PIT/COMED curriculum, PRC licensure exams, POEA/DMW deployment, cadetship' },
+];
 
-// Bridge Watch does NOT call api.anthropic.com directly. A browser page can't
-// hold an API key safely (anyone can read it via view-source), so instead this
-// calls YOUR OWN backend proxy, which holds the key server-side and forwards
-// the request to Anthropic. Point this at your deployed Apps Script Web App
-// URL (or any other proxy you build) — see backend/apps-script-proxy.gs and
-// README.md for a ready-made Google Apps Script version.
-const BACKEND_ENDPOINT = "https://script.google.com/macros/s/AKfycbwf70kxNk6Js0UHK7kxmQFUw_1upmGOc3X3as5W2RJ9z40k6sdjYMPwW7RltNvxK1coOw/exec";
+const SYSTEM_PROMPT = `You are "Bridge Watch," an AI Maritime Teacher and grounded reference tool for MARITIME TRANSPORTATION — not a conversationalist who speculates. You are teaching a BSMT (Bachelor of Science in Marine Transportation) student in the Philippines across the full breadth of their curriculum. You have a web_search tool. Use it as your primary method of answering.
 
-async function callClaude(systemPrompt, messages, maxTokens){
-  if(!BACKEND_ENDPOINT || BACKEND_ENDPOINT.startsWith("PASTE_")){
-    throw new Error("Backend not configured yet — set BACKEND_ENDPOINT at the top of the <script> block to your proxy URL. See README.md.");
-  }
-  const response = await fetch(BACKEND_ENDPOINT, {
-    method: "POST",
-    // NOTE: text/plain (not application/json) on purpose — this keeps the
-    // request a CORS "simple request" with no OPTIONS preflight, which
-    // matters if your proxy is a Google Apps Script Web App (it can't
-    // respond to preflight). The body is still valid JSON text; your proxy
-    // should JSON.parse() it. If you're using a proxy that DOES support
-    // preflight (Cloudflare Worker, Node/Express, etc.) this still works fine.
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens || 1500,
-      system: systemPrompt,
-      messages: messages,
-      tools: [{ type: "web_search_20250305", name: "web_search" }]
-    })
-  });
-  if(!response.ok) throw new Error("API error " + response.status);
-  const data = await response.json();
-  const blocks = (data.content || []).filter(b => b.type === 'text');
-  const text = blocks.map(b => b.text).join('\n').trim();
-  const sources = extractSources(data.content || []);
-  return { text, sources, raw: data };
-}
-
-function extractSources(contentBlocks){
-  const seen = new Map();
-  contentBlocks.forEach(block => {
-    if(block.type === 'text' && Array.isArray(block.citations)){
-      block.citations.forEach(c => {
-        if(c.url && !seen.has(c.url)) seen.set(c.url, { url: c.url, title: c.title || c.url });
-      });
-    }
-  });
-  return Array.from(seen.values());
-}
-
-function parseJsonLoose(raw){
-  const cleaned = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(cleaned);
-}
-
-/* =====================================================================
-   SHARED: Storage helpers (personal, non-shared)
-   On claude.ai this used window.storage (artifact-only sandbox storage).
-   On a real hosted site there's no such API, so this uses plain
-   localStorage instead — same key/value shape, persists per-browser.
-   Kept as async functions so nothing else in the app had to change.
-   ===================================================================== */
-async function storeGet(key, fallback){
-  try{
-    const raw = localStorage.getItem('bridgewatch:' + key);
-    return raw !== null ? JSON.parse(raw) : fallback;
-  }catch(e){ return fallback; }
-}
-async function storeSet(key, value){
-  try{ localStorage.setItem('bridgewatch:' + key, JSON.stringify(value)); }
-  catch(e){ console.error('storage set failed', key, e); }
-}
-
-/* =====================================================================
-   SHIP'S LOG (chat)
-   ===================================================================== */
-const SYSTEM_PROMPT = `You are "Bridge Watch," a grounded reference tool for MARITIME TRANSPORTATION — not a conversationalist who speculates. You help a BSMT (Bachelor of Science in Marine Transportation) freshman student in the Philippines learn their program line upon line, precept upon precept. You have a web_search tool. Use it as your primary method of answering.
+TEACHING STYLE — you are a teacher first, a reference tool second:
+- Teach the concept, don't just answer the question. Explain the reasoning behind a rule or procedure, not only the rule itself — connect it to how it plays out on an actual bridge, deck, or engine room.
+- Where it helps, break a concept into small steps or a short analogy a first-year cadet could follow, then reinforce it with the precise, exam-ready wording they'll need for their boards.
+- End substantive answers with a brief one-line takeaway the student can commit to memory, when that would help retention.
+- Tone: encouraging but exacting, like a good training officer reviewing a cadet's watch report — direct about mistakes, generous with the "why."
 
 HARD RULE — NO GUESSING:
-- For any factual, regulatory, technical, or numeric claim (rule text, formulas, definitions, procedures, dates, licensure/exam requirements, equipment specs, legal citations, PEME/PFT standards), you MUST search before answering. Do not answer straight from memory as if it were settled fact.
-- Only cite bonafide, authoritative sources: IMO (imo.org), COLREGS/SOLAS/MARPOL/STCW official or officially-hosted texts, PCG (Philippine Coast Guard), MARINA (Maritime Industry Authority), DMW (Department of Migrant Workers), DOH (Department of Health), CHED, official MHEI pages, USCG Navigation Center, admiralty/hydrographic offices, and reputable maritime industry/reference publishers. Avoid random blogs, forums, or unverifiable sites.
+- For any factual, regulatory, technical, or numeric claim (rule text, formulas, definitions, procedures, dates, licensure/exam requirements, equipment specs, legal citations), you MUST search before answering. Do not answer straight from memory as if it were settled fact.
+- Only cite bonafide, authoritative sources: IMO (imo.org), COLREGS/SOLAS/MARPOL/STCW official or officially-hosted texts, PCG (Philippine Coast Guard), MARINA (Maritime Industry Authority), CHED, PIT/COMED official pages, USCG Navigation Center, admiralty/hydrographic offices, established maritime academies, and reputable maritime industry/reference publishers. Avoid random blogs, forums, or unverifiable sites.
 - After searching, name the source you drew from in plain text (e.g., "Per IMO's COLREGS text..." or "Per MARINA Memorandum Circular..."). If your search does not turn up a bonafide source for a claim, say so plainly instead of filling the gap with a guess — tell the student what is uncertain and what to verify with their instructor or an official source.
 - Never present a theory, approximation, or your own inference as if it were verified fact. If something is genuinely a matter of judgment or common practice rather than a documented rule, label it explicitly as such.
 - Simple clarifying or conversational exchanges (e.g., "what do you mean") don't require a search, but any substantive question does.
+- Ground claims sentence-by-sentence rather than citing once for an entire paragraph, so each specific factual statement is individually traceable to the source passage that supports it.
 
-TEACHING STYLE:
-- You are a marine professor addressing a freshman. Teach "line upon line, precept upon precept": build from the concrete and foundational before layering nuance, check understanding, and connect each new term back to ones already taught.
-- Use correct maritime terminology, but define any acronym the first time you use it in an answer.
-- Structure answers with clear steps or short lists where helpful. Keep answers focused and study-relevant rather than exhaustively long, unless the student asks for depth.
-
-IN SCOPE (answer helpfully and in depth, grounded per the rule above):
-- COLREGS; Navigation (celestial, terrestrial, coastal, electronic — GPS, ECDIS, radar, ARPA); chartwork, tides, currents, meteorology for mariners
-- Ship stability, buoyancy, cargo operations, stowage; marine engineering basics relevant to deck officers
-- Shipboard software/network systems (ECDIS, GMDSS, AIS, bridge/ship network architecture, onboard IT) as a BSMT subject
-- Navigational instruments and compasses; ship construction, routines, and parts of the ship
-- Maritime law, SOLAS, MARPOL, STCW, ISM Code, flag/port state control
-- Seamanship, watchkeeping, bridge procedures, emergency response; ship types, terminology, maritime history relevant to transportation/shipping
-- Philippine maritime education context (MHEI system, CHED curriculum, PRC/MARINA licensure, POEA/DMW deployment)
-- PEME (Pre-Employment Medical Examination) requirements, process, validity, and Fit-to-Work standards under DOH/DMW/MLC 2006, and PFT (Physical Fitness Test) preparation relevant to cadetship
-- Career guidance specific to seafaring/BSMT (cadetship, licensure exams, BT, SDSD, onboard training/OBT)
+IN SCOPE (teach helpfully and in depth, grounded per the rule above — this spans the full BSMT/STCW curriculum):
+${MARITIME_TOPICS.map(t => '- ' + t.prompt).join('\n')}
+- Career guidance specific to seafaring/BSMT (cadetship, licensure exams, onboard training)
 
 OUT OF SCOPE (politely decline and redirect back to maritime topics):
 - Anything unrelated to maritime transportation: general homework in unrelated subjects, coding help unrelated to maritime tools, general life advice, entertainment, unrelated current events, etc.
 - Do not get pulled into extended off-topic conversation even if the user pushes back — briefly and kindly decline, note that this assistant is scoped to maritime transportation, and invite a maritime-related question instead.
 
-Tone: knowledgeable, precise, and source-driven — like a training officer who always checks the manual rather than reciting from memory.`;
+Structure answers with clear steps or short lists where helpful. Keep answers focused and study-relevant rather than exhaustively long, unless the student asks for depth.`;
 
 const log = document.getElementById('log');
 const input = document.getElementById('input');
@@ -678,42 +906,348 @@ const sendBtn = document.getElementById('send');
 
 let entryCount = 0;
 let history = [];
+let displayLog = [];
+
+// ---------------------------------------------------------------------------
+// BACKEND AUTH CONFIGURATION
+// Bridge Watch auth + Ship's Log storage runs on a Google Apps Script Web App
+// (see Code.gs — deploy it as a Web App with "Anyone" access, then paste the
+// /exec URL here). The script talks to a single URL with an "action" field
+// in the POST body instead of REST-style paths, since Apps Script Web Apps
+// don't support path routing.
+// ---------------------------------------------------------------------------
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwf70kxNk6Js0UHK7kxmQFUw_1upmGOc3X3as5W2RJ9z40k6sdjYMPwW7RltNvxK1coOw/exec';
+
+let authToken = null;
+let currentUsername = null;
+const AUTH_TOKEN_CACHE_KEY = 'bridgewatch-auth-token';
+
+if(!APPS_SCRIPT_URL){
+  const warningEl = document.getElementById('auth-setup-warning');
+  if(warningEl) warningEl.style.display = 'block';
+}
+
+// Calls the Apps Script backend with a given action + payload. Sent as
+// text/plain (not application/json) so the browser doesn't fire a CORS
+// preflight OPTIONS request, which Apps Script Web Apps can't answer.
+async function callBackend(action, payload){
+  payload = payload || {};
+  const body = Object.assign({ action, token: authToken || undefined }, payload);
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  let data = {};
+  try{ data = await res.json(); }catch(e){ /* non-JSON response */ }
+  if(!res.ok || data.error){
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  return data;
+}
+
+function showAuthOverlay(){
+  const overlay = document.getElementById('auth-overlay');
+  overlay.style.display = 'flex';
+  overlay.classList.remove('leaving');
+  document.getElementById('app').style.display = 'none';
+}
+function hideAuthOverlay(){
+  const overlay = document.getElementById('auth-overlay');
+  overlay.classList.add('leaving');
+  document.getElementById('app').style.display = 'flex';
+  setTimeout(() => { overlay.style.display = 'none'; }, 250);
+}
+function setAccountChip(username){
+  document.getElementById('account-username').textContent = '@' + username;
+  document.getElementById('account-chip').style.display = 'flex';
+}
+
+// The JWT itself is cached via the artifact's key-value storage (NOT
+// localStorage, which artifacts don't support) so a refresh doesn't force
+// a re-login — but the actual account data (username/password/Ship's Log)
+// lives on your deployed backend, not here.
+async function cacheToken(token){
+  try{ await window.storage.set(AUTH_TOKEN_CACHE_KEY, token, false); }
+  catch(err){ console.warn('Could not cache auth token:', err); }
+}
+async function loadCachedToken(){
+  try{
+    const result = await window.storage.get(AUTH_TOKEN_CACHE_KEY, false);
+    return result && result.value ? result.value : null;
+  }catch(err){ return null; }
+}
+async function clearCachedToken(){
+  try{ await window.storage.delete(AUTH_TOKEN_CACHE_KEY, false); }
+  catch(err){ /* ignore */ }
+}
+
+async function saveLog(){
+  if(!authToken) return;
+  try{
+    await callBackend('saveLog', { history, displayLog });
+  }catch(err){
+    console.warn('Could not save ship\'s log to the server:', err);
+  }
+}
+
+async function loadLog(){
+  if(!authToken) return false;
+  try{
+    const data = await callBackend('getLog');
+    if(data && Array.isArray(data.displayLog) && data.displayLog.length){
+      history = Array.isArray(data.history) ? data.history : [];
+      displayLog = data.displayLog;
+      log.innerHTML = '';
+      entryCount = 0;
+      displayLog.forEach(entry => {
+        if(entry.role === 'user'){
+          addEntry('user', entry.text);
+        }else if(entry.role === 'assistant'){
+          const segs = entry.segments || [{ text: entry.text || '', footnoteNum: null }];
+          addEntry('assistant', segmentsToFragment(segs), entry.footnotes || []);
+        }
+      });
+      return true;
+    }
+  }catch(err){
+    console.warn('Could not load ship\'s log from the server:', err);
+  }
+  return false;
+}
+
+function addWelcomeEntry(){
+  const welcomeText = "Bridge Watch online. I'm your AI Maritime Teacher — I check bonafide sources (IMO, PCG, MARINA, official texts) before teaching a point, and I cover the full BSMT curriculum: navigation, seamanship, stability, marine engineering basics, maritime law, safety, and more. Ask me anything, and I'll explain the reasoning, not just the rule.";
+  addEntry('assistant', welcomeText);
+  displayLog.push({ role:'assistant', segments:[{ text: welcomeText, footnoteNum:null }], footnotes: [] });
+  saveLog();
+}
+
+async function clearLog(){
+  history = [];
+  displayLog = [];
+  entryCount = 0;
+  log.innerHTML = '';
+  await saveLog();
+  addWelcomeEntry();
+}
+
+async function completeLogin(token, username){
+  authToken = token;
+  currentUsername = username;
+  await cacheToken(token);
+  setAccountChip(username);
+  hideAuthOverlay();
+  const restored = await loadLog();
+  if(!restored) addWelcomeEntry();
+}
+
+async function tryResumeSession(){
+  if(!APPS_SCRIPT_URL) return false;
+  const cached = await loadCachedToken();
+  if(!cached) return false;
+  authToken = cached;
+  try{
+    const me = await callBackend('me');
+    currentUsername = me.username;
+    setAccountChip(me.username);
+    hideAuthOverlay();
+    const restored = await loadLog();
+    if(!restored) addWelcomeEntry();
+    return true;
+  }catch(err){
+    authToken = null;
+    await clearCachedToken();
+    return false;
+  }
+}
+
+let authMode = 'login';
+document.querySelectorAll('.auth-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    authMode = tab.dataset.mode;
+    document.getElementById('auth-submit').textContent = authMode === 'login' ? 'LOG IN' : 'CREATE ACCOUNT';
+    document.getElementById('auth-error').textContent = '';
+  });
+});
+
+document.getElementById('auth-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errorEl = document.getElementById('auth-error');
+  const submitBtn = document.getElementById('auth-submit');
+  errorEl.textContent = '';
+
+  if(!APPS_SCRIPT_URL){
+    errorEl.textContent = 'No auth server configured yet — see the notice above.';
+    return;
+  }
+  if(username.length < 3){
+    errorEl.textContent = 'Username must be at least 3 characters.';
+    return;
+  }
+  if(password.length < 6){
+    errorEl.textContent = 'Password must be at least 6 characters.';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  const originalLabel = submitBtn.textContent;
+  submitBtn.textContent = authMode === 'login' ? 'LOGGING IN...' : 'CREATING ACCOUNT...';
+
+  try{
+    const data = await callBackend(authMode === 'login' ? 'login' : 'signup', { username, password });
+    await completeLogin(data.token, data.username);
+  }catch(err){
+    errorEl.textContent = err.message || 'Something went wrong.';
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  authToken = null;
+  currentUsername = null;
+  await clearCachedToken();
+  document.getElementById('account-chip').style.display = 'none';
+  history = [];
+  displayLog = [];
+  entryCount = 0;
+  log.innerHTML = '';
+  showAuthOverlay();
+});
+
+// Init: try to resume a cached session; otherwise show the login/signup screen.
+(async () => {
+  const resumed = await tryResumeSession();
+  if(!resumed){
+    showAuthOverlay();
+  }
+})();
 
 function bellsTime(){
   const now = new Date();
   return now.toTimeString().slice(0,5).replace(':','') + 'H';
 }
 
-function addEntry(role, text, sources, opts){
+function addEntry(role, content, footnotes){
   entryCount++;
   const div = document.createElement('div');
   div.className = 'entry ' + role;
   const label = role === 'user' ? 'YOU' : role === 'assistant' ? 'BRIDGE WATCH' : 'NOTICE';
   div.innerHTML = `<div class="entry-meta"><span>ENTRY ${String(entryCount).padStart(3,'0')}</span><span>${bellsTime()}</span><span>${label}</span></div><div class="bubble"></div>`;
-  div.querySelector('.bubble').textContent = text;
-  if(sources && sources.length){
-    const srcWrap = document.createElement('div');
-    srcWrap.className = 'sources-block';
-    srcWrap.innerHTML = '<div class="sources-label">VERIFIED FROM</div>';
-    sources.forEach(s => {
-      const a = document.createElement('a');
-      a.href = s.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      a.className = 'source-link';
-      a.textContent = s.title || s.url;
-      srcWrap.appendChild(a);
-    });
-    div.appendChild(srcWrap);
+  const bubble = div.querySelector('.bubble');
+  if(typeof content === 'string'){
+    bubble.textContent = content;
+  }else if(content){
+    bubble.appendChild(content);
   }
-  if(opts && opts.retry){
-    const btn = document.createElement('button');
-    btn.className = 'btn-ghost retry-btn';
-    btn.textContent = 'RETRY';
-    btn.addEventListener('click', opts.retry);
-    div.appendChild(btn);
+  if(footnotes && footnotes.length){
+    const srcWrap = document.createElement('details');
+    srcWrap.className = 'sources-block';
+    const uniqueSourceCount = new Set(footnotes.map(f => f.url)).size;
+    const summary = document.createElement('summary');
+    summary.innerHTML = `VERIFIED FROM <span class="sources-count">(${uniqueSourceCount} source${uniqueSourceCount === 1 ? '' : 's'} — tap to expand)</span>`;
+    srcWrap.appendChild(summary);
+    const body = document.createElement('div');
+    body.className = 'sources-block-body';
+    footnotes.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'source-item';
+      const head = document.createElement('div');
+      head.className = 'source-item-head';
+      const num = document.createElement('span');
+      num.className = 'source-num';
+      num.textContent = '[' + f.num + ']';
+      const a = document.createElement('a');
+      a.href = f.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.className = 'source-link';
+      a.textContent = f.title || f.url;
+      head.appendChild(num);
+      head.appendChild(a);
+      item.appendChild(head);
+      if(f.quote){
+        const q = document.createElement('span');
+        q.className = 'source-quote';
+        q.textContent = '“' + f.quote + '”';
+        item.appendChild(q);
+      }
+      body.appendChild(item);
+    });
+    srcWrap.appendChild(body);
+    div.appendChild(srcWrap);
   }
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
   return div;
+}
+
+// Trims an over-long quoted excerpt down to a readable snippet without
+// altering the wording — just truncates at a word boundary.
+function trimQuote(raw, maxLen){
+  if(!raw) return '';
+  const s = raw.trim();
+  if(s.length <= maxLen) return s;
+  const cut = s.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > 40 ? cut.slice(0, lastSpace) : cut) + '…';
+}
+
+// Walks the API's content blocks and produces a serializable "segments"
+// list ({text, footnoteNum}) plus the footnote/source data. Segments are
+// stored (for persistence) and rendered into highlighted spans via
+// segmentsToFragment — used both for live replies and restored history.
+function buildAssistantContent(contentBlocks){
+  const segments = [];
+  const footnotes = [];
+  let footnoteNum = 0;
+  let plainText = '';
+
+  contentBlocks.filter(b => b.type === 'text').forEach(block => {
+    const text = block.text || '';
+    plainText += text;
+    if(Array.isArray(block.citations) && block.citations.length){
+      footnoteNum++;
+      segments.push({ text, footnoteNum });
+      block.citations.forEach(c => {
+        if(c.url){
+          footnotes.push({
+            num: footnoteNum,
+            url: c.url,
+            title: c.title || c.url,
+            quote: trimQuote(c.cited_text || '', 220)
+          });
+        }
+      });
+    }else{
+      segments.push({ text, footnoteNum: null });
+    }
+  });
+
+  return { segments, footnotes, plainText: plainText.trim() };
+}
+
+function segmentsToFragment(segments){
+  const frag = document.createDocumentFragment();
+  (segments || []).forEach(seg => {
+    if(seg.footnoteNum){
+      const span = document.createElement('span');
+      span.className = 'cited-highlight';
+      span.appendChild(document.createTextNode(seg.text));
+      const sup = document.createElement('sup');
+      sup.className = 'footnote-marker';
+      sup.textContent = '[' + seg.footnoteNum + ']';
+      span.appendChild(sup);
+      frag.appendChild(span);
+    }else{
+      frag.appendChild(document.createTextNode(seg.text));
+    }
+  });
+  return frag;
 }
 
 function addThinking(){
@@ -724,32 +1258,57 @@ function addThinking(){
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
 }
+
 function removeThinking(){
   const el = document.getElementById('thinking-entry');
   if(el) el.remove();
 }
 
-async function sendMessage(prefill){
-  const text = (prefill !== undefined ? prefill : input.value).trim();
+async function sendMessage(){
+  const text = input.value.trim();
   if(!text) return;
-  if(prefill === undefined){ input.value = ''; input.style.height = 'auto'; }
+  input.value = '';
+  input.style.height = 'auto';
   sendBtn.disabled = true;
 
   addEntry('user', text);
   history.push({role:'user', content: text});
+  displayLog.push({role:'user', text});
+  saveLog();
   addThinking();
 
   try{
-    const { text: replyText, sources } = await callClaude(SYSTEM_PROMPT, history, 1500);
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        messages: history,
+        tools: [{ type: "web_search_20250305", name: "web_search" }]
+      })
+    });
+    const data = await response.json();
+    if(!response.ok || data.type === 'error'){
+      throw new Error((data && data.error && data.error.message) || `API error (${response.status})`);
+    }
     removeThinking();
-    const finalText = replyText || "Unable to log a response — try rephrasing your question.";
-    addEntry('assistant', finalText, sources);
-    history.push({role:'assistant', content: finalText});
-    persistLog();
+
+    const blocks = data.content || [];
+    const { segments, footnotes, plainText } = buildAssistantContent(blocks);
+
+    if(!plainText){
+      addEntry('assistant', "Unable to log a response — try rephrasing your question.");
+    }else{
+      addEntry('assistant', segmentsToFragment(segments), footnotes);
+      displayLog.push({role:'assistant', segments, footnotes});
+      saveLog();
+    }
+    history.push({role:'assistant', content: plainText || "Unable to log a response."});
   }catch(err){
     removeThinking();
-    history.pop();
-    addEntry('system', 'Signal lost — could not reach the log. Please try again.', null, { retry: () => sendMessage(text) });
+    addEntry('system', `Signal lost — ${err.message || 'could not reach the log'}. Please try again.`);
     console.error(err);
   }finally{
     sendBtn.disabled = false;
@@ -757,51 +1316,25 @@ async function sendMessage(prefill){
   }
 }
 
-async function persistLog(){
-  // keep last 40 turns to stay well under the 5MB value limit
-  const trimmed = history.slice(-40);
-  await storeSet('log:history', trimmed);
-}
-
-sendBtn.addEventListener('click', () => sendMessage());
+sendBtn.addEventListener('click', sendMessage);
 input.addEventListener('keydown', (e) => {
-  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendMessage();
+  }
 });
 input.addEventListener('input', () => {
   input.style.height = 'auto';
   input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 });
 
-async function initLog(){
-  const saved = await storeGet('log:history', null);
-  if(saved && saved.length){
-    history = saved;
-    addEntry('assistant', "Bridge Watch online. Picking up your ship's log where you left off — ask your next question, or start a new line of inquiry.");
-    history.forEach(turn => {
-      addEntry(turn.role, typeof turn.content === 'string' ? turn.content : JSON.stringify(turn.content));
-    });
-  }else{
-    addEntry('assistant', "Bridge Watch online. I check bonafide sources (IMO, PCG, MARINA, DOH, official texts) before answering — no guessing, no unverified theory. Ask me anything on COLREGS, navigation, chartwork, ship stability, maritime law, PEME, or your BSMT coursework.");
-    const chips = document.createElement('div');
-    chips.className = 'suggest-row';
-    [
-      "What's the difference between NAV 5 and NAV 6?",
-      "What is PEME and when do I need it?",
-      "Explain the head-on rule under COLREGS."
-    ].forEach(q => {
-      const c = document.createElement('button');
-      c.className = 'suggest-chip';
-      c.textContent = q;
-      c.addEventListener('click', () => sendMessage(q));
-      chips.appendChild(c);
-    });
-    log.appendChild(chips);
+document.getElementById('clear-log-btn').addEventListener('click', () => {
+  if(confirm("Clear the entire ship's log? This can't be undone.")){
+    clearLog();
   }
-}
+});
 
-/* =====================================================================
-   TAB SWITCHING
-   ===================================================================== */
+/* ---------------- TAB SWITCHING ---------------- */
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -811,131 +1344,54 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-/* =====================================================================
-   COURSE MAP — the voyage, drawn from the BSMT cadet curriculum
-   ===================================================================== */
-const VOYAGE = [
-  {
-    year: 1, title: "Becoming a Sailor", narrative: "Foundational vocabulary — you cannot understand ARPA in Year 2 if you don't already know how a chart and compass work.",
-    waypoints: [
-      "<b>NAV 1 — Terrestrial Navigation I:</b> fixing position with landmarks, bearings, and charts.",
-      "<b>SEAM 1 — Ships &amp; Ship Routines:</b> ship construction and the daily rhythm of duties aboard.",
-      "<b>COLREGS:</b> your first pass through the rules of the road at sea.",
-      "<b>MET-O:</b> reading weather basics. <b>ICT:</b> computer literacy groundwork.",
-      "<b>NAV 2:</b> advanced plotting and positioning (2nd sem).",
-      "<b>SEAM 2:</b> ropework, rigging, deck maintenance fundamentals (2nd sem).",
-      "<b>Summer — NAV 3 &amp; 4</b> and <b>MARENV</b> (MARPOL pollution-prevention law) close the year."
-    ]
-  },
-  {
-    year: 2, title: "The Simulator Gauntlet", narrative: "Isolated subjects start talking to each other — D-WATCH proves you can run radar, charts, weather, and comms at once.",
-    waypoints: [
-      "<b>NAV 5 (Radar/ARPA):</b> reading and trusting, then double-checking, collision-avoidance calculations.",
-      "<b>NAV 6 (ECDIS):</b> paper-chart thinking transitions to fully electronic navigation.",
-      "<b>MARCOM (GMDSS):</b> distress communication systems, by the book.",
-      "<b>SEAM 3 &amp; 4:</b> stability, trim, and cargo handling math.",
-      "<b>D-WATCH (first pass):</b> the integrated 24-hour bridge simulator, closing the year."
-    ]
-  },
-  {
-    year: 3, title: "Onboard Training (OBT)", narrative: "Theory becomes muscle memory — real weather, real cargo, real watches, real fatigue.",
-    waypoints: [
-      "<b>BT — Basic Training:</b> Personal Survival Techniques, Fire Prevention &amp; Fire Fighting, Elementary First Aid, Personal Safety &amp; Social Responsibility. No BT, no ship.",
-      "<b>SDSD:</b> Security Training for Seafarers with Designated Security Duties.",
-      "<b>OBT — 40 units</b> of supervised seagoing service aboard an actual merchant vessel, logged in a training record book."
-    ]
-  },
-  {
-    year: 4, title: "Closing the Loop", narrative: "You return from sea a different person — this year formalizes the judgment you already started building offshore.",
-    waypoints: [
-      "<b>NGECs:</b> Ethics, Readings in Philippine History (Rizal), The Contemporary World, Art Appreciation.",
-      "<b>MARPOW:</b> basic marine engineering literacy to communicate with the engine room.",
-      "<b>MGMT 2:</b> Integrated Management Systems — the ISM Code and shipboard management.",
-      "<b>Graduation →</b> sit the <b>MARINA</b> licensing exam → certified <b>OICNW.</b>"
-    ]
-  }
-];
-
-const GLOSSARY = [
-  {code:"NAV 1–6", full:"Navigation, levels 1–6", why:"Knowing exactly where your ship is, using charts, stars, and instruments — each level builds on the last."},
-  {code:"ARPA", full:"Automatic Radar Plotting Aid", why:"Calculates speed, course, and closest approach distance of other ships automatically."},
-  {code:"ECDIS", full:"Electronic Chart Display and Information System", why:"The digital replacement for paper charts, with live GPS plotting."},
-  {code:"VTS", full:"Vessel Traffic System / Service", why:"Shore-based 'air traffic control' for busy ports and channels."},
-  {code:"COLREGS", full:"International Regulations for Preventing Collisions at Sea, 1972", why:"The traffic rules of the ocean: give-way, lights, shapes, sound signals."},
-  {code:"MARENV", full:"Marine Environmental Protection", why:"Covers MARPOL — legal handling of oil, garbage, ballast water, emissions."},
-  {code:"BT", full:"Basic Training (STCW Basic Safety Training)", why:"The four foundational survival courses every seafarer must hold before boarding."},
-  {code:"SDSD", full:"Security Training for Seafarers with Designated Security Duties", why:"Recognizing security threats and carrying out assigned duties under the ship security plan."},
-  {code:"SEAM 1–5", full:"Seamanship, levels 1–5", why:"Ship construction, ropework, cargo handling, stability, and — at SEAM 5 — ship handling and maneuvering."},
-  {code:"MET-O", full:"Meteorology and Oceanography", why:"Reading weather systems, wind, pressure, waves, and currents."},
-  {code:"MARCOM", full:"Maritime Communications", why:"Radio procedures, centered on GMDSS."},
-  {code:"GMDSS", full:"Global Maritime Distress and Safety System", why:"The standardized satellite/radio system for distress signals and safety info."},
-  {code:"D-WATCH", full:"Deck Watchkeeping with Bridge Resource Management", why:"The capstone: realistic 24-hour bridge simulator scenarios integrating everything prior."},
-  {code:"BRM", full:"Bridge Resource Management", why:"Teamwork and decision-making discipline: cross-checking, speaking up, avoiding human error."},
-  {code:"MARLAW", full:"Maritime Law", why:"Legal framework for ships, contracts, liability, and seafarers' rights."},
-  {code:"MARPOW", full:"Basic Marine Engineering (Marine Power)", why:"Enough propulsion/machinery knowledge to work with the engine room in an emergency."},
-  {code:"MGMT 2", full:"Integrated Management Systems", why:"The ISM Code and how a modern ship organizes safety on paper and in practice."},
-  {code:"OBT", full:"Onboard Training", why:"Your supervised sea apprenticeship — 40 credit units aboard an actual merchant vessel."},
-  {code:"NGEC", full:"New General Education Courses", why:"CHED-mandated general education: Ethics, Rizal, Contemporary World, Art Appreciation."},
-  {code:"ICT", full:"Information and Communications Technology", why:"Computer literacy groundwork before ECDIS and navigation software."},
-  {code:"CHED", full:"Commission on Higher Education", why:"Regulates all Philippine college-level programs, including BSMT."},
-  {code:"MARINA", full:"Maritime Industry Authority", why:"Issues your professional license after school, once you pass their exam."},
-  {code:"MHEI", full:"Maritime Higher Education Institution", why:"Any college or university authorized to run BSMT or BSMarE programs."},
-  {code:"OICNW", full:"Officer in Charge of a Navigational Watch", why:"Your first command-track rank, certified after passing the MARINA exam."},
-  {code:"STCW", full:"Standards of Training, Certification and Watchkeeping for Seafarers, 1978, as amended", why:"The international treaty baseline every signatory nation trains officers against."},
-  {code:"PEME", full:"Pre-Employment Medical Examination", why:"DOH/DMW-regulated fitness screening that certifies you Fit-to-Work before deployment, tied to MLC 2006 validity periods."}
-];
-
-function renderVoyage(){
-  const wrap = document.getElementById('voyage-legs');
-  wrap.innerHTML = '';
-  VOYAGE.forEach(leg => {
-    const el = document.createElement('div');
-    el.className = 'voyage-leg';
-    el.innerHTML = `
-      <button class="leg-head">
-        <div class="leg-badge">${leg.year}</div>
-        <div class="leg-title"><b>Year ${leg.year} — ${leg.title}</b><span>${leg.waypoints.length} waypoints</span></div>
-        <div class="leg-chevron">▶</div>
-      </button>
-      <div class="leg-body"><div class="leg-body-inner">
-        <div class="leg-narrative">${leg.narrative}</div>
-        ${leg.waypoints.map(w => `<div class="waypoint"><div class="wp-dot"></div><div>${w}</div></div>`).join('')}
-      </div></div>`;
-    el.querySelector('.leg-head').addEventListener('click', () => el.classList.toggle('open'));
-    wrap.appendChild(el);
+async function callClaude(systemPrompt, userPrompt){
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: [{role:'user', content: userPrompt}],
+      tools: [{ type: "web_search_20250305", name: "web_search" }]
+    })
   });
+  const data = await response.json();
+  if(!response.ok || data.type === 'error'){
+    throw new Error((data && data.error && data.error.message) || `API error (${response.status})`);
+  }
+  const blocks = (data.content || []).filter(b => b.type === 'text');
+  const text = blocks.map(b => b.text).join('\n').trim();
+  if(!text) throw new Error('Empty response from API');
+  return { text };
 }
 
-function renderGlossary(filter){
-  const results = document.getElementById('gloss-results');
-  const q = (filter || '').trim().toLowerCase();
-  const matches = q ? GLOSSARY.filter(g => g.code.toLowerCase().includes(q) || g.full.toLowerCase().includes(q) || g.why.toLowerCase().includes(q)) : GLOSSARY;
-  results.innerHTML = '';
-  if(!matches.length){
-    results.innerHTML = '<div class="empty-state">No glossary term matches yet — try a shorter fragment, or ask Bridge Watch in the Ship\\'s Log.</div>';
-    return;
-  }
-  matches.slice(0, q ? matches.length : 8).forEach(g => {
-    const card = document.createElement('div');
-    card.className = 'gloss-card';
-    card.innerHTML = `<b>${g.code}</b><div class="gloss-full">${g.full}</div><div class="gloss-why">${g.why}</div>`;
-    results.appendChild(card);
-  });
+function parseJsonLoose(raw){
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleaned);
 }
 
-document.getElementById('gloss-search').addEventListener('input', (e) => renderGlossary(e.target.value));
-
-/* =====================================================================
-   QUIZ MODE
-   ===================================================================== */
-const QUIZ_SYSTEM = `You generate multiple-choice quiz questions strictly about MARITIME TRANSPORTATION topics (COLREGS, navigation, ship stability, maritime law/SOLAS/MARPOL/STCW, seamanship, BT/SDSD, and PEME/PFT for Filipino seafarers) for a BSMT freshman student in the Philippines. You have a web_search tool — use it to verify the exact rule text, number, or fact before writing the question. Do not invent or guess rule numbers, figures, or definitions; base them on what you find from bonafide sources (IMO, PCG, MARINA, DMW, DOH, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references).
+/* ---------------- QUIZ MODE ---------------- */
+const QUIZ_SYSTEM = `You are "Bridge Watch," acting as an AI Maritime Teacher who writes multiple-choice quiz questions covering the full BSMT/STCW curriculum for a student in the Philippines. You have a web_search tool — use it to verify the exact rule text, number, or fact before writing the question. Do not invent or guess rule numbers, figures, or definitions; base them on what you find from bonafide sources (IMO, PCG, MARINA, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references).
 
 After searching, respond with ONLY a raw JSON object as your final output, no markdown fences, no preamble, in exactly this shape:
 {"question": "...", "options": ["A text","B text","C text","D text"], "correctIndex": 0, "explanation": "...", "source": "short source name, e.g. 'IMO COLREGS Rule 15'"}
 
-The question must be non-trivial and exam-relevant. Exactly 4 options, only one correct. Explanation should be 1-3 sentences teaching why the answer is correct, grounded in what you verified.`;
+The question must be non-trivial and exam-relevant. Exactly 4 options, only one correct. Write the explanation the way a teacher reviews a wrong answer with a cadet: 2-4 sentences that teach the underlying principle and why the correct option follows from it, grounded in what you verified — not just a restatement of the rule.`;
 
-let quizTopic = 'COLREGS';
+function escapeAttr(str){
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function renderQuizTopicChips(){
+  const html = MARITIME_TOPICS.map((t, i) =>
+    `<button class="topic-chip${i === 0 ? ' active' : ''}" data-topic="${escapeAttr(t.prompt)}">${t.label}</button>`
+  ).join('');
+  document.getElementById('quiz-topics').innerHTML = html;
+}
+renderQuizTopicChips();
+
+let quizTopic = MARITIME_TOPICS[0].prompt;
 let quizCorrect = 0;
 let quizTotal = 0;
 
@@ -949,7 +1405,6 @@ document.getElementById('quiz-topics').addEventListener('click', (e) => {
 
 document.getElementById('quiz-body').addEventListener('click', (e) => {
   if(e.target.id === 'quiz-start' || e.target.id === 'quiz-next') loadQuizQuestion();
-  if(e.target.id === 'quiz-retry') loadQuizQuestion();
 });
 
 function updateScore(){
@@ -960,11 +1415,11 @@ async function loadQuizQuestion(){
   const body = document.getElementById('quiz-body');
   body.innerHTML = `<div class="thinking"><div class="mini-compass"></div><span>VERIFYING AGAINST SOURCES...</span></div>`;
   try{
-    const { text } = await callClaude(QUIZ_SYSTEM, [{role:'user', content: `Topic: ${quizTopic}. Give me one fresh multiple-choice question.`}], 1500);
+    const { text } = await callClaude(QUIZ_SYSTEM, `Topic: ${quizTopic}. Give me one fresh multiple-choice question.`);
     const q = parseJsonLoose(text);
     renderQuizQuestion(q);
   }catch(err){
-    body.innerHTML = `<div class="empty-state">Couldn't draw up a verified question — try again.<br><br><button class="btn-primary" id="quiz-retry">RETRY</button></div>`;
+    body.innerHTML = `<div class="empty-state">Couldn't draw up a verified question — try again.<br><br><button class="btn-primary" id="quiz-start">RETRY</button></div>`;
     console.error(err);
   }
 }
@@ -979,7 +1434,8 @@ function renderQuizQuestion(q){
     <div id="quiz-explain" style="display:none" class="quiz-explain"></div>
     <div class="quiz-actions" id="quiz-actions" style="display:none">
       <button class="btn-primary" id="quiz-next">NEXT QUESTION</button>
-    </div>`;
+    </div>
+  `;
   body.innerHTML = '';
   body.appendChild(card);
 
@@ -988,7 +1444,7 @@ function renderQuizQuestion(q){
     const b = document.createElement('button');
     b.className = 'quiz-option';
     b.textContent = opt;
-    b.addEventListener('click', async () => {
+    b.addEventListener('click', () => {
       quizTotal++;
       const correct = i === q.correctIndex;
       if(correct) quizCorrect++;
@@ -1004,22 +1460,12 @@ function renderQuizQuestion(q){
       explain.style.display = 'block';
       card.querySelector('#quiz-actions').style.display = 'flex';
       updateScore();
-      await storeSet('quiz:stats:' + quizTopic, await tallyQuizStat(quizTopic, correct));
     });
     optsWrap.appendChild(b);
   });
 }
 
-async function tallyQuizStat(topic, correct){
-  const cur = await storeGet('quiz:stats:' + topic, {correct:0, total:0});
-  cur.total += 1;
-  if(correct) cur.correct += 1;
-  return cur;
-}
-
-/* =====================================================================
-   FLASHCARD MODE
-   ===================================================================== */
+/* ---------------- FLASHCARD MODE ---------------- */
 const CORE_COLREGS_DECK = [
   {tag:'RULE 5', front:'Look-out', back:'Every vessel shall at all times maintain a proper look-out by sight and hearing, as well as by all available means, to make a full appraisal of the situation and risk of collision.'},
   {tag:'RULE 6', front:'Safe Speed', back:'Every vessel shall proceed at a safe speed so she can take proper and effective action to avoid collision, factoring visibility, traffic density, maneuverability, and background lights.'},
@@ -1031,43 +1477,35 @@ const CORE_COLREGS_DECK = [
   {tag:'RULE 17', front:'Action by Stand-on Vessel', back:'The stand-on vessel shall keep her course and speed, but may act to avoid collision if it becomes apparent the give-way vessel is not taking appropriate action.'},
 ];
 
-const FLASH_SYSTEM = `You generate concise study flashcards strictly about MARITIME TRANSPORTATION topics for a BSMT freshman student in the Philippines. You have a web_search tool — use it to verify each fact, rule number, or definition against a bonafide source (IMO, PCG, MARINA, DMW, DOH, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references) before writing the card. Do not invent or guess.
+const FLASH_SYSTEM = `You are "Bridge Watch," acting as an AI Maritime Teacher who writes concise study flashcards covering the full BSMT/STCW curriculum for a student in the Philippines. You have a web_search tool — use it to verify each fact, rule number, or definition against a bonafide source (IMO, PCG, MARINA, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references) before writing the card. Do not invent or guess.
 
 After searching, respond with ONLY a raw JSON array as your final output, no markdown fences, no preamble, in exactly this shape:
-[{"tag":"short label e.g. rule/concept number or category","front":"short term or question (max 8 words)","back":"concise 1-3 sentence explanation","source":"short source name, e.g. 'IMO SOLAS Ch. V'"}]
+[{"tag":"short label e.g. rule/concept number or category","front":"short term or question (max 8 words)","back":"concise 1-3 sentence explanation that teaches the concept, not just restates it — briefly note why it matters on watch or in practice where relevant","source":"short source name, e.g. 'IMO SOLAS Ch. V'"}]
 
 Generate exactly 6 cards on the given topic. Avoid duplicating extremely basic COLREGS Rules 5,6,7,8,13,14,15,17 unless the topic specifically requires them.`;
 
 let flashDeck = [...CORE_COLREGS_DECK];
 let flashIndex = 0;
 let flashTopic = 'core';
-let masteredSet = new Set();
 
-function cardKey(topic, card){ return topic + '::' + card.front; }
-
-async function loadMastery(){
-  const saved = await storeGet('flash:mastered:' + flashTopic, []);
-  masteredSet = new Set(saved);
+function renderFlashTopicChips(){
+  const coreChip = `<button class="topic-chip active" data-topic="core">Core COLREGS</button>`;
+  const topicChips = MARITIME_TOPICS.map(t =>
+    `<button class="topic-chip" data-topic="${escapeAttr(t.prompt)}">${t.label}</button>`
+  ).join('');
+  document.getElementById('flash-topics').innerHTML = coreChip + topicChips;
 }
-async function saveMastery(){
-  await storeSet('flash:mastered:' + flashTopic, Array.from(masteredSet));
-}
+renderFlashTopicChips();
 
 function renderFlashcard(){
   const c = flashDeck[flashIndex];
-  const key = cardKey(flashTopic, c);
-  const isMastered = masteredSet.has(key);
   document.getElementById('flashcard').classList.remove('flipped');
   document.getElementById('flash-tag-front').textContent = c.tag;
   document.getElementById('flash-front-text').textContent = c.front;
   document.getElementById('flash-back-text').textContent = c.back + (c.source ? `  [Source: ${c.source}]` : '');
   document.getElementById('flash-counter').textContent = `Card ${flashIndex + 1} of ${flashDeck.length}`;
-  document.getElementById('flash-mastery').textContent = `${masteredSet.size} mastered`;
   document.getElementById('flash-prev').disabled = flashIndex === 0;
   document.getElementById('flash-next').disabled = flashIndex === flashDeck.length - 1;
-  document.getElementById('flash-face-front').classList.toggle('mastered', isMastered);
-  document.getElementById('flash-face-back').classList.toggle('mastered', isMastered);
-  document.getElementById('flash-known').textContent = isMastered ? '✓ MASTERED' : '✓ GOT IT';
 }
 
 document.getElementById('flashcard').addEventListener('click', () => {
@@ -1079,28 +1517,18 @@ document.getElementById('flash-prev').addEventListener('click', () => {
 document.getElementById('flash-next').addEventListener('click', () => {
   if(flashIndex < flashDeck.length - 1){ flashIndex++; renderFlashcard(); }
 });
-document.getElementById('flash-known').addEventListener('click', async () => {
-  const key = cardKey(flashTopic, flashDeck[flashIndex]);
-  if(masteredSet.has(key)) masteredSet.delete(key); else masteredSet.add(key);
-  await saveMastery();
-  renderFlashcard();
-});
 
-document.getElementById('flash-topics').addEventListener('click', async (e) => {
+document.getElementById('flash-topics').addEventListener('click', (e) => {
   const chip = e.target.closest('.topic-chip');
   if(!chip) return;
   document.querySelectorAll('#flash-topics .topic-chip').forEach(c => c.classList.remove('active'));
   chip.classList.add('active');
   flashTopic = chip.dataset.topic;
-  flashIndex = 0;
   if(flashTopic === 'core'){
     flashDeck = [...CORE_COLREGS_DECK];
-  }else{
-    const saved = await storeGet('flash:deck:' + flashTopic, null);
-    flashDeck = saved && saved.length ? saved : [{tag:'—', front:'No cards yet', back:'Tap "Generate 6 more" below to build a verified deck for this topic.'}];
+    flashIndex = 0;
+    renderFlashcard();
   }
-  await loadMastery();
-  renderFlashcard();
 });
 
 document.getElementById('flash-more').addEventListener('click', async () => {
@@ -1109,75 +1537,232 @@ document.getElementById('flash-more').addEventListener('click', async () => {
   btn.textContent = 'VERIFYING...';
   try{
     const topicForPrompt = flashTopic === 'core' ? 'Core COLREGS rules beyond 5,6,7,8,13,14,15,17' : flashTopic;
-    const { text } = await callClaude(FLASH_SYSTEM, [{role:'user', content: `Topic: ${topicForPrompt}. Generate 6 flashcards.`}], 1500);
+    const { text } = await callClaude(FLASH_SYSTEM, `Topic: ${topicForPrompt}. Generate 6 flashcards.`);
     const cards = parseJsonLoose(text);
     if(Array.isArray(cards) && cards.length){
-      if(flashDeck.length === 1 && flashDeck[0].tag === '—') flashDeck = [];
       const startIdx = flashDeck.length;
       flashDeck = flashDeck.concat(cards);
       flashIndex = startIdx;
-      if(flashTopic !== 'core') await storeSet('flash:deck:' + flashTopic, flashDeck);
       renderFlashcard();
     }
   }catch(err){
     console.error(err);
   }finally{
     btn.disabled = false;
-    btn.textContent = '+ GENERATE 6 MORE (VERIFIED)';
+    btn.textContent = '+ GENERATE MORE';
   }
 });
 
-/* =====================================================================
-   MILESTONES — PEME / BT / SDSD / OBT / MARINA pathway
-   ===================================================================== */
-const MILESTONES = [
-  {id:'peme', title:'PEME cleared', desc:'Pre-Employment Medical Examination — Fit-to-Work certification from a DOH/DMW-accredited clinic.'},
-  {id:'pft', title:'PFT-ready', desc:'Physical Fitness Test conditioning — push-ups, sit-ups, squat-thrusts, flutter-kicks, mountain climbers, jogging.'},
-  {id:'bt', title:'BT complete', desc:'Basic Training: Personal Survival Techniques, Fire Prevention & Fire Fighting, Elementary First Aid, Personal Safety & Social Responsibility.'},
-  {id:'sdsd', title:'SDSD complete', desc:'Security Training for Seafarers with Designated Security Duties.'},
-  {id:'dwatch', title:'D-WATCH passed', desc:'Capstone bridge simulator course — integrated navigation, COLREGS, and communications under realistic pressure.'},
-  {id:'obt', title:'OBT (40 units) complete', desc:'Supervised seagoing apprenticeship logged in your training record book.'},
-  {id:'marina', title:'MARINA licensing exam passed', desc:'Certified as OICNW — Officer in Charge of a Navigational Watch.'}
-];
+renderFlashcard();
 
-let milestoneState = {};
+/* ---------------- NAVIGATION PRACTICE ---------------- */
+// Pure client-side geometry — no API calls, so this tab always works.
+const NAV_NM_TO_PX = 8;        // pixels per nautical mile at this scale
+const NAV_SVG_SIZE = 420;      // svg viewBox is NAV_SVG_SIZE x NAV_SVG_SIZE
+const NAV_ORIGIN = { x: NAV_SVG_SIZE / 2, y: NAV_SVG_SIZE / 2 }; // own ship's fixed departure point, centered so any course/distance stays on-chart
 
-async function loadMilestones(){
-  milestoneState = await storeGet('milestones:v1', {});
-  renderMilestones();
+let navMode = 'plot';
+let navCorrect = 0;
+let navTotal = 0;
+let navCurrent = null;
+let navAnswered = false;
+
+const navChart = document.getElementById('nav-chart');
+const navPromptEl = document.getElementById('nav-prompt');
+const navTeachNoteEl = document.getElementById('nav-teach-note');
+const navAnswerControls = document.getElementById('nav-answer-controls');
+const navFeedbackEl = document.getElementById('nav-feedback');
+
+const NAV_TEACH_NOTES = {
+  plot: "Teacher's note: a DR (dead reckoning) position advances the last known fix along the course steered, for the distance run since that fix. Resolve the course into components, or simply walk it off the compass rose in your head, then measure the distance to scale — direction matters as much as distance here.",
+  findbd: "Teacher's note: true bearing is read clockwise from 000°T (north) to the line of sight toward the object. Distance is measured along that same line, to scale, using the chart's latitude scale (1′ of latitude ≈ 1 nm)."
+};
+
+function navUpdateScore(){
+  document.getElementById('nav-score').innerHTML = `Score: <b>${navCorrect}</b> / ${navTotal}`;
 }
-function renderMilestones(){
-  const list = document.getElementById('milestone-list');
-  list.innerHTML = '';
-  MILESTONES.forEach(m => {
-    const done = !!milestoneState[m.id];
-    const row = document.createElement('div');
-    row.className = 'milestone-row' + (done ? ' done' : '');
-    row.innerHTML = `<div class="m-check">${done ? '✓' : ''}</div><div class="m-body"><b>${m.title}</b><span>${m.desc}</span></div>`;
-    row.addEventListener('click', async () => {
-      milestoneState[m.id] = !milestoneState[m.id];
-      await storeSet('milestones:v1', milestoneState);
-      renderMilestones();
+
+function navSvgEl(tag, attrs){
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  return el;
+}
+
+// Bearing 0-359 (000°T = up/north) + distance in nm -> chart pixel coords
+function navPolarToXY(bearingDeg, distNm){
+  const rad = bearingDeg * Math.PI / 180;
+  return {
+    x: NAV_ORIGIN.x + distNm * NAV_NM_TO_PX * Math.sin(rad),
+    y: NAV_ORIGIN.y - distNm * NAV_NM_TO_PX * Math.cos(rad)
+  };
+}
+
+function navRandRange(min, max){
+  return Math.random() * (max - min) + min;
+}
+
+function navDrawBaseChart(){
+  navChart.innerHTML = '';
+  navChart.appendChild(navSvgEl('rect', { x:0, y:0, width:NAV_SVG_SIZE, height:NAV_SVG_SIZE, fill:'#0E2438', rx:6 }));
+
+  // grid every 5 nm
+  const step = 5 * NAV_NM_TO_PX;
+  for(let p = step; p < NAV_SVG_SIZE; p += step){
+    navChart.appendChild(navSvgEl('line', { x1:p, y1:0, x2:p, y2:NAV_SVG_SIZE, stroke:'#1c3c58', 'stroke-width':1 }));
+    navChart.appendChild(navSvgEl('line', { x1:0, y1:p, x2:NAV_SVG_SIZE, y2:p, stroke:'#1c3c58', 'stroke-width':1 }));
+  }
+  // center cross-hairs through own ship
+  navChart.appendChild(navSvgEl('line', { x1:NAV_ORIGIN.x, y1:0, x2:NAV_ORIGIN.x, y2:NAV_SVG_SIZE, stroke:'#2c4d6d', 'stroke-width':1, 'stroke-dasharray':'2,3' }));
+  navChart.appendChild(navSvgEl('line', { x1:0, y1:NAV_ORIGIN.y, x2:NAV_SVG_SIZE, y2:NAV_ORIGIN.y, stroke:'#2c4d6d', 'stroke-width':1, 'stroke-dasharray':'2,3' }));
+
+  // mini compass rose, top-right corner (reference only — 000°T is always "up" on this chart)
+  const roseCx = 368, roseCy = 52, roseR = 30;
+  navChart.appendChild(navSvgEl('circle', { cx:roseCx, cy:roseCy, r:roseR, fill:'none', stroke:'#C79A3D', 'stroke-width':1.2 }));
+  for(let deg = 0; deg < 360; deg += 10){
+    const rad = deg * Math.PI / 180;
+    const rInner = deg % 30 === 0 ? roseR - 7 : roseR - 4;
+    navChart.appendChild(navSvgEl('line', {
+      x1: roseCx + roseR * Math.sin(rad), y1: roseCy - roseR * Math.cos(rad),
+      x2: roseCx + rInner * Math.sin(rad), y2: roseCy - rInner * Math.cos(rad),
+      stroke:'#C79A3D', 'stroke-width': deg % 30 === 0 ? 1.4 : 0.8
+    }));
+  }
+  ['N','E','S','W'].forEach((label, i) => {
+    const rad = (i * 90) * Math.PI / 180;
+    const r = roseR + 11;
+    const t = navSvgEl('text', {
+      x: roseCx + r * Math.sin(rad), y: roseCy - r * Math.cos(rad) + 3,
+      'text-anchor':'middle', 'font-size':10, fill:'#E0B85C', 'font-family':"'IBM Plex Mono', monospace"
     });
-    list.appendChild(row);
+    t.textContent = label;
+    navChart.appendChild(t);
   });
-  const doneCount = MILESTONES.filter(m => milestoneState[m.id]).length;
-  const pct = Math.round((doneCount / MILESTONES.length) * 100);
-  document.getElementById('milestone-progress-fill').style.width = pct + '%';
-  document.getElementById('milestone-progress-label').textContent = `${doneCount} of ${MILESTONES.length} cleared`;
+
+  // own ship marker
+  navChart.appendChild(navSvgEl('circle', { cx:NAV_ORIGIN.x, cy:NAV_ORIGIN.y, r:5, fill:'#E0B85C' }));
+  navChart.appendChild(navSvgEl('circle', { cx:NAV_ORIGIN.x, cy:NAV_ORIGIN.y, r:9, fill:'none', stroke:'#E0B85C', 'stroke-width':1.2 }));
+  const shipLabel = navSvgEl('text', { x:NAV_ORIGIN.x + 12, y:NAV_ORIGIN.y - 10, 'font-size':10, fill:'#F3ECDA', 'font-family':"'IBM Plex Mono', monospace" });
+  shipLabel.textContent = 'OWN SHIP';
+  navChart.appendChild(shipLabel);
+
+  // 10 NM scale bar
+  const sbX = 20, sbY = NAV_SVG_SIZE - 20, sbLen = 10 * NAV_NM_TO_PX;
+  navChart.appendChild(navSvgEl('line', { x1:sbX, y1:sbY, x2:sbX + sbLen, y2:sbY, stroke:'#C9C0A8', 'stroke-width':1.5 }));
+  navChart.appendChild(navSvgEl('line', { x1:sbX, y1:sbY - 4, x2:sbX, y2:sbY + 4, stroke:'#C9C0A8', 'stroke-width':1.5 }));
+  navChart.appendChild(navSvgEl('line', { x1:sbX + sbLen, y1:sbY - 4, x2:sbX + sbLen, y2:sbY + 4, stroke:'#C9C0A8', 'stroke-width':1.5 }));
+  const sbLabel = navSvgEl('text', { x:sbX, y:sbY - 8, 'font-size':9.5, fill:'#C9C0A8', 'font-family':"'IBM Plex Mono', monospace" });
+  sbLabel.textContent = '10 NM';
+  navChart.appendChild(sbLabel);
 }
 
-/* =====================================================================
-   INIT
-   ===================================================================== */
-(async function init(){
-  renderVoyage();
-  renderGlossary('');
-  await initLog();
-  await loadMastery();
-  renderFlashcard();
-  await loadMilestones();
-})();
+function navNewExercise(){
+  navAnswered = false;
+  navFeedbackEl.innerHTML = '';
+  navTeachNoteEl.textContent = NAV_TEACH_NOTES[navMode];
+  navDrawBaseChart();
+
+  if(navMode === 'plot'){
+    const course = Math.floor(navRandRange(0, 360));
+    const distance = Math.round(navRandRange(6, 20) * 10) / 10;
+    navCurrent = { course, distance };
+    navPromptEl.innerHTML = `Own ship departs the fix (⚓ shown) on course <b>${String(course).padStart(3,'0')}°T</b>, log distance <b>${distance.toFixed(1)} nm</b>. Click the chart where the new DR position should be plotted.`;
+    navAnswerControls.innerHTML = '';
+    navChart.style.cursor = 'crosshair';
+    navChart.onclick = navHandlePlotClick;
+  }else{
+    const bearing = Math.floor(navRandRange(0, 360));
+    const distance = Math.round(navRandRange(6, 20) * 10) / 10;
+    navCurrent = { bearing, distance };
+    const pt = navPolarToXY(bearing, distance);
+
+    navChart.appendChild(navSvgEl('circle', { cx:pt.x, cy:pt.y, r:5, fill:'#B6552E' }));
+    navChart.appendChild(navSvgEl('circle', { cx:pt.x, cy:pt.y, r:9, fill:'none', stroke:'#B6552E', 'stroke-width':1.2 }));
+    const tLabel = navSvgEl('text', { x:pt.x + 12, y:pt.y - 10, 'font-size':10, fill:'#F0B8A0', 'font-family':"'IBM Plex Mono', monospace" });
+    tLabel.textContent = 'CHARTED LIGHT';
+    navChart.appendChild(tLabel);
+
+    navPromptEl.innerHTML = `Determine the true bearing and distance from own ship to the charted light shown on the chart.`;
+    navAnswerControls.innerHTML = `
+      <div class="nav-input-row">
+        <label>BEARING (°T)<input type="number" id="nav-bearing-input" min="0" max="359" placeholder="000"></label>
+        <label>DISTANCE (NM)<input type="number" id="nav-distance-input" min="0" step="0.1" placeholder="0.0"></label>
+        <button class="btn-primary" id="nav-check">CHECK</button>
+      </div>
+    `;
+    document.getElementById('nav-check').addEventListener('click', navHandleFindBDCheck);
+    navChart.onclick = null;
+    navChart.style.cursor = 'default';
+  }
+}
+
+function navHandlePlotClick(e){
+  if(navAnswered) return;
+  const rect = navChart.getBoundingClientRect();
+  const scaleX = NAV_SVG_SIZE / rect.width;
+  const scaleY = NAV_SVG_SIZE / rect.height;
+  const clickX = (e.clientX - rect.left) * scaleX;
+  const clickY = (e.clientY - rect.top) * scaleY;
+
+  navAnswered = true;
+  navTotal++;
+
+  const correctPt = navPolarToXY(navCurrent.course, navCurrent.distance);
+  const errPx = Math.hypot(clickX - correctPt.x, clickY - correctPt.y);
+  const errNm = errPx / NAV_NM_TO_PX;
+  const tolerance = 2; // nm
+  const isCorrect = errNm <= tolerance;
+  if(isCorrect) navCorrect++;
+  navUpdateScore();
+
+  navChart.appendChild(navSvgEl('line', { x1:NAV_ORIGIN.x, y1:NAV_ORIGIN.y, x2:correctPt.x, y2:correctPt.y, stroke:'#C79A3D', 'stroke-width':1.4, 'stroke-dasharray':'4,3' }));
+  navChart.appendChild(navSvgEl('circle', { cx:correctPt.x, cy:correctPt.y, r:5, fill:'none', stroke:'#C79A3D', 'stroke-width':1.6 }));
+  navChart.appendChild(navSvgEl('circle', { cx:clickX, cy:clickY, r:5, fill: isCorrect ? '#5C9C6C' : '#B6552E' }));
+
+  navFeedbackEl.innerHTML = isCorrect
+    ? `<b>Well plotted.</b> Your mark was ${errNm.toFixed(1)} nm from the correct DR position — within the ${tolerance} nm tolerance.`
+    : `<b>Off the mark.</b> Your click landed ${errNm.toFixed(1)} nm from the correct DR position (gold circle, dashed line). That position is ${navCurrent.distance.toFixed(1)} nm out on course ${String(navCurrent.course).padStart(3,'0')}°T from the fix.`;
+}
+
+function navHandleFindBDCheck(){
+  if(navAnswered) return;
+  const bInput = document.getElementById('nav-bearing-input');
+  const dInput = document.getElementById('nav-distance-input');
+  const bVal = parseFloat(bInput.value);
+  const dVal = parseFloat(dInput.value);
+  if(Number.isNaN(bVal) || Number.isNaN(dVal)) return;
+
+  navAnswered = true;
+  navTotal++;
+
+  let bearingErr = Math.abs(bVal - navCurrent.bearing);
+  if(bearingErr > 180) bearingErr = 360 - bearingErr;
+  const distErr = Math.abs(dVal - navCurrent.distance);
+  const isCorrect = bearingErr <= 5 && distErr <= 1.5;
+  if(isCorrect) navCorrect++;
+  navUpdateScore();
+
+  document.getElementById('nav-check').disabled = true;
+  bInput.disabled = true;
+  dInput.disabled = true;
+
+  navFeedbackEl.innerHTML = isCorrect
+    ? `<b>Correct.</b> The actual bearing/distance to the light is ${String(navCurrent.bearing).padStart(3,'0')}°T, ${navCurrent.distance.toFixed(1)} nm.`
+    : `<b>Not quite.</b> The actual bearing/distance is ${String(navCurrent.bearing).padStart(3,'0')}°T, ${navCurrent.distance.toFixed(1)} nm. (You entered ${String(Math.round(bVal)).padStart(3,'0')}°T, ${dVal.toFixed(1)} nm.)`;
+}
+
+document.getElementById('nav-modes').addEventListener('click', (e) => {
+  const chip = e.target.closest('.topic-chip');
+  if(!chip) return;
+  document.querySelectorAll('#nav-modes .topic-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  navMode = chip.dataset.mode;
+  navNewExercise();
+});
+
+document.getElementById('nav-new').addEventListener('click', navNewExercise);
+
+navNewExercise();
+
 </script>
 </body>
 </html>
