@@ -666,7 +666,7 @@
     max-width:440px;
   }
 
-  /* ---- Auth overlay ---- */
+  /* ---- Passcode gate ---- */
   .auth-overlay{
     position:fixed; inset:0;
     background: radial-gradient(ellipse at top, #102640 0%, var(--navy-deep) 55%);
@@ -691,17 +691,11 @@
     font-size:22px;
     margin:14px 0 4px;
   }
-  .auth-tabs{
-    display:flex; gap:2px; margin:18px 0 16px;
-    border:1px solid var(--navy-line); border-radius:6px; overflow:hidden;
+  .auth-subtitle{
+    font-size:12px;
+    color:var(--parchment-dim);
+    margin-bottom:18px;
   }
-  .auth-tab{
-    flex:1; background:transparent; border:none; color:var(--parchment-dim);
-    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em;
-    padding:9px 4px; cursor:pointer;
-    transition:background 0.2s ease, color 0.2s ease;
-  }
-  .auth-tab.active{ background:rgba(199,154,61,0.12); color:var(--gold); }
   .auth-form{ display:flex; flex-direction:column; gap:12px; text-align:left; }
   .auth-form label{
     display:flex; flex-direction:column; gap:5px;
@@ -725,18 +719,21 @@
     margin-top:16px; font-size:11px; line-height:1.5; color:var(--parchment-dim);
   }
   .auth-setup-warning{
-    margin-top:14px; font-size:11px; line-height:1.5; color:var(--rust);
+    margin-bottom:16px; font-size:11px; line-height:1.5; color:var(--rust);
     border:1px solid var(--rust); border-radius:4px; padding:10px;
     text-align:left;
-    animation:fadeIn 0.4s ease;
   }
-  .account-chip{
-    display:flex; align-items:center; gap:8px;
-    font-family:'IBM Plex Mono', monospace; font-size:11px;
-    color:var(--parchment-dim); flex-shrink:0;
-    animation:fadeIn 0.4s ease;
+  .auth-setup-warning code{
+    background:rgba(182,85,46,0.14);
+    padding:1px 4px;
+    border-radius:2px;
   }
-  .account-chip #account-username{ color:var(--gold); }
+  #setup-hash-output{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    cursor:pointer;
+  }
+  .header-lock-btn{ flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -744,22 +741,31 @@
   <div class="auth-card">
     <div class="compass"><div class="needle"></div></div>
     <h2 class="auth-title">Bridge Watch</h2>
-    <div class="auth-tabs">
-      <button type="button" class="auth-tab active" data-mode="login">LOG IN</button>
-      <button type="button" class="auth-tab" data-mode="signup">SIGN UP</button>
+    <div class="auth-subtitle">Private study console — passcode required</div>
+
+    <!-- Shown only the very first time, before a passcode hash has been configured. -->
+    <div id="passcode-setup" style="display:none">
+      <div class="auth-setup-warning">No passcode is configured yet. Choose one below, generate its hash, then paste that hash into <code>ACCESS_PASSCODE_HASH</code> near the top of this file's script and reload the page.</div>
+      <div class="auth-form">
+        <label>Choose a passcode
+          <input type="password" id="setup-passcode-input" autocomplete="new-password">
+        </label>
+        <button type="button" class="btn-primary" id="setup-generate-btn">GENERATE HASH</button>
+        <label>Copy this into ACCESS_PASSCODE_HASH
+          <input type="text" id="setup-hash-output" readonly placeholder="hash will appear here" onclick="this.select()">
+        </label>
+      </div>
     </div>
-    <form id="auth-form" class="auth-form">
-      <label>Username
-        <input type="text" id="auth-username" autocomplete="username" required>
+
+    <!-- Normal unlock screen, shown once a passcode hash is configured. -->
+    <form id="unlock-form" class="auth-form" style="display:none">
+      <label>Passcode
+        <input type="password" id="unlock-passcode-input" autocomplete="current-password" required>
       </label>
-      <label>Password
-        <input type="password" id="auth-password" autocomplete="current-password" required>
-      </label>
-      <div class="auth-error" id="auth-error"></div>
-      <button type="submit" class="btn-primary auth-submit" id="auth-submit">LOG IN</button>
+      <div class="auth-error" id="unlock-error"></div>
+      <button type="submit" class="btn-primary auth-submit">UNLOCK</button>
     </form>
-    <div class="auth-note">Your Bridge Watch account is separate from your Claude.ai login — pick your own username and password. Your Ship's Log is saved to this account and follows you across devices.</div>
-    <div class="auth-setup-warning" id="auth-setup-warning" style="display:none">No auth server is configured yet. Deploy the included <code>Code.gs</code> as an Apps Script Web App, then set <code>APPS_SCRIPT_URL</code> near the top of this file's script to your deployed <code>/exec</code> URL.</div>
+    <div class="auth-note">This is a single shared passcode stored as a hash in this file — a lightweight gate, not full account security. Anyone with the passcode and this link can view and edit the Ship's Log.</div>
   </div>
 </div>
 <div id="app" style="display:none">
@@ -770,10 +776,7 @@
       <h1>Bridge Watch<span class="scope-badge">MARITIME ONLY</span></h1>
       <div class="subtitle">Your AI Maritime Teacher — Navigation · Seamanship · Stability · Engineering · Law · Safety</div>
     </div>
-    <div class="account-chip" id="account-chip" style="display:none">
-      <span id="account-username"></span>
-      <button type="button" id="logout-btn" class="log-clear-link">Log out</button>
-    </div>
+    <button type="button" id="lock-btn" class="log-clear-link header-lock-btn">Lock</button>
   </header>
 
   <div id="tabs">
@@ -909,119 +912,250 @@ let history = [];
 let displayLog = [];
 
 // ---------------------------------------------------------------------------
-// BACKEND CONFIGURATION
-// Bridge Watch auth and Ship's Log storage run on a Google Apps Script Web
-// App (see Code.gs — deploy it as a Web App with "Anyone" access, then
-// paste the /exec URL here). The script talks to a single URL with an
-// "action" field in the POST body instead of REST-style paths, since Apps
-// Script Web Apps don't support path routing.
+// STORAGE — works both as a Claude.ai Artifact (window.storage) and as a
+// standalone GitHub Pages site (falls back to localStorage). Everything
+// below — the passcode gate and the Ship's Log — goes through these two
+// helpers so it behaves the same in either deployment.
 //
-// IMPORTANT — ARTIFACT-ONLY MODE: the AI features (Ship's Log chat, Quiz,
-// "Generate More" flashcards) call https://api.anthropic.com directly with
-// no API key, and session caching below uses window.storage. Both of these
-// only work inside a Claude.ai Artifact preview, which quietly proxies
-// that API call and provides window.storage for you. This keeps things
-// free (no API key/billing needed), but it means this file will NOT work
-// as a standalone GitHub Pages site — only when opened/shared as a
-// Claude.ai Artifact link. If you ever want a real public site with these
-// AI features working, you'd need a small paid backend proxy instead.
+// ARTIFACT-ONLY AI FEATURES: the Ship's Log chat, Quiz, and "Generate
+// More" flashcards call https://api.anthropic.com directly with no API
+// key, which only works inside a Claude.ai Artifact preview (Claude's
+// sandbox proxies that call for free). That part will NOT work on a
+// standalone GitHub Pages deploy — only when opened/shared as a Claude.ai
+// Artifact link. The passcode gate and Ship's Log storage work either way.
 // ---------------------------------------------------------------------------
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwf70kxNk6Js0UHK7kxmQFUw_1upmGOc3X3as5W2RJ9z40k6sdjYMPwW7RltNvxK1coOw/exec';
+const HAS_ARTIFACT_STORAGE = typeof window !== 'undefined' && !!window.storage;
 
-let authToken = null;
-let currentUsername = null;
-const AUTH_TOKEN_CACHE_KEY = 'bridgewatch-auth-token';
-
-if(!APPS_SCRIPT_URL){
-  const warningEl = document.getElementById('auth-setup-warning');
-  if(warningEl) warningEl.style.display = 'block';
-}
-
-// Calls the Apps Script backend with a given action + payload. Sent as
-// text/plain (not application/json) so the browser doesn't fire a CORS
-// preflight OPTIONS request, which Apps Script Web Apps can't answer.
-async function callBackend(action, payload){
-  payload = payload || {};
-  const body = Object.assign({ action, token: authToken || undefined }, payload);
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(body)
-  });
-  let data = {};
-  try{ data = await res.json(); }catch(e){ /* non-JSON response */ }
-  if(!res.ok || data.error){
-    throw new Error(data.error || `Request failed (${res.status})`);
+async function storageGet(key){
+  if(HAS_ARTIFACT_STORAGE){
+    try{
+      const r = await window.storage.get(key, false);
+      return r ? r.value : null;
+    }catch(err){ return null; }
   }
-  return data;
+  try{ return localStorage.getItem(key); }catch(err){ return null; }
 }
+async function storageSet(key, value){
+  if(HAS_ARTIFACT_STORAGE){
+    try{ await window.storage.set(key, value, false); }catch(err){ console.warn('Storage set failed:', err); }
+    return;
+  }
+  try{ localStorage.setItem(key, value); }catch(err){ console.warn('Storage set failed:', err); }
+}
+async function storageDelete(key){
+  if(HAS_ARTIFACT_STORAGE){
+    try{ await window.storage.delete(key, false); }catch(err){ /* ignore */ }
+    return;
+  }
+  try{ localStorage.removeItem(key); }catch(err){ /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// PASSCODE GATE — single shared passcode for one person (you). The
+// passcode itself is never stored in the file, only its SHA-256 hash, so
+// casual viewing of the source doesn't hand it over. This is a lightweight
+// deterrent, not real account security — anyone who has both the hash's
+// matching passcode and this link can get in.
+//
+// SETUP: leave ACCESS_PASSCODE_HASH empty and reload. A setup panel will
+// let you type a passcode and generate its hash in-browser. Paste that
+// hash below, save the file, and reload — the setup panel is replaced by
+// the normal unlock screen from then on.
+// ---------------------------------------------------------------------------
+const ACCESS_PASSCODE_HASH = '972ef8e69fa0c5f5d638ea40091a2d1f90d08fe94d55d877bd166655542b288b'; // <-- paste your generated SHA-256 hash here
+
+const UNLOCK_CACHE_KEY = 'bridgewatch-unlocked';
+
+async function sha256Hex(text){
+  const enc = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+const authOverlay = document.getElementById('auth-overlay');
+const appEl = document.getElementById('app');
 
 function showAuthOverlay(){
-  const overlay = document.getElementById('auth-overlay');
-  overlay.style.display = 'flex';
-  overlay.classList.remove('leaving');
-  document.getElementById('app').style.display = 'none';
+  authOverlay.style.display = 'flex';
+  authOverlay.classList.remove('leaving');
+  appEl.style.display = 'none';
 }
 function hideAuthOverlay(){
-  const overlay = document.getElementById('auth-overlay');
-  overlay.classList.add('leaving');
-  document.getElementById('app').style.display = 'flex';
-  setTimeout(() => { overlay.style.display = 'none'; }, 250);
+  authOverlay.classList.add('leaving');
+  appEl.style.display = 'flex';
+  setTimeout(() => { authOverlay.style.display = 'none'; }, 250);
 }
-function setAccountChip(username){
-  document.getElementById('account-username').textContent = '@' + username;
-  document.getElementById('account-chip').style.display = 'flex';
+function showSetupPanel(){
+  document.getElementById('passcode-setup').style.display = 'block';
+  document.getElementById('unlock-form').style.display = 'none';
+}
+async function showUnlockPanel(){
+  document.getElementById('passcode-setup').style.display = 'none';
+  document.getElementById('unlock-form').style.display = 'flex';
+  await refreshLockoutState();
+  if(!lockoutTimerId) document.getElementById('unlock-passcode-input').focus();
 }
 
-// The JWT itself is cached via the artifact's key-value storage (NOT
-// localStorage, which artifacts don't support) so a refresh doesn't force
-// a re-login — but the actual account data (username/password/Ship's Log)
-// lives on your deployed backend, not here.
-async function cacheToken(token){
-  try{ await window.storage.set(AUTH_TOKEN_CACHE_KEY, token, false); }
-  catch(err){ console.warn('Could not cache auth token:', err); }
+document.getElementById('setup-generate-btn').addEventListener('click', async () => {
+  const val = document.getElementById('setup-passcode-input').value;
+  if(!val) return;
+  const hash = await sha256Hex(val);
+  const outEl = document.getElementById('setup-hash-output');
+  outEl.value = hash;
+  outEl.select();
+});
+
+// ---------------------------------------------------------------------------
+// BRUTE-FORCE PROTECTION — failed attempts and lockout state persist
+// through storageGet/storageSet (survives page reloads, not just an
+// in-memory counter). Lockout duration escalates each time the attempt
+// cap is hit again, so repeated guessing gets slower, not just paused.
+// ---------------------------------------------------------------------------
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_STEPS_SECONDS = [30, 60, 300, 900, 3600]; // 30s, 1m, 5m, 15m, then 1h repeating
+const FAILED_ATTEMPTS_KEY = 'bridgewatch-failed-attempts';
+const LOCKOUT_UNTIL_KEY = 'bridgewatch-lockout-until';
+const LOCKOUT_STRIKES_KEY = 'bridgewatch-lockout-strikes';
+
+let lockoutTimerId = null;
+
+function nextLockoutSeconds(strikeIndex){
+  const i = Math.min(strikeIndex, LOCKOUT_STEPS_SECONDS.length - 1);
+  return LOCKOUT_STEPS_SECONDS[i];
 }
-async function loadCachedToken(){
-  try{
-    const result = await window.storage.get(AUTH_TOKEN_CACHE_KEY, false);
-    return result && result.value ? result.value : null;
-  }catch(err){ return null; }
+
+async function getLockoutUntil(){
+  const raw = await storageGet(LOCKOUT_UNTIL_KEY);
+  const n = raw ? parseInt(raw, 10) : 0;
+  return Number.isFinite(n) ? n : 0;
 }
-async function clearCachedToken(){
-  try{ await window.storage.delete(AUTH_TOKEN_CACHE_KEY, false); }
-  catch(err){ /* ignore */ }
+
+async function refreshLockoutState(){
+  const until = await getLockoutUntil();
+  const remainingMs = until - Date.now();
+  const input = document.getElementById('unlock-passcode-input');
+  const submitBtn = document.querySelector('#unlock-form .auth-submit');
+  const errorEl = document.getElementById('unlock-error');
+
+  if(lockoutTimerId){ clearInterval(lockoutTimerId); lockoutTimerId = null; }
+
+  if(remainingMs > 0){
+    input.disabled = true;
+    submitBtn.disabled = true;
+    const tick = () => {
+      const secsLeft = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+      if(secsLeft <= 0){
+        clearInterval(lockoutTimerId);
+        lockoutTimerId = null;
+        input.disabled = false;
+        submitBtn.disabled = false;
+        errorEl.textContent = '';
+        input.focus();
+        return;
+      }
+      const mins = Math.floor(secsLeft / 60);
+      const secs = secsLeft % 60;
+      const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      errorEl.textContent = `Too many attempts. Try again in ${timeStr}.`;
+    };
+    tick();
+    lockoutTimerId = setInterval(tick, 1000);
+  }else{
+    input.disabled = false;
+    submitBtn.disabled = false;
+  }
 }
+
+async function registerFailedAttempt(){
+  const raw = await storageGet(FAILED_ATTEMPTS_KEY);
+  const attempts = (raw ? parseInt(raw, 10) : 0) + 1;
+
+  if(attempts >= MAX_ATTEMPTS){
+    const strikesRaw = await storageGet(LOCKOUT_STRIKES_KEY);
+    const strikes = strikesRaw ? parseInt(strikesRaw, 10) : 0;
+    const seconds = nextLockoutSeconds(strikes);
+    const until = Date.now() + seconds * 1000;
+    await storageSet(LOCKOUT_UNTIL_KEY, String(until));
+    await storageSet(LOCKOUT_STRIKES_KEY, String(strikes + 1));
+    await storageSet(FAILED_ATTEMPTS_KEY, '0');
+    await refreshLockoutState();
+  }else{
+    await storageSet(FAILED_ATTEMPTS_KEY, String(attempts));
+    const errorEl = document.getElementById('unlock-error');
+    const remaining = MAX_ATTEMPTS - attempts;
+    errorEl.textContent = `Incorrect passcode. ${remaining} attempt${remaining === 1 ? '' : 's'} left before a lockout.`;
+  }
+}
+
+async function clearFailedAttempts(){
+  await storageSet(FAILED_ATTEMPTS_KEY, '0');
+  await storageSet(LOCKOUT_STRIKES_KEY, '0');
+  await storageDelete(LOCKOUT_UNTIL_KEY);
+}
+
+document.getElementById('unlock-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const until = await getLockoutUntil();
+  if(until > Date.now()) return; // locked out — ignore submit
+
+  const val = document.getElementById('unlock-passcode-input').value;
+  const errorEl = document.getElementById('unlock-error');
+  errorEl.textContent = '';
+  const hash = await sha256Hex(val);
+  if(hash === ACCESS_PASSCODE_HASH){
+    await clearFailedAttempts();
+    await storageSet(UNLOCK_CACHE_KEY, '1');
+    hideAuthOverlay();
+    await initLog();
+  }else{
+    document.getElementById('unlock-passcode-input').value = '';
+    document.getElementById('unlock-passcode-input').focus();
+    await registerFailedAttempt();
+  }
+});
+
+document.getElementById('lock-btn').addEventListener('click', async () => {
+  await storageDelete(UNLOCK_CACHE_KEY);
+  showAuthOverlay();
+  await showUnlockPanel();
+});
+
+// ---------------------------------------------------------------------------
+// SHIP'S LOG PERSISTENCE
+// ---------------------------------------------------------------------------
+const LOG_STORAGE_KEY = 'bridgewatch-shiplog';
 
 async function saveLog(){
-  if(!authToken) return;
   try{
-    await callBackend('saveLog', { history, displayLog });
+    await storageSet(LOG_STORAGE_KEY, JSON.stringify({ history, displayLog }));
   }catch(err){
-    console.warn('Could not save ship\'s log to the server:', err);
+    console.warn("Could not save ship's log:", err);
   }
 }
 
 async function loadLog(){
-  if(!authToken) return false;
   try{
-    const data = await callBackend('getLog');
-    if(data && Array.isArray(data.displayLog) && data.displayLog.length){
-      history = Array.isArray(data.history) ? data.history : [];
-      displayLog = data.displayLog;
-      log.innerHTML = '';
-      entryCount = 0;
-      displayLog.forEach(entry => {
-        if(entry.role === 'user'){
-          addEntry('user', entry.text);
-        }else if(entry.role === 'assistant'){
-          const segs = entry.segments || [{ text: entry.text || '', footnoteNum: null }];
-          addEntry('assistant', segmentsToFragment(segs), entry.footnotes || []);
-        }
-      });
-      return true;
+    const raw = await storageGet(LOG_STORAGE_KEY);
+    if(raw){
+      const data = JSON.parse(raw);
+      if(Array.isArray(data.displayLog) && data.displayLog.length){
+        history = Array.isArray(data.history) ? data.history : [];
+        displayLog = data.displayLog;
+        log.innerHTML = '';
+        entryCount = 0;
+        displayLog.forEach(entry => {
+          if(entry.role === 'user'){
+            addEntry('user', entry.text);
+          }else if(entry.role === 'assistant'){
+            const segs = entry.segments || [{ text: entry.text || '', footnoteNum: null }];
+            addEntry('assistant', segmentsToFragment(segs), entry.footnotes || []);
+          }
+        });
+        return true;
+      }
     }
   }catch(err){
-    console.warn('Could not load ship\'s log from the server:', err);
+    console.warn("Could not load ship's log:", err);
   }
   return false;
 }
@@ -1042,100 +1176,26 @@ async function clearLog(){
   addWelcomeEntry();
 }
 
-async function completeLogin(token, username){
-  authToken = token;
-  currentUsername = username;
-  await cacheToken(token);
-  setAccountChip(username);
-  hideAuthOverlay();
+async function initLog(){
   const restored = await loadLog();
   if(!restored) addWelcomeEntry();
 }
 
-async function tryResumeSession(){
-  if(!APPS_SCRIPT_URL) return false;
-  const cached = await loadCachedToken();
-  if(!cached) return false;
-  authToken = cached;
-  try{
-    const me = await callBackend('me');
-    currentUsername = me.username;
-    setAccountChip(me.username);
-    hideAuthOverlay();
-    const restored = await loadLog();
-    if(!restored) addWelcomeEntry();
-    return true;
-  }catch(err){
-    authToken = null;
-    await clearCachedToken();
-    return false;
-  }
-}
-
-let authMode = 'login';
-document.querySelectorAll('.auth-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    authMode = tab.dataset.mode;
-    document.getElementById('auth-submit').textContent = authMode === 'login' ? 'LOG IN' : 'CREATE ACCOUNT';
-    document.getElementById('auth-error').textContent = '';
-  });
-});
-
-document.getElementById('auth-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = document.getElementById('auth-username').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const errorEl = document.getElementById('auth-error');
-  const submitBtn = document.getElementById('auth-submit');
-  errorEl.textContent = '';
-
-  if(!APPS_SCRIPT_URL){
-    errorEl.textContent = 'No auth server configured yet — see the notice above.';
-    return;
-  }
-  if(username.length < 3){
-    errorEl.textContent = 'Username must be at least 3 characters.';
-    return;
-  }
-  if(password.length < 6){
-    errorEl.textContent = 'Password must be at least 6 characters.';
-    return;
-  }
-
-  submitBtn.disabled = true;
-  const originalLabel = submitBtn.textContent;
-  submitBtn.textContent = authMode === 'login' ? 'LOGGING IN...' : 'CREATING ACCOUNT...';
-
-  try{
-    const data = await callBackend(authMode === 'login' ? 'login' : 'signup', { username, password });
-    await completeLogin(data.token, data.username);
-  }catch(err){
-    errorEl.textContent = err.message || 'Something went wrong.';
-  }finally{
-    submitBtn.disabled = false;
-    submitBtn.textContent = originalLabel;
-  }
-});
-
-document.getElementById('logout-btn').addEventListener('click', async () => {
-  authToken = null;
-  currentUsername = null;
-  await clearCachedToken();
-  document.getElementById('account-chip').style.display = 'none';
-  history = [];
-  displayLog = [];
-  entryCount = 0;
-  log.innerHTML = '';
-  showAuthOverlay();
-});
-
-// Init: try to resume a cached session; otherwise show the login/signup screen.
+// Init: gate on the passcode first, then restore the Ship's Log (or show
+// the welcome entry if empty) once unlocked.
 (async () => {
-  const resumed = await tryResumeSession();
-  if(!resumed){
+  if(!ACCESS_PASSCODE_HASH){
     showAuthOverlay();
+    showSetupPanel();
+    return;
+  }
+  const cached = await storageGet(UNLOCK_CACHE_KEY);
+  if(cached === '1'){
+    hideAuthOverlay();
+    await initLog();
+  }else{
+    showAuthOverlay();
+    await showUnlockPanel();
   }
 })();
 
