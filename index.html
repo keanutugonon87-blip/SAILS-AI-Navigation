@@ -408,6 +408,56 @@
     display:flex; flex-wrap:wrap; gap:8px;
     margin-bottom:6px;
   }
+  .topic-picker > .topic-chip{margin-bottom:2px;} /* leading pinned chips, e.g. "Core COLREGS" */
+  .category-group{
+    width:100%;
+    border:1px solid var(--navy-line);
+    border-radius:8px;
+    overflow:hidden;
+    background:rgba(18,42,69,0.4);
+  }
+  .category-header{
+    width:100%;
+    display:flex; align-items:center; gap:8px;
+    background:none; border:none;
+    color:var(--parchment-dim);
+    font-family:'Inter',sans-serif;
+    font-size:12.5px; font-weight:600;
+    padding:10px 12px;
+    cursor:pointer;
+    text-align:left;
+  }
+  .category-header:hover{color:var(--parchment);}
+  .category-chevron{
+    display:inline-block;
+    font-size:10px;
+    color:var(--gold);
+    transition:transform 0.2s ease;
+    flex-shrink:0;
+  }
+  .category-group.open .category-chevron{transform:rotate(90deg);}
+  .category-label{flex:1;}
+  .category-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    color:var(--parchment-dim);
+    background:var(--navy-deep);
+    border-radius:20px;
+    padding:1px 8px;
+    flex-shrink:0;
+  }
+  .category-body{
+    display:grid;
+    grid-template-rows:0fr;
+    transition:grid-template-rows 0.25s ease;
+  }
+  .category-group.open .category-body{grid-template-rows:1fr;}
+  .category-body > .category-chips{
+    overflow:hidden;
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:0 12px;
+  }
+  .category-group.open .category-body > .category-chips{padding:0 12px 12px;}
   .topic-chip{
     background:var(--navy-panel);
     border:1px solid var(--navy-line);
@@ -1248,29 +1298,83 @@
 
 <script>
 const MARITIME_TOPICS = [
-  { key:'colregs',          label:'COLREGS',                     prompt:'COLREGS — International Regulations for Preventing Collisions at Sea' },
-  { key:'terrestrial-nav',  label:'Terrestrial & Coastal Nav',   prompt:'Terrestrial and Coastal Navigation (Navigation 1): chartwork, dead reckoning, fixes, tides and currents' },
-  { key:'celestial-nav',    label:'Celestial Navigation',        prompt:'Celestial Navigation (Navigation 2): sextant altitudes, sight reduction, nautical almanac, time and longitude' },
-  { key:'electronic-nav',   label:'Electronic Navigation',       prompt:'Electronic Navigation (Navigation 3): ECDIS, radar/ARPA, GPS/GNSS, AIS' },
-  { key:'nav-instruments',  label:'Nav Instruments & Compasses', prompt:'Navigational Instruments and Compasses: magnetic compass, gyrocompass, azimuth/bearing instruments, compass error correction' },
-  { key:'meteorology',      label:'Meteorology & Oceanography',  prompt:'Meteorology and Oceanography for mariners: weather systems, routing, sea state, tides and currents' },
-  { key:'ship-construction',label:'Ship Construction & Routines',prompt:'Ship, Ship Routines, and Ship Construction (Seamanship 1): parts of the ship, shipboard routines, ship types' },
-  { key:'ship-stability',   label:'Ship Stability & Trim',       prompt:'Ship Stability, Trim, and Buoyancy (Naval Architecture)' },
-  { key:'cargo',            label:'Cargo Handling & Stowage',    prompt:'Cargo Handling, Stowage, and Securing (Cargo Operations)' },
-  { key:'marine-engineering',label:'Marine Engineering Basics',  prompt:'Marine Engineering fundamentals relevant to deck officers: main propulsion, auxiliary machinery, basic electro-technology' },
-  { key:'brm',              label:'Bridge Resource Mgmt & Watch',prompt:'Bridge Resource Management, Watchkeeping, and Bridge Procedures (OOW duties)' },
-  { key:'maritime-law',     label:'Maritime Law',                prompt:'Maritime Law: SOLAS, MARPOL, STCW, ISM Code, MLC 2006, flag/port state control' },
-  { key:'gmdss',            label:'GMDSS & Communications',      prompt:'GMDSS and Marine Communications' },
-  { key:'firefighting',     label:'Fire Prevention & Firefighting',prompt:'Fire Prevention and Firefighting aboard ships' },
-  { key:'survival',         label:'Personal Survival Techniques',prompt:'Personal Survival Techniques and Sea Survival' },
-  { key:'sar',              label:'Search & Rescue',             prompt:'Search and Rescue (SAR) and shipboard Emergency Procedures' },
-  { key:'first-aid',        label:'Medical First Aid at Sea',    prompt:'Medical First Aid and Medical Care aboard ship' },
-  { key:'security',         label:'Maritime Security (ISPS)',    prompt:'Maritime Security and the ISPS Code' },
-  { key:'environment',      label:'Marine Environmental Protection',prompt:'Marine Environmental Protection: MARPOL annexes and pollution prevention' },
-  { key:'ships-business',   label:"Ship's Business & Docs",      prompt:"Ship's Business, Documentation, and Maritime Insurance" },
-  { key:'ship-it',          label:'Ship IT & Network Systems',   prompt:'Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)' },
-  { key:'ph-context',       label:'PH Licensure & Careers',      prompt:'Philippine maritime education context: CHED/PIT/COMED curriculum, PRC licensure exams, POEA/DMW deployment, cadetship' },
+  { key:'colregs',          label:'COLREGS',                     category:'rules',       prompt:'COLREGS — International Regulations for Preventing Collisions at Sea' },
+  { key:'terrestrial-nav',  label:'Terrestrial & Coastal Nav',   category:'nav',         prompt:'Terrestrial and Coastal Navigation (Navigation 1): chartwork, dead reckoning, fixes, tides and currents' },
+  { key:'celestial-nav',    label:'Celestial Navigation',        category:'nav',         prompt:'Celestial Navigation (Navigation 2): sextant altitudes, sight reduction, nautical almanac, time and longitude' },
+  { key:'electronic-nav',   label:'Electronic Navigation',       category:'nav',         prompt:'Electronic Navigation (Navigation 3): ECDIS, radar/ARPA, GPS/GNSS, AIS' },
+  { key:'nav-instruments',  label:'Nav Instruments & Compasses', category:'nav',         prompt:'Navigational Instruments and Compasses: magnetic compass, gyrocompass, azimuth/bearing instruments, compass error correction' },
+  { key:'meteorology',      label:'Meteorology & Oceanography',  category:'nav',         prompt:'Meteorology and Oceanography for mariners: weather systems, routing, sea state, tides and currents' },
+  { key:'ship-construction',label:'Ship Construction & Routines',category:'seamanship',  prompt:'Ship, Ship Routines, and Ship Construction (Seamanship 1): parts of the ship, shipboard routines, ship types' },
+  { key:'ship-stability',   label:'Ship Stability & Trim',       category:'seamanship',  prompt:'Ship Stability, Trim, and Buoyancy (Naval Architecture)' },
+  { key:'cargo',            label:'Cargo Handling & Stowage',    category:'seamanship',  prompt:'Cargo Handling, Stowage, and Securing (Cargo Operations)' },
+  { key:'marine-engineering',label:'Marine Engineering Basics',  category:'seamanship',  prompt:'Marine Engineering fundamentals relevant to deck officers: main propulsion, auxiliary machinery, basic electro-technology' },
+  { key:'brm',              label:'Bridge Resource Mgmt & Watch',category:'seamanship',  prompt:'Bridge Resource Management, Watchkeeping, and Bridge Procedures (OOW duties)' },
+  { key:'ship-it',          label:'Ship IT & Network Systems',   category:'seamanship',  prompt:'Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)' },
+  { key:'maritime-law',     label:'Maritime Law',                category:'rules',       prompt:'Maritime Law: SOLAS, MARPOL, STCW, ISM Code, MLC 2006, flag/port state control' },
+  { key:'ships-business',   label:"Ship's Business & Docs",      category:'rules',       prompt:"Ship's Business, Documentation, and Maritime Insurance" },
+  { key:'gmdss',            label:'GMDSS & Communications',      category:'safety',      prompt:'GMDSS and Marine Communications' },
+  { key:'firefighting',     label:'Fire Prevention & Firefighting',category:'safety',    prompt:'Fire Prevention and Firefighting aboard ships' },
+  { key:'survival',         label:'Personal Survival Techniques',category:'safety',      prompt:'Personal Survival Techniques and Sea Survival' },
+  { key:'sar',              label:'Search & Rescue',             category:'safety',      prompt:'Search and Rescue (SAR) and shipboard Emergency Procedures' },
+  { key:'first-aid',        label:'Medical First Aid at Sea',    category:'safety',      prompt:'Medical First Aid and Medical Care aboard ship' },
+  { key:'security',         label:'Maritime Security (ISPS)',    category:'safety',      prompt:'Maritime Security and the ISPS Code' },
+  { key:'environment',      label:'Marine Environmental Protection',category:'safety',   prompt:'Marine Environmental Protection: MARPOL annexes and pollution prevention' },
+  { key:'ph-context',       label:'PH Licensure & Careers',      category:'career',      prompt:'Philippine maritime education context: CHED/PIT/COMED curriculum, PRC licensure exams, POEA/DMW deployment, cadetship' },
 ];
+
+const TOPIC_CATEGORIES = [
+  { key:'rules',      label:'Rules & Law' },
+  { key:'nav',         label:'Navigation & Piloting' },
+  { key:'seamanship',  label:'Seamanship & Ship Ops' },
+  { key:'safety',      label:'Safety & Emergency' },
+  { key:'career',      label:'Career & PH Context' },
+];
+
+// Builds collapsible <details>-style category groups of topic chips.
+// `activeValue` marks which chip (by data-topic value) starts active, and
+// its category starts expanded; `leadingChipHtml` (optional) is rendered
+// above the categories, outside any collapsible group (e.g. "Core COLREGS").
+function renderCategorizedTopicPicker(containerId, activeValue, leadingChipHtml){
+  const groups = TOPIC_CATEGORIES.map(cat => ({
+    ...cat,
+    topics: MARITIME_TOPICS.filter(t => t.category === cat.key)
+  })).filter(g => g.topics.length);
+
+  const html = groups.map(g => {
+    const hasActive = g.topics.some(t => t.prompt === activeValue);
+    const chips = g.topics.map(t =>
+      `<button class="topic-chip${t.prompt === activeValue ? ' active' : ''}" data-topic="${escapeAttr(t.prompt)}">${t.label}</button>`
+    ).join('');
+    return `
+    <div class="category-group${hasActive ? ' open' : ''}">
+      <button type="button" class="category-header">
+        <span class="category-chevron">▸</span>
+        <span class="category-label">${g.label}</span>
+        <span class="category-count">${g.topics.length}</span>
+      </button>
+      <div class="category-body"><div class="category-chips">${chips}</div></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById(containerId).innerHTML = (leadingChipHtml || '') + html;
+}
+
+// Shared delegated handler: toggles a category open/closed, or selects a
+// topic chip within it (leaving other categories' open/closed state alone).
+function wireCategorizedTopicPicker(containerId, onSelect){
+  document.getElementById(containerId).addEventListener('click', (e) => {
+    const header = e.target.closest('.category-header');
+    if(header){
+      header.closest('.category-group').classList.toggle('open');
+      return;
+    }
+    const chip = e.target.closest('.topic-chip');
+    if(!chip) return;
+    document.querySelectorAll(`#${containerId} .topic-chip`).forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    onSelect(chip.dataset.topic);
+  });
+}
 
 const SYSTEM_PROMPT = `You are "Bridge Watch," an AI Maritime Teacher and grounded reference tool for MARITIME TRANSPORTATION — not a conversationalist who speculates. You are teaching a BSMT (Bachelor of Science in Marine Transportation) student in the Philippines across the full breadth of their curriculum. You have a web_search tool. Use it as your primary method of answering.
 
@@ -1874,25 +1978,12 @@ function escapeAttr(str){
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
 
-function renderQuizTopicChips(){
-  const html = MARITIME_TOPICS.map((t, i) =>
-    `<button class="topic-chip${i === 0 ? ' active' : ''}" data-topic="${escapeAttr(t.prompt)}">${t.label}</button>`
-  ).join('');
-  document.getElementById('quiz-topics').innerHTML = html;
-}
-renderQuizTopicChips();
-
 let quizTopic = MARITIME_TOPICS[0].prompt;
 let quizCorrect = 0;
 let quizTotal = 0;
 
-document.getElementById('quiz-topics').addEventListener('click', (e) => {
-  const chip = e.target.closest('.topic-chip');
-  if(!chip) return;
-  document.querySelectorAll('#quiz-topics .topic-chip').forEach(c => c.classList.remove('active'));
-  chip.classList.add('active');
-  quizTopic = chip.dataset.topic;
-});
+renderCategorizedTopicPicker('quiz-topics', quizTopic);
+wireCategorizedTopicPicker('quiz-topics', (topic) => { quizTopic = topic; });
 
 document.getElementById('quiz-body').addEventListener('click', (e) => {
   if(e.target.id === 'quiz-start' || e.target.id === 'quiz-next') loadQuizQuestion();
@@ -1981,10 +2072,7 @@ let flashTopic = 'core';
 
 function renderFlashTopicChips(){
   const coreChip = `<button class="topic-chip active" data-topic="core">Core COLREGS</button>`;
-  const topicChips = MARITIME_TOPICS.map(t =>
-    `<button class="topic-chip" data-topic="${escapeAttr(t.prompt)}">${t.label}</button>`
-  ).join('');
-  document.getElementById('flash-topics').innerHTML = coreChip + topicChips;
+  renderCategorizedTopicPicker('flash-topics', flashTopic === 'core' ? null : flashTopic, coreChip);
 }
 renderFlashTopicChips();
 
@@ -2009,12 +2097,8 @@ document.getElementById('flash-next').addEventListener('click', () => {
   if(flashIndex < flashDeck.length - 1){ flashIndex++; renderFlashcard(); }
 });
 
-document.getElementById('flash-topics').addEventListener('click', (e) => {
-  const chip = e.target.closest('.topic-chip');
-  if(!chip) return;
-  document.querySelectorAll('#flash-topics .topic-chip').forEach(c => c.classList.remove('active'));
-  chip.classList.add('active');
-  flashTopic = chip.dataset.topic;
+wireCategorizedTopicPicker('flash-topics', (topic) => {
+  flashTopic = topic;
   if(flashTopic === 'core'){
     flashDeck = [...CORE_COLREGS_DECK];
     flashIndex = 0;
