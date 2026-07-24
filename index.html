@@ -120,13 +120,14 @@
   /* ---- Tabs ---- */
   #tabs{
     display:flex;
+    flex-wrap:wrap;
     gap:2px;
     padding:12px 2px 0;
     flex-shrink:0;
   }
   .tab-btn{
     position:relative;
-    flex:1;
+    flex:1 1 30%;
     background:transparent;
     border:1px solid var(--navy-line);
     border-bottom:none;
@@ -138,6 +139,7 @@
     cursor:pointer;
     border-radius:4px 4px 0 0;
     transition:color 0.2s ease, background 0.25s ease, transform 0.15s ease;
+    white-space:nowrap;
   }
   .tab-btn::after{
     content:"";
@@ -734,6 +736,292 @@
     cursor:pointer;
   }
   .header-lock-btn{ flex-shrink:0; }
+
+  /* ---- Classes & Study shared: section header / toolbar ---- */
+  .section-view{padding:16px 2px 24px; overflow-y:auto; gap:14px; display:flex; flex-direction:column;}
+  .section-toolbar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .section-title{
+    font-family:'Playfair Display', serif;
+    font-size:17px;
+    font-weight:700;
+    color:var(--parchment);
+  }
+  .section-sub{
+    font-size:11.5px;
+    color:var(--parchment-dim);
+    margin-top:2px;
+  }
+  .btn-add{
+    background:var(--gold);
+    color:#1a1305;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:12.5px;
+    letter-spacing:0.02em;
+    padding:9px 14px;
+    border-radius:5px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background 0.15s, transform 0.15s;
+  }
+  .btn-add:hover{background:var(--gold-bright); transform:translateY(-1px);}
+  .btn-add:active{transform:translateY(0) scale(0.97);}
+
+  /* ---- Reminder / today banner ---- */
+  .reminder-banner{
+    display:flex; align-items:center; gap:10px;
+    background:rgba(199,154,61,0.1);
+    border:1px solid var(--gold);
+    border-radius:6px;
+    padding:10px 12px;
+    font-size:12.5px;
+    color:var(--parchment);
+    animation:fadeInUp 0.4s ease;
+  }
+  .reminder-banner .bell{font-size:16px; flex-shrink:0;}
+  .reminder-banner b{color:var(--gold-bright);}
+  .reminder-dismiss{
+    margin-left:auto; background:none; border:none; color:var(--parchment-dim);
+    cursor:pointer; font-size:16px; line-height:1; padding:2px 4px; flex-shrink:0;
+  }
+  .reminder-dismiss:hover{color:var(--parchment);}
+  .notif-permission-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-radius:6px;
+    padding:10px 12px;
+    font-size:11.5px;
+    color:var(--parchment-dim);
+  }
+  .notif-permission-row button{
+    background:none; border:1px solid var(--gold); color:var(--gold);
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:600;
+    padding:6px 10px; border-radius:4px; cursor:pointer; white-space:nowrap;
+  }
+  .notif-permission-row button:hover{background:rgba(199,154,61,0.1);}
+
+  /* ---- Class cards ---- */
+  .class-card{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-left:3px solid var(--teal);
+    border-radius:6px;
+    padding:13px 14px;
+    display:flex; flex-direction:column; gap:6px;
+    animation:fadeInUp 0.3s ease;
+  }
+  .class-card.next-up{border-left-color:var(--gold);}
+  .class-card-head{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  }
+  .class-subject{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-size:15.5px;
+    color:var(--parchment);
+  }
+  .class-prof{
+    font-size:11.5px;
+    color:var(--parchment-dim);
+    margin-top:2px;
+  }
+  .class-meta-row{
+    display:flex; flex-wrap:wrap; gap:6px 14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--parchment-dim);
+    letter-spacing:0.03em;
+  }
+  .class-meta-row span b{color:var(--teal);}
+  .class-badge{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    letter-spacing:0.08em;
+    color:var(--gold);
+    border:1px solid var(--gold);
+    padding:2px 7px;
+    border-radius:20px;
+    flex-shrink:0;
+  }
+  .class-actions{
+    display:flex; gap:8px; margin-top:4px;
+  }
+  .icon-btn{
+    background:none;
+    border:1px solid var(--navy-line);
+    color:var(--parchment-dim);
+    font-family:'Inter',sans-serif;
+    font-size:11px;
+    padding:5px 10px;
+    border-radius:4px;
+    cursor:pointer;
+    transition:border-color 0.15s, color 0.15s;
+  }
+  .icon-btn:hover{border-color:var(--gold); color:var(--gold);}
+  .icon-btn.danger:hover{border-color:var(--rust); color:var(--rust);}
+
+  /* ---- Modal ---- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:60;
+    background:rgba(6,14,24,0.72);
+    display:flex; align-items:flex-end; justify-content:center;
+    animation:fadeIn 0.2s ease;
+  }
+  .modal-overlay.centered{align-items:center; padding:16px;}
+  .modal-card{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-top:2px solid var(--gold);
+    border-radius:10px 10px 0 0;
+    width:100%; max-width:520px;
+    max-height:88vh;
+    overflow-y:auto;
+    padding:20px 20px 24px;
+    animation:popIn 0.25s cubic-bezier(.16,.8,.3,1);
+  }
+  .modal-overlay.centered .modal-card{border-radius:10px;}
+  .modal-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .modal-head h3{
+    font-family:'Playfair Display', serif;
+    font-size:16.5px; font-weight:700; margin:0; color:var(--parchment);
+  }
+  .modal-x{
+    background:none; border:none; color:var(--parchment-dim);
+    font-size:20px; cursor:pointer; line-height:1; padding:2px 6px;
+  }
+  .modal-x:hover{color:var(--parchment);}
+  .form-row{margin-bottom:13px;}
+  .form-row label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--parchment-dim);
+    margin-bottom:6px;
+  }
+  .form-row input[type=text], .form-row input[type=number], .form-row input[type=time], .form-row select{
+    width:100%;
+    background:var(--navy-deep);
+    border:1px solid var(--navy-line);
+    border-radius:4px;
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;
+    padding:10px 11px;
+  }
+  .form-row input:focus, .form-row select:focus{outline:none; border-color:var(--gold);}
+  .form-grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .day-picker{display:flex; flex-wrap:wrap; gap:6px;}
+  .day-chip{
+    background:var(--navy-deep);
+    border:1px solid var(--navy-line);
+    color:var(--parchment-dim);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    padding:7px 0;
+    width:40px; text-align:center;
+    border-radius:4px;
+    cursor:pointer;
+    transition:border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .day-chip.active{border-color:var(--gold); color:var(--gold); background:rgba(199,154,61,0.1);}
+  .modal-actions{display:flex; gap:10px; margin-top:6px;}
+  .modal-actions .btn-primary{flex:1;}
+  .btn-secondary{
+    flex:1;
+    background:none;
+    border:1px solid var(--navy-line);
+    color:var(--parchment-dim);
+    font-family:'Inter',sans-serif;
+    font-weight:600; font-size:13px;
+    padding:11px 16px;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .btn-secondary:hover{border-color:var(--parchment-dim); color:var(--parchment);}
+  .form-error{color:var(--rust); font-size:11.5px; margin-top:-6px; margin-bottom:10px; min-height:14px;}
+
+  /* ---- Study sources (Personal Study / NotebookLM-style) ---- */
+  .study-intro{
+    font-size:12px; color:var(--parchment-dim); line-height:1.5;
+  }
+  .upload-zone{
+    border:1.5px dashed var(--navy-line);
+    border-radius:8px;
+    padding:20px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color 0.2s, background 0.2s;
+  }
+  .upload-zone:hover, .upload-zone.drag-over{border-color:var(--gold); background:rgba(199,154,61,0.05);}
+  .upload-zone .upload-icon{font-size:22px; margin-bottom:6px;}
+  .upload-zone .upload-main{font-size:13px; color:var(--parchment); font-weight:600;}
+  .upload-zone .upload-hint{font-size:10.5px; color:var(--parchment-dim); margin-top:4px;}
+  .source-card{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-radius:6px;
+    padding:12px 13px;
+    display:flex; flex-direction:column; gap:8px;
+    animation:fadeInUp 0.3s ease;
+  }
+  .source-card-head{display:flex; align-items:flex-start; gap:10px;}
+  .source-icon{
+    width:30px; height:30px; flex-shrink:0;
+    border-radius:5px;
+    background:rgba(62,115,130,0.18);
+    color:var(--teal);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; font-weight:600;
+  }
+  .source-info{flex:1; min-width:0;}
+  .source-name{font-size:13px; color:var(--parchment); font-weight:600; word-break:break-word;}
+  .source-meta-line{font-size:10.5px; color:var(--parchment-dim); margin-top:2px; font-family:'IBM Plex Mono', monospace;}
+  .source-footer{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .source-toggle-label{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--parchment-dim);}
+  .toggle-switch{
+    position:relative; width:36px; height:20px; flex-shrink:0;
+  }
+  .toggle-switch input{opacity:0; width:0; height:0; position:absolute;}
+  .toggle-slider{
+    position:absolute; inset:0; cursor:pointer;
+    background:var(--navy-line);
+    border-radius:20px;
+    transition:background 0.2s;
+  }
+  .toggle-slider::before{
+    content:""; position:absolute; left:2px; top:2px;
+    width:16px; height:16px; border-radius:50%;
+    background:var(--parchment-dim);
+    transition:transform 0.2s, background 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-slider{background:rgba(199,154,61,0.35);}
+  .toggle-switch input:checked + .toggle-slider::before{transform:translateX(16px); background:var(--gold);}
+  .source-preview{
+    display:none;
+    font-size:11.5px; line-height:1.5; color:var(--parchment-dim);
+    background:var(--navy-deep);
+    border:1px solid var(--navy-line);
+    border-radius:5px;
+    padding:9px 10px;
+    max-height:140px;
+    overflow-y:auto;
+    white-space:pre-wrap;
+  }
+  .source-card.expanded .source-preview{display:block;}
+  .context-budget{
+    font-size:10.5px; color:var(--parchment-dim); font-family:'IBM Plex Mono', monospace;
+    text-align:right;
+  }
+  .context-budget.over{color:var(--rust);}
 </style>
 </head>
 <body>
@@ -784,6 +1072,8 @@
     <button class="tab-btn" data-view="nav-view">NAVIGATION</button>
     <button class="tab-btn" data-view="quiz-view">QUIZ</button>
     <button class="tab-btn" data-view="flash-view">FLASHCARDS</button>
+    <button class="tab-btn" data-view="classes-view">CLASSES</button>
+    <button class="tab-btn" data-view="study-view">STUDY</button>
   </div>
 
   <div id="log-view" class="view active">
@@ -848,6 +1138,111 @@
       <button class="btn-ghost" id="flash-more">+ GENERATE MORE</button>
       <button class="btn-ghost" id="flash-next">NEXT ▶</button>
     </div>
+  </div>
+
+  <!-- ================= CLASS SCHEDULE ================= -->
+  <div id="classes-view" class="view section-view">
+    <div class="section-toolbar">
+      <div>
+        <div class="section-title">Class Schedule</div>
+        <div class="section-sub">Your watch bill — subjects, professors, and sailing times.</div>
+      </div>
+      <button class="btn-add" id="class-add-btn">+ ADD CLASS</button>
+    </div>
+    <div id="notif-permission-row" class="notif-permission-row" style="display:none;">
+      <span>Turn on notifications so Bridge Watch can remind you before class starts.</span>
+      <button type="button" id="notif-enable-btn">ENABLE</button>
+    </div>
+    <div id="classes-reminder-banner"></div>
+    <div id="classes-list"></div>
+  </div>
+
+  <!-- ================= PERSONAL STUDY ================= -->
+  <div id="study-view" class="view section-view">
+    <div class="section-toolbar">
+      <div>
+        <div class="section-title">Personal Study</div>
+        <div class="section-sub">Upload your notes, reviewers, and files — grounds the AI Assistant in your own material, NotebookLM-style.</div>
+      </div>
+    </div>
+    <div class="study-intro">Add text notes, Markdown files, or PDFs below. Toggle a source on to let the AI Assistant read it before answering in the Ship's Log — its own answers, plus your material.</div>
+    <div class="upload-zone" id="study-upload-zone">
+      <div class="upload-icon">📎</div>
+      <div class="upload-main">Tap to add files</div>
+      <div class="upload-hint">.txt, .md, .pdf — extracted text stays on this device</div>
+      <input type="file" id="study-file-input" accept=".txt,.md,.markdown,.pdf" multiple style="display:none;">
+    </div>
+    <div class="context-budget" id="study-context-budget"></div>
+    <div id="study-sources-list"></div>
+  </div>
+</div>
+
+<!-- ---- Add/Edit Class modal ---- -->
+<div id="class-modal-overlay" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="class-modal-title">Add Class</h3>
+      <button type="button" class="modal-x" id="class-modal-close">&times;</button>
+    </div>
+    <form id="class-form">
+      <input type="hidden" id="class-id-input">
+      <div class="form-row">
+        <label>Subject Name</label>
+        <input type="text" id="class-subject-input" placeholder="e.g. Terrestrial &amp; Coastal Navigation" required>
+      </div>
+      <div class="form-row">
+        <label>Professor</label>
+        <input type="text" id="class-professor-input" placeholder="e.g. Capt. Dela Cruz">
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Units</label>
+          <input type="number" id="class-units-input" min="0" step="0.5" placeholder="3">
+        </div>
+        <div class="form-row">
+          <label>Room / Venue</label>
+          <input type="text" id="class-room-input" placeholder="e.g. COMED Bldg 2">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Days</label>
+        <div class="day-picker" id="class-day-picker">
+          <div class="day-chip" data-day="Mon">Mon</div>
+          <div class="day-chip" data-day="Tue">Tue</div>
+          <div class="day-chip" data-day="Wed">Wed</div>
+          <div class="day-chip" data-day="Thu">Thu</div>
+          <div class="day-chip" data-day="Fri">Fri</div>
+          <div class="day-chip" data-day="Sat">Sat</div>
+          <div class="day-chip" data-day="Sun">Sun</div>
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Start Time</label>
+          <input type="time" id="class-start-input" required>
+        </div>
+        <div class="form-row">
+          <label>End Time</label>
+          <input type="time" id="class-end-input" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Remind Me Before Class</label>
+        <select id="class-reminder-input">
+          <option value="0">No reminder</option>
+          <option value="5">5 minutes before</option>
+          <option value="10">10 minutes before</option>
+          <option value="15" selected>15 minutes before</option>
+          <option value="30">30 minutes before</option>
+          <option value="60">1 hour before</option>
+        </select>
+      </div>
+      <div class="form-error" id="class-form-error"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="class-cancel-btn">CANCEL</button>
+        <button type="submit" class="btn-primary">SAVE CLASS</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -916,13 +1311,6 @@ let displayLog = [];
 // standalone GitHub Pages site (falls back to localStorage). Everything
 // below — the passcode gate and the Ship's Log — goes through these two
 // helpers so it behaves the same in either deployment.
-//
-// ARTIFACT-ONLY AI FEATURES: the Ship's Log chat, Quiz, and "Generate
-// More" flashcards call https://api.anthropic.com directly with no API
-// key, which only works inside a Claude.ai Artifact preview (Claude's
-// sandbox proxies that call for free). That part will NOT work on a
-// standalone GitHub Pages deploy — only when opened/shared as a Claude.ai
-// Artifact link. The passcode gate and Ship's Log storage work either way.
 // ---------------------------------------------------------------------------
 const HAS_ARTIFACT_STORAGE = typeof window !== 'undefined' && !!window.storage;
 
@@ -948,6 +1336,55 @@ async function storageDelete(key){
     return;
   }
   try{ localStorage.removeItem(key); }catch(err){ /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// AI PROXY — the Ship's Log chat, Quiz, and "Generate More" flashcards need
+// to call the Anthropic API. Inside a Claude.ai Artifact preview, calling
+// https://api.anthropic.com directly works for free (Claude's sandbox
+// proxies it, no API key needed). On a standalone deploy like GitHub
+// Pages, there is no such proxy — a bare browser fetch to
+// api.anthropic.com with no key will always fail with "Failed to fetch",
+// since the API doesn't accept anonymous cross-origin requests.
+//
+// SETUP for GitHub Pages (or any standalone host):
+//   1. Get an Anthropic API key from console.anthropic.com (this requires
+//      billing on that account — it's a paid API, separate from Claude.ai).
+//   2. Deploy the included Code.gs as a Google Apps Script Web App:
+//        - Paste your key into Script Properties as ANTHROPIC_API_KEY
+//          (Project Settings > Script Properties in the Apps Script editor).
+//        - Deploy > New deployment > type "Web app".
+//          Execute as: Me. Who has access: Anyone.
+//   3. Copy the deployed /exec URL and paste it into AI_PROXY_URL below.
+// The proxy keeps your API key server-side — it's never exposed in this
+// HTML file. If AI_PROXY_URL is left empty, this file automatically falls
+// back to calling api.anthropic.com directly, which still works fine
+// inside a Claude.ai Artifact preview.
+// ---------------------------------------------------------------------------
+const AI_PROXY_URL = 'https://script.google.com/macros/s/AKfycbwk2mbs6tyLGhEeQUGPSKXCGCaLuJDs4jPRbaOSDGVCannBvB_u6uI7biTuiW8qalz3/exec'; // <-- paste your deployed Apps Script /exec URL here for GitHub Pages use
+
+async function callAnthropicAPI(payload){
+  let response;
+  if(AI_PROXY_URL){
+    // Sent as text/plain (not application/json) so the browser doesn't fire
+    // a CORS preflight OPTIONS request, which Apps Script Web Apps can't answer.
+    response = await fetch(AI_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+  }else{
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+  const data = await response.json();
+  if(!response.ok || data.type === 'error' || data.error){
+    throw new Error((data && data.error && (data.error.message || data.error)) || `API error (${response.status})`);
+  }
+  return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -1348,21 +1785,13 @@ async function sendMessage(){
   addThinking();
 
   try{
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1500,
-        system: SYSTEM_PROMPT,
-        messages: history,
-        tools: [{ type: "web_search_20250305", name: "web_search" }]
-      })
+    const data = await callAnthropicAPI({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1500,
+      system: buildSystemPromptWithSources(),
+      messages: history,
+      tools: [{ type: "web_search_20250305", name: "web_search" }]
     });
-    const data = await response.json();
-    if(!response.ok || data.type === 'error'){
-      throw new Error((data && data.error && data.error.message) || `API error (${response.status})`);
-    }
     removeThinking();
 
     const blocks = data.content || [];
@@ -1415,21 +1844,13 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 async function callClaude(systemPrompt, userPrompt){
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1500,
-      system: systemPrompt,
-      messages: [{role:'user', content: userPrompt}],
-      tools: [{ type: "web_search_20250305", name: "web_search" }]
-    })
+  const data = await callAnthropicAPI({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1500,
+    system: systemPrompt,
+    messages: [{role:'user', content: userPrompt}],
+    tools: [{ type: "web_search_20250305", name: "web_search" }]
   });
-  const data = await response.json();
-  if(!response.ok || data.type === 'error'){
-    throw new Error((data && data.error && data.error.message) || `API error (${response.status})`);
-  }
   const blocks = (data.content || []).filter(b => b.type === 'text');
   const text = blocks.map(b => b.text).join('\n').trim();
   if(!text) throw new Error('Empty response from API');
@@ -1832,6 +2253,464 @@ document.getElementById('nav-modes').addEventListener('click', (e) => {
 document.getElementById('nav-new').addEventListener('click', navNewExercise);
 
 navNewExercise();
+
+/* =====================================================================
+   CLASS SCHEDULE — subject / professor / units / duration, with edit,
+   delete, and a reminder that checks the schedule every time the app
+   is opened or brought back into view (plus a periodic check while
+   it stays open), and fires a browser notification (or an in-app
+   banner if notifications aren't available/granted).
+   ===================================================================== */
+const CLASSES_KEY = 'bw_classes_v1';
+const CLASS_NOTIFIED_KEY = 'bw_class_notified_v1';
+const DAY_ORDER = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAY_JS_INDEX = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+
+let classes = [];
+let selectedDays = [];
+let editingClassId = null;
+let notifiedLog = {}; // { "classId|YYYY-MM-DD": true }
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+async function loadClasses(){
+  const raw = await storageGet(CLASSES_KEY);
+  try{ classes = raw ? JSON.parse(raw) : []; }catch(err){ classes = []; }
+  const notifiedRaw = await storageGet(CLASS_NOTIFIED_KEY);
+  try{ notifiedLog = notifiedRaw ? JSON.parse(notifiedRaw) : {}; }catch(err){ notifiedLog = {}; }
+}
+async function saveClasses(){ await storageSet(CLASSES_KEY, JSON.stringify(classes)); }
+async function saveNotifiedLog(){ await storageSet(CLASS_NOTIFIED_KEY, JSON.stringify(notifiedLog)); }
+
+function fmtTime12(hhmm){
+  if(!hhmm) return '';
+  const [h,m] = hhmm.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = ((h % 12) || 12);
+  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+}
+
+function renderClasses(){
+  const list = document.getElementById('classes-list');
+  if(!classes.length){
+    list.innerHTML = `<div class="empty-state">No classes logged yet.<br><br><button class="btn-primary" id="class-add-btn-empty">+ ADD YOUR FIRST CLASS</button></div>`;
+    const btn = document.getElementById('class-add-btn-empty');
+    if(btn) btn.addEventListener('click', () => openClassModal());
+    return;
+  }
+  const now = new Date();
+  const todayKey = DAY_ORDER[(now.getDay() + 6) % 7]; // convert JS Sun=0 to Mon-first index
+  const sorted = [...classes].sort((a,b) => (a.start || '').localeCompare(b.start || ''));
+
+  // find the next upcoming class today, if any, to highlight
+  let nextUpId = null;
+  const nowHM = now.toTimeString().slice(0,5);
+  sorted.forEach(c => {
+    if(!nextUpId && (c.days||[]).includes(todayKey) && c.start >= nowHM){ nextUpId = c.id; }
+  });
+
+  list.innerHTML = sorted.map(c => {
+    const daysLabel = (c.days && c.days.length) ? c.days.join(' · ') : 'No days set';
+    const timeLabel = (c.start && c.end) ? `${fmtTime12(c.start)} – ${fmtTime12(c.end)}` : 'No time set';
+    const isNext = c.id === nextUpId;
+    return `
+    <div class="class-card${isNext ? ' next-up' : ''}" data-id="${c.id}">
+      <div class="class-card-head">
+        <div>
+          <div class="class-subject">${escapeHtml(c.subject || 'Untitled Subject')}</div>
+          <div class="class-prof">${c.professor ? escapeHtml(c.professor) : 'Professor not set'}</div>
+        </div>
+        ${isNext ? '<span class="class-badge">NEXT UP</span>' : ''}
+      </div>
+      <div class="class-meta-row">
+        <span><b>${daysLabel}</b></span>
+        <span>${timeLabel}</span>
+        ${c.units ? `<span>${escapeHtml(String(c.units))} units</span>` : ''}
+        ${c.room ? `<span>${escapeHtml(c.room)}</span>` : ''}
+        <span>${c.reminderMinutes && Number(c.reminderMinutes) > 0 ? `🔔 ${c.reminderMinutes} min before` : 'No reminder'}</span>
+      </div>
+      <div class="class-actions">
+        <button class="icon-btn class-edit-btn" data-id="${c.id}">EDIT</button>
+        <button class="icon-btn danger class-delete-btn" data-id="${c.id}">DELETE</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.class-edit-btn').forEach(b => b.addEventListener('click', () => openClassModal(b.dataset.id)));
+  list.querySelectorAll('.class-delete-btn').forEach(b => b.addEventListener('click', () => deleteClass(b.dataset.id)));
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function openClassModal(id){
+  editingClassId = id || null;
+  const overlay = document.getElementById('class-modal-overlay');
+  const title = document.getElementById('class-modal-title');
+  document.getElementById('class-form-error').textContent = '';
+  if(id){
+    const c = classes.find(x => x.id === id);
+    if(!c) return;
+    title.textContent = 'Edit Class';
+    document.getElementById('class-id-input').value = c.id;
+    document.getElementById('class-subject-input').value = c.subject || '';
+    document.getElementById('class-professor-input').value = c.professor || '';
+    document.getElementById('class-units-input').value = c.units || '';
+    document.getElementById('class-room-input').value = c.room || '';
+    document.getElementById('class-start-input').value = c.start || '';
+    document.getElementById('class-end-input').value = c.end || '';
+    document.getElementById('class-reminder-input').value = String(c.reminderMinutes ?? 15);
+    selectedDays = [...(c.days || [])];
+  }else{
+    title.textContent = 'Add Class';
+    document.getElementById('class-id-input').value = '';
+    document.getElementById('class-form').reset();
+    document.getElementById('class-reminder-input').value = '15';
+    selectedDays = [];
+  }
+  document.querySelectorAll('#class-day-picker .day-chip').forEach(chip => {
+    chip.classList.toggle('active', selectedDays.includes(chip.dataset.day));
+  });
+  overlay.style.display = 'flex';
+}
+function closeClassModal(){
+  document.getElementById('class-modal-overlay').style.display = 'none';
+  editingClassId = null;
+}
+
+document.getElementById('class-add-btn').addEventListener('click', () => openClassModal());
+document.getElementById('class-modal-close').addEventListener('click', closeClassModal);
+document.getElementById('class-cancel-btn').addEventListener('click', closeClassModal);
+document.getElementById('class-modal-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'class-modal-overlay') closeClassModal();
+});
+document.getElementById('class-day-picker').addEventListener('click', (e) => {
+  const chip = e.target.closest('.day-chip');
+  if(!chip) return;
+  const day = chip.dataset.day;
+  if(selectedDays.includes(day)){
+    selectedDays = selectedDays.filter(d => d !== day);
+  }else{
+    selectedDays.push(day);
+  }
+  chip.classList.toggle('active');
+});
+
+document.getElementById('class-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const subject = document.getElementById('class-subject-input').value.trim();
+  const start = document.getElementById('class-start-input').value;
+  const end = document.getElementById('class-end-input').value;
+  const errorEl = document.getElementById('class-form-error');
+  if(!subject){ errorEl.textContent = 'Subject name is required.'; return; }
+  if(!start || !end){ errorEl.textContent = 'Start and end time are required.'; return; }
+  if(!selectedDays.length){ errorEl.textContent = 'Pick at least one day.'; return; }
+
+  const payload = {
+    id: editingClassId || uid(),
+    subject,
+    professor: document.getElementById('class-professor-input').value.trim(),
+    units: document.getElementById('class-units-input').value.trim(),
+    room: document.getElementById('class-room-input').value.trim(),
+    days: [...selectedDays].sort((a,b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)),
+    start, end,
+    reminderMinutes: Number(document.getElementById('class-reminder-input').value) || 0
+  };
+
+  if(editingClassId){
+    const idx = classes.findIndex(c => c.id === editingClassId);
+    if(idx > -1) classes[idx] = payload;
+  }else{
+    classes.push(payload);
+  }
+  await saveClasses();
+  renderClasses();
+  closeClassModal();
+  maybeShowNotifPermissionRow();
+  checkClassReminders();
+});
+
+async function deleteClass(id){
+  if(!confirm('Remove this class from your schedule?')) return;
+  classes = classes.filter(c => c.id !== id);
+  await saveClasses();
+  renderClasses();
+}
+
+/* ---- Reminder engine ---- */
+function maybeShowNotifPermissionRow(){
+  const row = document.getElementById('notif-permission-row');
+  const hasReminderClasses = classes.some(c => Number(c.reminderMinutes) > 0);
+  const canAsk = typeof Notification !== 'undefined' && Notification.permission === 'default';
+  row.style.display = (hasReminderClasses && canAsk) ? 'flex' : 'none';
+}
+const notifEnableBtn = document.getElementById('notif-enable-btn');
+if(notifEnableBtn){
+  notifEnableBtn.addEventListener('click', async () => {
+    if(typeof Notification === 'undefined') return;
+    await Notification.requestPermission();
+    maybeShowNotifPermissionRow();
+    checkClassReminders();
+  });
+}
+
+function nextOccurrence(cls){
+  // Returns the Date of this class's next start time from "now", searching
+  // the next 7 days (including today).
+  const now = new Date();
+  for(let offset = 0; offset < 7; offset++){
+    const d = new Date(now);
+    d.setDate(d.getDate() + offset);
+    const dayKey = DAY_ORDER[(d.getDay() + 6) % 7];
+    if(!(cls.days || []).includes(dayKey)) continue;
+    const [h,m] = (cls.start || '00:00').split(':').map(Number);
+    d.setHours(h, m, 0, 0);
+    if(d.getTime() >= now.getTime() - 60000){ return d; }
+  }
+  return null;
+}
+
+function dateKey(d){ return d.toISOString().slice(0,10); }
+
+async function checkClassReminders(){
+  const banner = document.getElementById('classes-reminder-banner');
+  const now = new Date();
+  let bannerText = null;
+
+  for(const c of classes){
+    const mins = Number(c.reminderMinutes) || 0;
+    if(mins <= 0) continue;
+    const occ = nextOccurrence(c);
+    if(!occ) continue;
+    const minutesUntil = (occ.getTime() - now.getTime()) / 60000;
+    const key = `${c.id}|${dateKey(occ)}`;
+
+    if(minutesUntil <= mins && minutesUntil >= -2 && !notifiedLog[key]){
+      const msg = `${c.subject} starts at ${fmtTime12(c.start)}${c.room ? ' in ' + c.room : ''}${c.professor ? ' with ' + c.professor : ''}.`;
+      fireReminder(`Upcoming class: ${c.subject}`, msg);
+      notifiedLog[key] = true;
+      await saveNotifiedLog();
+      bannerText = msg;
+    }
+    // Also surface a live "starting soon" banner even if already notified once,
+    // so it's visible whenever the Classes tab is accessed.
+    if(!bannerText && minutesUntil > 0 && minutesUntil <= mins){
+      bannerText = `${c.subject} starts at ${fmtTime12(c.start)} — in ${Math.ceil(minutesUntil)} min${c.room ? ' · ' + c.room : ''}.`;
+    }
+  }
+
+  if(bannerText){
+    banner.innerHTML = `<div class="reminder-banner"><span class="bell">🔔</span><span><b>Reminder —</b> ${escapeHtml(bannerText)}</span><button class="reminder-dismiss" id="reminder-dismiss-btn">&times;</button></div>`;
+    const dismissBtn = document.getElementById('reminder-dismiss-btn');
+    if(dismissBtn) dismissBtn.addEventListener('click', () => { banner.innerHTML = ''; });
+  }else{
+    banner.innerHTML = '';
+  }
+}
+
+function fireReminder(title, body){
+  if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+    try{ new Notification(title, { body, icon: undefined }); }catch(err){ /* ignore */ }
+  }
+  // In-app banner (set by caller) covers the case notifications are denied
+  // or unsupported, and always shows regardless of permission — this is
+  // what makes the reminder fire "wherever the app is accessed."
+}
+
+// Check reminders whenever the app becomes visible/focused (i.e. every time
+// it's accessed), and on a periodic timer while it stays open.
+document.addEventListener('visibilitychange', () => { if(!document.hidden) checkClassReminders(); });
+window.addEventListener('focus', checkClassReminders);
+setInterval(checkClassReminders, 60000);
+
+/* =====================================================================
+   PERSONAL STUDY — NotebookLM-style sources. Uploaded files are read
+   client-side, extracted to plain text, stored locally, and (when
+   toggled on) folded into the AI Assistant's system prompt so its
+   answers can draw on the student's own notes/reviewers.
+   ===================================================================== */
+const STUDY_SOURCES_KEY = 'bw_study_sources_v1';
+const MAX_CHARS_PER_SOURCE = 15000;
+const MAX_TOTAL_CONTEXT_CHARS = 45000;
+let studySources = []; // { id, name, type, chars, text, enabled, addedAt }
+let pdfjsLoaded = false;
+
+async function loadStudySources(){
+  const raw = await storageGet(STUDY_SOURCES_KEY);
+  try{ studySources = raw ? JSON.parse(raw) : []; }catch(err){ studySources = []; }
+}
+async function saveStudySources(){ await storageSet(STUDY_SOURCES_KEY, JSON.stringify(studySources)); }
+
+async function ensurePdfJs(){
+  if(pdfjsLoaded && window.pdfjsLib) return;
+  await new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  pdfjsLoaded = true;
+}
+
+async function extractPdfText(file){
+  await ensurePdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  const maxPages = Math.min(pdf.numPages, 60);
+  for(let i = 1; i <= maxPages; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(' ') + '\n\n';
+    if(text.length > MAX_CHARS_PER_SOURCE) break;
+  }
+  return text.trim();
+}
+
+function readTextFile(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+async function handleStudyFiles(fileList){
+  const files = Array.from(fileList || []);
+  for(const file of files){
+    let text = '';
+    let type = 'TXT';
+    try{
+      if(file.name.toLowerCase().endsWith('.pdf')){
+        type = 'PDF';
+        text = await extractPdfText(file);
+      }else{
+        type = file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown') ? 'MD' : 'TXT';
+        text = await readTextFile(file);
+      }
+    }catch(err){
+      console.warn('Could not extract text from', file.name, err);
+      text = '';
+    }
+    const truncated = text.length > MAX_CHARS_PER_SOURCE;
+    if(truncated) text = text.slice(0, MAX_CHARS_PER_SOURCE);
+    studySources.push({
+      id: uid(),
+      name: file.name,
+      type,
+      chars: text.length,
+      truncated,
+      text: text || '(No text could be extracted from this file.)',
+      enabled: true,
+      addedAt: Date.now()
+    });
+  }
+  await saveStudySources();
+  renderStudySources();
+}
+
+function renderStudySources(){
+  const list = document.getElementById('study-sources-list');
+  if(!studySources.length){
+    list.innerHTML = `<div class="empty-state">No study materials added yet.<br><br>Upload lecture notes, reviewers, or class handouts to enhance the AI Assistant's answers.</div>`;
+    updateContextBudget();
+    return;
+  }
+  list.innerHTML = studySources.map(s => `
+    <div class="source-card" data-id="${s.id}">
+      <div class="source-card-head">
+        <div class="source-icon">${s.type}</div>
+        <div class="source-info">
+          <div class="source-name">${escapeHtml(s.name)}</div>
+          <div class="source-meta-line">${s.chars.toLocaleString()} chars${s.truncated ? ' (truncated)' : ''} · added ${new Date(s.addedAt).toLocaleDateString()}</div>
+        </div>
+      </div>
+      <div class="source-preview">${escapeHtml(s.text.slice(0, 2000))}${s.text.length > 2000 ? '…' : ''}</div>
+      <div class="source-footer">
+        <label class="source-toggle-label">
+          <span class="toggle-switch">
+            <input type="checkbox" class="source-toggle" data-id="${s.id}" ${s.enabled ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </span>
+          Use in AI Assistant
+        </label>
+        <div class="class-actions">
+          <button class="icon-btn source-view-btn" data-id="${s.id}">VIEW</button>
+          <button class="icon-btn danger source-delete-btn" data-id="${s.id}">DELETE</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.source-toggle').forEach(t => t.addEventListener('change', async (e) => {
+    const s = studySources.find(x => x.id === e.target.dataset.id);
+    if(s){ s.enabled = e.target.checked; await saveStudySources(); updateContextBudget(); }
+  }));
+  list.querySelectorAll('.source-view-btn').forEach(b => b.addEventListener('click', () => {
+    document.querySelector(`.source-card[data-id="${b.dataset.id}"]`).classList.toggle('expanded');
+  }));
+  list.querySelectorAll('.source-delete-btn').forEach(b => b.addEventListener('click', async () => {
+    if(!confirm('Remove this source from Personal Study?')) return;
+    studySources = studySources.filter(x => x.id !== b.dataset.id);
+    await saveStudySources();
+    renderStudySources();
+  }));
+  updateContextBudget();
+}
+
+function updateContextBudget(){
+  const el = document.getElementById('study-context-budget');
+  const totalChars = studySources.filter(s => s.enabled).reduce((sum, s) => sum + s.chars, 0);
+  const over = totalChars > MAX_TOTAL_CONTEXT_CHARS;
+  el.textContent = `${totalChars.toLocaleString()} / ${MAX_TOTAL_CONTEXT_CHARS.toLocaleString()} chars in AI context`;
+  el.classList.toggle('over', over);
+}
+
+function buildSystemPromptWithSources(){
+  const enabled = studySources.filter(s => s.enabled);
+  if(!enabled.length) return SYSTEM_PROMPT;
+  let budget = MAX_TOTAL_CONTEXT_CHARS;
+  const chunks = [];
+  for(const s of enabled){
+    if(budget <= 0) break;
+    const piece = s.text.slice(0, budget);
+    budget -= piece.length;
+    chunks.push(`--- SOURCE: ${s.name} ---\n${piece}`);
+  }
+  return `${SYSTEM_PROMPT}
+
+STUDENT'S PERSONAL STUDY MATERIALS (uploaded by the student in the Personal Study tab — treat as supplementary context, not a replacement for verifying against bonafide sources; if these notes conflict with an authoritative source, say so):
+${chunks.join('\n\n')}`;
+}
+
+const studyUploadZone = document.getElementById('study-upload-zone');
+const studyFileInput = document.getElementById('study-file-input');
+studyUploadZone.addEventListener('click', () => studyFileInput.click());
+studyFileInput.addEventListener('change', (e) => {
+  handleStudyFiles(e.target.files);
+  studyFileInput.value = '';
+});
+studyUploadZone.addEventListener('dragover', (e) => { e.preventDefault(); studyUploadZone.classList.add('drag-over'); });
+studyUploadZone.addEventListener('dragleave', () => studyUploadZone.classList.remove('drag-over'));
+studyUploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  studyUploadZone.classList.remove('drag-over');
+  handleStudyFiles(e.dataTransfer.files);
+});
+
+/* ---- Init ---- */
+(async function initScheduleAndStudy(){
+  await loadClasses();
+  renderClasses();
+  maybeShowNotifPermissionRow();
+  checkClassReminders();
+  await loadStudySources();
+  renderStudySources();
+})();
 
 </script>
 </body>
