@@ -3,2799 +3,1623 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bridge Watch — Maritime Transportation Study Aid</title>
+<title>Bridge Watch — BSMT Study Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --navy-deep:#0A1B2E;
-    --navy-panel:#122A45;
-    --navy-line:#22415F;
-    --gold:#C79A3D;
-    --gold-bright:#E0B85C;
-    --parchment:#F3ECDA;
-    --parchment-dim:#C9C0A8;
-    --teal:#3E7382;
-    --rust:#B6552E;
-    --shadow:rgba(0,0,0,0.35);
+  :root {
+    --navy-950: #081121;
+    --navy-900: #0B1730;
+    --navy-800: #14213D;
+    --navy-700: #1D2F52;
+    --brass: #C9A227;
+    --brass-bright: #E4C158;
+    --parchment: #F2ECDD;
+    --parchment-dim: #E7DFC9;
+    --port-red: #C1272D;
+    --stbd-green: #1E7A5F;
+    --fog: #8A94A6;
+    --ink: #1A2233;
+
+    --bg: var(--navy-900);
+    --bg-panel: var(--navy-800);
+    --bg-raised: var(--navy-700);
+    --text: var(--parchment);
+    --text-dim: #A9B3C9;
+    --border: rgba(201,162,39,0.25);
+    --accent: var(--brass);
+    --accent-strong: var(--brass-bright);
+    --shadow: 0 8px 30px rgba(0,0,0,0.45);
   }
-  *{box-sizing:border-box;}
-  @media (prefers-reduced-motion: reduce){
-    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
-  }
-  html,body{
-    margin:0; height:100%;
-    background:
-      radial-gradient(ellipse at top, #102640 0%, var(--navy-deep) 55%);
-    color:var(--parchment);
-    font-family:'Inter',sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  #app{
-    max-width:760px;
-    margin:0 auto;
-    height:100vh;
-    display:flex;
-    flex-direction:column;
-    padding:0 18px;
-    opacity:0;
-    animation:appIn 0.5s cubic-bezier(.16,.8,.3,1) forwards;
-  }
-  @keyframes appIn{
-    from{ opacity:0; transform:translateY(6px); }
-    to{ opacity:1; transform:translateY(0); }
-  }
-  @keyframes fadeInUp{
-    from{ opacity:0; transform:translateY(10px); }
-    to{ opacity:1; transform:translateY(0); }
-  }
-  @keyframes fadeIn{
-    from{ opacity:0; }
-    to{ opacity:1; }
-  }
-  @keyframes popIn{
-    from{ opacity:0; transform:scale(0.96); }
-    to{ opacity:1; transform:scale(1); }
+  [data-theme="light"] {
+    --bg: var(--parchment);
+    --bg-panel: #FFFDF7;
+    --bg-raised: #FFFFFF;
+    --text: var(--ink);
+    --text-dim: #5B6473;
+    --border: rgba(11,23,48,0.12);
+    --accent: #8A6D0F;
+    --accent-strong: #6E5709;
+    --shadow: 0 8px 24px rgba(11,23,48,0.10);
   }
 
-  /* ---- Header: brass plate ---- */
-  header{
-    padding:22px 4px 16px;
-    border-bottom:1px solid var(--navy-line);
-    display:flex;
-    align-items:center;
-    gap:16px;
-    flex-shrink:0;
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    transition: background 0.6s ease, color 0.4s ease;
+    background-image:
+      radial-gradient(ellipse at top left, rgba(201,162,39,0.06), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(30,122,95,0.05), transparent 55%);
   }
-  .compass{
-    width:46px; height:46px; flex-shrink:0;
-    border-radius:50%;
-    border:2px solid var(--gold);
-    position:relative;
-    background:radial-gradient(circle at 35% 30%, #1a3552, #0d1f34 70%);
-    box-shadow:0 0 0 3px rgba(199,154,61,0.12), inset 0 0 10px rgba(0,0,0,0.6);
-  }
-  .compass::before{
-    content:"";
-    position:absolute; inset:0;
-    background:
-      linear-gradient(90deg, transparent 49%, var(--gold) 49.5%, var(--gold) 50.5%, transparent 51%),
-      linear-gradient(0deg, transparent 49%, var(--gold-bright) 49.5%, var(--gold-bright) 50.5%, transparent 51%);
-    opacity:0.85;
-    border-radius:50%;
-  }
-  .compass .needle{
-    position:absolute; left:50%; top:50%;
-    width:2px; height:16px;
-    background:var(--gold-bright);
-    transform-origin:bottom center;
-    transform:translate(-50%,-100%) rotate(0deg);
-    animation:swing 6s ease-in-out infinite;
-  }
-  @keyframes swing{
-    0%,100%{transform:translate(-50%,-100%) rotate(-8deg);}
-    50%{transform:translate(-50%,-100%) rotate(10deg);}
-  }
-  .titles{flex:1; min-width:0;}
-  .eyebrow{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    letter-spacing:0.18em;
-    color:var(--gold);
-    text-transform:uppercase;
-  }
-  h1{
-    font-family:'Playfair Display', serif;
-    font-weight:700;
-    font-size:22px;
-    margin:2px 0 0;
-    letter-spacing:0.01em;
-  }
-  .subtitle{
-    font-size:12px;
-    color:var(--parchment-dim);
-    margin-top:2px;
-  }
+  h1,h2,h3,.display { font-family:'Fraunces', serif; letter-spacing: 0.01em; }
+  .mono { font-family:'JetBrains Mono', monospace; }
 
-  /* ---- Tabs ---- */
-  #tabs{
-    display:flex;
-    flex-wrap:wrap;
-    gap:2px;
-    padding:12px 2px 0;
-    flex-shrink:0;
-  }
-  .tab-btn{
-    position:relative;
-    flex:1 1 30%;
-    background:transparent;
-    border:1px solid var(--navy-line);
-    border-bottom:none;
-    color:var(--parchment-dim);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    letter-spacing:0.1em;
-    padding:9px 6px;
-    cursor:pointer;
-    border-radius:4px 4px 0 0;
-    transition:color 0.2s ease, background 0.25s ease, transform 0.15s ease;
-    white-space:nowrap;
-  }
-  .tab-btn::after{
-    content:"";
-    position:absolute; left:10%; right:10%; bottom:-1px;
-    height:2px;
-    background:var(--gold);
-    border-radius:2px 2px 0 0;
-    transform:scaleX(0);
-    transform-origin:center;
-    transition:transform 0.25s cubic-bezier(.16,.8,.3,1);
-  }
-  .tab-btn.active{
-    background:var(--navy-panel);
-    color:var(--gold);
-    border-color:var(--navy-line);
-  }
-  .tab-btn.active::after{ transform:scaleX(1); }
-  .tab-btn:hover:not(.active){color:var(--parchment); transform:translateY(-1px);}
-  .tab-btn:active{ transform:translateY(0) scale(0.98); }
-  .view{display:none; flex:1; min-height:0; flex-direction:column;}
-  .view.active{display:flex; animation:fadeInUp 0.35s cubic-bezier(.16,.8,.3,1);}
-
-  /* ---- Log (chat area) ---- */
-  #log{
-    flex:1;
-    overflow-y:auto;
-    padding:20px 2px 10px;
-    display:flex;
-    flex-direction:column;
-    gap:16px;
-  }
-  #log::-webkit-scrollbar{width:6px;}
-  #log::-webkit-scrollbar-thumb{background:var(--navy-line); border-radius:3px;}
-
-  .entry{max-width:100%; animation:fadeInUp 0.4s cubic-bezier(.16,.8,.3,1);}
-  .entry-meta{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10px;
-    letter-spacing:0.08em;
-    color:var(--parchment-dim);
-    margin-bottom:4px;
-    display:flex;
-    gap:10px;
-  }
-  .entry.user .entry-meta{color:#8FAEC2;}
-  .entry.assistant .entry-meta{color:var(--gold);}
-  .entry.system .entry-meta{color:var(--rust);}
-
-  .bubble{
-    padding:12px 14px;
-    border-radius:3px;
-    line-height:1.55;
-    font-size:14.5px;
-    white-space:pre-wrap;
-    border-left:3px solid transparent;
-    transition:background 0.25s ease, box-shadow 0.25s ease;
-  }
-  .entry.user .bubble{
-    background:rgba(62,115,130,0.14);
-    border-left-color:var(--teal);
-  }
-  .entry.assistant .bubble{
-    background:var(--navy-panel);
-    border-left-color:var(--gold);
-  }
-  .entry.system .bubble{
-    background:rgba(182,85,46,0.10);
-    border-left-color:var(--rust);
-    color:var(--parchment-dim);
-    font-style:italic;
-  }
-
-  .sources-block{
-    margin-top:8px;
-    border-left:3px solid var(--gold);
-    border-radius:0 3px 3px 0;
-    background:rgba(199,154,61,0.06);
-  }
-  .sources-block summary{
-    cursor:pointer;
-    padding:9px 14px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:9.5px;
-    letter-spacing:0.12em;
-    color:var(--gold);
-    list-style:none;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    user-select:none;
-  }
-  .sources-block summary::-webkit-details-marker{display:none;}
-  .sources-block summary::before{
-    content:"▸";
-    font-size:11px;
-    transition:transform 0.15s;
-  }
-  .sources-block[open] summary::before{
-    transform:rotate(90deg);
-  }
-  .sources-block summary .sources-count{
-    color:var(--parchment-dim);
-    letter-spacing:0.05em;
-    text-transform:none;
-  }
-  .sources-block-body{
-    padding:2px 14px 12px;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-  }
-  .sources-label{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:9.5px;
-    letter-spacing:0.12em;
-    color:var(--gold);
-  }
-  .source-link{
-    font-size:12px;
-    color:#9FC3D6;
-    text-decoration:none;
-    word-break:break-word;
-  }
-  .source-link:hover{color:var(--gold-bright); text-decoration:underline;}
-
-  /* cited-text highlighting in the answer body */
-  .cited-highlight{
-    background:rgba(199,154,61,0.16);
-    border-bottom:1px dashed var(--gold);
-    padding:0 1px;
-  }
-  .footnote-marker{
-    font-size:10px;
-    color:var(--gold);
-    vertical-align:super;
-    margin-left:1px;
-    font-family:'IBM Plex Mono', monospace;
-  }
-  .source-item{
-    display:flex;
-    flex-direction:column;
-    gap:3px;
-  }
-  .source-item-head{
-    display:flex;
-    align-items:baseline;
-    gap:6px;
-  }
-  .source-num{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    color:var(--gold);
-    flex-shrink:0;
-  }
-  .source-quote{
-    display:block;
-    margin:2px 0 0 18px;
-    padding-left:10px;
-    border-left:2px solid var(--navy-line);
-    font-style:italic;
-    font-size:12.5px;
-    line-height:1.45;
-    color:var(--parchment-dim);
-  }
-
-  .thinking{
-    display:flex; align-items:center; gap:10px;
-    color:var(--parchment-dim);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.08em;
-  }
-  .mini-compass{
-    width:16px; height:16px; border-radius:50%;
-    border:1.5px solid var(--gold);
-    position:relative;
-    animation:spin 1.4s linear infinite;
-  }
-  .mini-compass::before{
-    content:"";
-    position:absolute; top:1px; left:50%;
-    width:1.5px; height:5px;
-    background:var(--gold-bright);
-    transform:translateX(-50%);
-  }
-  @keyframes spin{to{transform:rotate(360deg);}}
-
-  /* ---- Composer ---- */
-  #composer{
-    flex-shrink:0;
-    padding:14px 2px 20px;
-    border-top:1px solid var(--navy-line);
-  }
-  .composer-row{
-    display:flex;
-    gap:10px;
-    align-items:flex-end;
-  }
-  textarea{
-    flex:1;
-    resize:none;
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-radius:4px;
-    color:var(--parchment);
-    font-family:'Inter',sans-serif;
-    font-size:14.5px;
-    padding:11px 12px;
-    line-height:1.4;
-    max-height:120px;
-    min-height:44px;
-  }
-  textarea:focus{outline:none; border-color:var(--gold);}
-  textarea::placeholder{color:#5A7284;}
-  button#send{
-    background:var(--gold);
-    color:#1a1305;
-    border:none;
-    font-family:'Inter',sans-serif;
-    font-weight:600;
-    font-size:13px;
-    letter-spacing:0.03em;
-    padding:0 18px;
-    height:44px;
-    border-radius:4px;
-    cursor:pointer;
-    transition:background 0.15s;
-  }
-  button#send:hover{background:var(--gold-bright);}
-  button#send:disabled{background:var(--navy-line); color:var(--parchment-dim); cursor:not-allowed;}
-
-  .hint{
-    font-size:11px;
-    color:var(--parchment-dim);
-    margin-top:8px;
-    text-align:center;
-  }
-  .scope-badge{
-    display:inline-block;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:9.5px;
-    letter-spacing:0.1em;
-    color:var(--rust);
-    border:1px solid var(--rust);
-    padding:2px 6px;
-    border-radius:2px;
-    margin-left:8px;
-    vertical-align:middle;
-  }
-  .log-clear-link{
-    background:none;
-    border:none;
-    color:var(--rust);
-    text-decoration:underline;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    cursor:pointer;
-    padding:0;
-    margin-left:4px;
-  }
-  .log-clear-link:hover{color:#D97A4C;}
-
-  /* ---- Quiz view ---- */
-  #quiz-view{padding:18px 2px; overflow-y:auto; gap:16px;}
-  .topic-picker{
-    display:flex; flex-wrap:wrap; gap:8px;
-    margin-bottom:6px;
-  }
-  .topic-picker > .topic-chip{margin-bottom:2px;} /* leading pinned chips, e.g. "Core COLREGS" */
-  .category-group{
-    width:100%;
-    border:1px solid var(--navy-line);
-    border-radius:8px;
-    overflow:hidden;
-    background:rgba(18,42,69,0.4);
-  }
-  .category-header{
-    width:100%;
-    display:flex; align-items:center; gap:8px;
-    background:none; border:none;
-    color:var(--parchment-dim);
-    font-family:'Inter',sans-serif;
-    font-size:12.5px; font-weight:600;
-    padding:10px 12px;
-    cursor:pointer;
-    text-align:left;
-  }
-  .category-header:hover{color:var(--parchment);}
-  .category-chevron{
-    display:inline-block;
-    font-size:10px;
-    color:var(--gold);
-    transition:transform 0.2s ease;
-    flex-shrink:0;
-  }
-  .category-group.open .category-chevron{transform:rotate(90deg);}
-  .category-label{flex:1;}
-  .category-count{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10px;
-    color:var(--parchment-dim);
-    background:var(--navy-deep);
-    border-radius:20px;
-    padding:1px 8px;
-    flex-shrink:0;
-  }
-  .category-body{
-    display:grid;
-    grid-template-rows:0fr;
-    transition:grid-template-rows 0.25s ease;
-  }
-  .category-group.open .category-body{grid-template-rows:1fr;}
-  .category-body > .category-chips{
-    overflow:hidden;
-    display:flex; flex-wrap:wrap; gap:8px;
-    padding:0 12px;
-  }
-  .category-group.open .category-body > .category-chips{padding:0 12px 12px;}
-  .topic-chip{
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    color:var(--parchment-dim);
-    font-family:'Inter',sans-serif;
-    font-size:12.5px;
-    padding:7px 13px;
-    border-radius:20px;
-    cursor:pointer;
-    transition:border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.15s ease;
-  }
-  .topic-chip:hover{ transform:translateY(-1px); }
-  .topic-chip:active{ transform:translateY(0) scale(0.96); }
-  .topic-chip.active{
-    border-color:var(--gold);
-    color:var(--gold);
-    background:rgba(199,154,61,0.08);
-  }
-  .quiz-score{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    color:var(--parchment-dim);
-    letter-spacing:0.05em;
-  }
-  .quiz-score b{color:var(--gold);}
-  .quiz-card{
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-radius:6px;
-    padding:20px;
-    animation:fadeInUp 0.4s cubic-bezier(.16,.8,.3,1);
-  }
-  .quiz-question{
-    font-family:'Playfair Display', serif;
-    font-size:17px;
-    line-height:1.45;
-    margin-bottom:16px;
-  }
-  .quiz-option{
-    display:block;
-    width:100%;
-    text-align:left;
-    background:rgba(255,255,255,0.02);
-    border:1px solid var(--navy-line);
-    color:var(--parchment);
-    font-family:'Inter',sans-serif;
-    font-size:13.5px;
-    padding:11px 14px;
-    border-radius:4px;
-    margin-bottom:8px;
-    cursor:pointer;
-    transition:border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.12s ease;
-  }
-  .quiz-option:hover:not(:disabled){border-color:var(--gold); transform:translateX(2px);}
-  .quiz-option:active:not(:disabled){transform:translateX(2px) scale(0.99);}
-  .quiz-option:disabled{cursor:default;}
-  .quiz-option.correct{border-color:#5C9C6C; background:rgba(92,156,108,0.14); color:#BFE6C8; animation:popIn 0.3s ease;}
-  .quiz-option.incorrect{border-color:var(--rust); background:rgba(182,85,46,0.14); color:#F0B8A0; animation:shake 0.4s ease;}
-  @keyframes shake{
-    0%,100%{transform:translateX(0);}
-    20%{transform:translateX(-4px);}
-    40%{transform:translateX(4px);}
-    60%{transform:translateX(-3px);}
-    80%{transform:translateX(3px);}
-  }
-  .quiz-explain{
-    margin-top:12px;
-    font-size:13px;
-    color:var(--parchment-dim);
-    line-height:1.5;
-    border-top:1px dashed var(--navy-line);
-    padding-top:12px;
-  }
-  .quiz-actions{
-    display:flex; justify-content:center;
-    margin-top:16px;
-  }
-  .btn-primary{
-    background:var(--gold);
-    color:#1a1305;
-    border:none;
-    font-family:'Inter',sans-serif;
-    font-weight:600;
-    font-size:13px;
-    letter-spacing:0.03em;
-    padding:10px 22px;
-    border-radius:4px;
-    cursor:pointer;
-    transition:background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-  }
-  .btn-primary:hover:not(:disabled){background:var(--gold-bright); transform:translateY(-1px); box-shadow:0 4px 14px rgba(199,154,61,0.25);}
-  .btn-primary:active:not(:disabled){transform:translateY(0) scale(0.97); box-shadow:none;}
-  .btn-primary:disabled{background:var(--navy-line); color:var(--parchment-dim); cursor:not-allowed;}
-  .empty-state{
-    text-align:center;
-    color:var(--parchment-dim);
-    font-size:13px;
-    padding:30px 10px;
-    animation:fadeIn 0.4s ease;
-  }
-
-  /* ---- Flashcard view ---- */
-  #flash-view{padding:18px 2px; overflow-y:auto; gap:16px; align-items:center;}
-  .flash-topic-row{width:100%; display:flex; justify-content:center;}
-  .flash-counter{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    color:var(--parchment-dim);
-    letter-spacing:0.08em;
-  }
-  .flashcard{
-    width:100%;
-    max-width:420px;
-    aspect-ratio:3/2;
-    perspective:1200px;
-    cursor:pointer;
-    animation:popIn 0.35s cubic-bezier(.16,.8,.3,1);
-  }
-  .flashcard-inner{
-    position:relative;
-    width:100%; height:100%;
-    transform-style:preserve-3d;
-    transition:transform 0.55s cubic-bezier(.34,1.2,.64,1);
-  }
-  .flashcard:hover .flashcard-inner{ transform:translateY(-2px) scale(1.01); }
-  .flashcard.flipped:hover .flashcard-inner{ transform:rotateY(180deg) translateY(-2px) scale(1.01); }
-  .flashcard.flipped .flashcard-inner{transform:rotateY(180deg);}
-  .flash-face{
-    position:absolute; inset:0;
-    backface-visibility:hidden;
-    border-radius:8px;
-    border:1px solid var(--gold);
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    text-align:center;
-    padding:24px;
-    transition:box-shadow 0.3s ease;
-  }
-  .flashcard:hover .flash-face{ box-shadow:0 8px 24px rgba(0,0,0,0.3); }
-  .flash-front{
-    background:var(--navy-panel);
-  }
-  .flash-back{
-    background:#0E2438;
-    transform:rotateY(180deg);
-    font-size:14px;
-    line-height:1.5;
-  }
-  .flash-tag{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10px;
-    letter-spacing:0.15em;
-    color:var(--gold);
-    margin-bottom:10px;
-  }
-  .flash-title{
-    font-family:'Playfair Display', serif;
-    font-size:19px;
-    line-height:1.4;
-  }
-  .flash-hint{
-    font-size:11px;
-    color:var(--parchment-dim);
-    margin-top:14px;
-  }
-  .flash-controls{
-    display:flex; gap:10px; align-items:center; justify-content:center;
-    width:100%;
-  }
-  .btn-ghost{
-    background:transparent;
-    border:1px solid var(--navy-line);
-    color:var(--parchment);
-    font-family:'Inter',sans-serif;
-    font-size:13px;
-    padding:9px 16px;
-    border-radius:4px;
-    cursor:pointer;
-    transition:border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
-  }
-  .btn-ghost:hover:not(:disabled){border-color:var(--gold); color:var(--gold); transform:translateY(-1px);}
-  .btn-ghost:active:not(:disabled){transform:translateY(0) scale(0.96);}
-  .btn-ghost:disabled{opacity:0.4; cursor:not-allowed;}
-
-  /* ---- Navigation practice view ---- */
-  #nav-view{padding:18px 2px; overflow-y:auto; gap:14px; align-items:center;}
-  .nav-prompt{
-    width:100%;
-    max-width:440px;
-    font-size:13.5px;
-    line-height:1.5;
-    color:var(--parchment);
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-radius:6px;
-    padding:12px 14px;
-  }
-  .nav-prompt b{color:var(--gold);}
-  .nav-teach-note{
-    width:100%;
-    max-width:440px;
-    font-size:12px;
-    line-height:1.5;
-    font-style:italic;
-    color:var(--parchment-dim);
-    border-left:2px solid var(--navy-line);
-    padding-left:10px;
-  }
-  .nav-chart-wrap{
-    width:100%;
-    max-width:440px;
-  }
-  #nav-chart{
-    width:100%;
-    aspect-ratio:1/1;
-    display:block;
-    border-radius:6px;
-    border:1px solid var(--navy-line);
-    background:#0E2438;
-  }
-  .nav-feedback{
-    width:100%;
-    max-width:440px;
-    min-height:18px;
-    font-size:13px;
-    line-height:1.5;
-    color:var(--parchment-dim);
-  }
-  .nav-feedback b{color:var(--gold-bright);}
-  .nav-input-row{
-    display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;
-    width:100%;
-    max-width:440px;
-  }
-  .nav-input-row label{
-    display:flex; flex-direction:column;
-    font-size:11px;
-    color:var(--parchment-dim);
-    gap:4px;
-    font-family:'IBM Plex Mono', monospace;
-    letter-spacing:0.05em;
-  }
-  .nav-input-row input{
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    color:var(--parchment);
-    font-family:'Inter',sans-serif;
-    font-size:14px;
-    padding:8px 10px;
-    border-radius:4px;
-    width:90px;
-  }
-  .nav-input-row input:focus{outline:none; border-color:var(--gold);}
-  .nav-input-row input:disabled{opacity:0.5;}
-  .nav-actions{
-    display:flex; justify-content:center;
-    width:100%;
-    max-width:440px;
-  }
-
-  /* ---- Passcode gate ---- */
-  .auth-overlay{
-    position:fixed; inset:0;
-    background: radial-gradient(ellipse at top, #102640 0%, var(--navy-deep) 55%);
-    display:flex; align-items:center; justify-content:center;
-    z-index:1000;
-    padding:20px;
-    animation:fadeIn 0.35s ease;
-    transition:opacity 0.25s ease;
-  }
-  .auth-overlay.leaving{ opacity:0; pointer-events:none; }
-  .auth-card{
-    width:100%; max-width:360px;
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-radius:8px;
-    padding:28px 26px 24px;
-    text-align:center;
-    animation:popIn 0.4s cubic-bezier(.16,.8,.3,1);
-  }
-  .auth-title{
-    font-family:'Playfair Display', serif;
-    font-size:22px;
-    margin:14px 0 4px;
-  }
-  .auth-subtitle{
-    font-size:12px;
-    color:var(--parchment-dim);
-    margin-bottom:18px;
-  }
-  .auth-form{ display:flex; flex-direction:column; gap:12px; text-align:left; }
-  .auth-form label{
-    display:flex; flex-direction:column; gap:5px;
-    font-size:11px; letter-spacing:0.06em; color:var(--parchment-dim);
-    font-family:'IBM Plex Mono', monospace;
-  }
-  .auth-form input{
-    background:#0E2438; border:1px solid var(--navy-line); border-radius:4px;
-    color:var(--parchment); font-family:'Inter',sans-serif; font-size:14px;
-    padding:10px 12px;
-    transition:border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-  .auth-form input:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(199,154,61,0.12); }
-  .auth-error{
-    font-size:12px; color:var(--rust); min-height:16px;
-    transition:opacity 0.2s ease;
-  }
-  .auth-error:not(:empty){ animation:shake 0.4s ease; }
-  .auth-submit{ width:100%; margin-top:2px; }
-  .auth-note{
-    margin-top:16px; font-size:11px; line-height:1.5; color:var(--parchment-dim);
-  }
-  .auth-setup-warning{
-    margin-bottom:16px; font-size:11px; line-height:1.5; color:var(--rust);
-    border:1px solid var(--rust); border-radius:4px; padding:10px;
-    text-align:left;
-  }
-  .auth-setup-warning code{
-    background:rgba(182,85,46,0.14);
-    padding:1px 4px;
-    border-radius:2px;
-  }
-  #setup-hash-output{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11.5px;
-    cursor:pointer;
-  }
-  .header-lock-btn{ flex-shrink:0; }
-
-  /* ---- Classes & Study shared: section header / toolbar ---- */
-  .section-view{padding:16px 2px 24px; overflow-y:auto; gap:14px;}
-  .section-toolbar{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-  }
-  .section-title{
-    font-family:'Playfair Display', serif;
-    font-size:17px;
-    font-weight:700;
-    color:var(--parchment);
-  }
-  .section-sub{
-    font-size:11.5px;
-    color:var(--parchment-dim);
-    margin-top:2px;
-  }
-  .btn-add{
-    background:var(--gold);
-    color:#1a1305;
-    border:none;
-    font-family:'Inter',sans-serif;
-    font-weight:600;
-    font-size:12.5px;
-    letter-spacing:0.02em;
-    padding:9px 14px;
-    border-radius:5px;
-    cursor:pointer;
-    white-space:nowrap;
-    transition:background 0.15s, transform 0.15s;
-  }
-  .btn-add:hover{background:var(--gold-bright); transform:translateY(-1px);}
-  .btn-add:active{transform:translateY(0) scale(0.97);}
-
-  /* ---- Reminder / today banner ---- */
-  .reminder-banner{
-    display:flex; align-items:center; gap:10px;
-    background:rgba(199,154,61,0.1);
-    border:1px solid var(--gold);
-    border-radius:6px;
-    padding:10px 12px;
-    font-size:12.5px;
-    color:var(--parchment);
-    animation:fadeInUp 0.4s ease;
-  }
-  .reminder-banner .bell{font-size:16px; flex-shrink:0;}
-  .reminder-banner b{color:var(--gold-bright);}
-  .reminder-dismiss{
-    margin-left:auto; background:none; border:none; color:var(--parchment-dim);
-    cursor:pointer; font-size:16px; line-height:1; padding:2px 4px; flex-shrink:0;
-  }
-  .reminder-dismiss:hover{color:var(--parchment);}
-  .notif-permission-row{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-radius:6px;
-    padding:10px 12px;
-    font-size:11.5px;
-    color:var(--parchment-dim);
-  }
-  .notif-permission-row button{
-    background:none; border:1px solid var(--gold); color:var(--gold);
-    font-family:'Inter',sans-serif; font-size:11px; font-weight:600;
-    padding:6px 10px; border-radius:4px; cursor:pointer; white-space:nowrap;
-  }
-  .notif-permission-row button:hover{background:rgba(199,154,61,0.1);}
-
-  /* ---- Class cards ---- */
-  .class-card{
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-left:3px solid var(--teal);
-    border-radius:6px;
-    padding:13px 14px;
-    display:flex; flex-direction:column; gap:6px;
-    animation:fadeInUp 0.3s ease;
-  }
-  .class-card.next-up{border-left-color:var(--gold);}
-  .class-card-head{
-    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
-  }
-  .class-subject{
-    font-family:'Playfair Display', serif;
-    font-weight:700;
-    font-size:15.5px;
-    color:var(--parchment);
-  }
-  .class-prof{
-    font-size:11.5px;
-    color:var(--parchment-dim);
-    margin-top:2px;
-  }
-  .class-meta-row{
-    display:flex; flex-wrap:wrap; gap:6px 14px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    color:var(--parchment-dim);
-    letter-spacing:0.03em;
-  }
-  .class-meta-row span b{color:var(--teal);}
-  .class-badge{
-    display:inline-block;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:9.5px;
-    letter-spacing:0.08em;
-    color:var(--gold);
-    border:1px solid var(--gold);
-    padding:2px 7px;
-    border-radius:20px;
-    flex-shrink:0;
-  }
-  .class-actions{
-    display:flex; gap:8px; margin-top:4px;
-  }
-  .icon-btn{
-    background:none;
-    border:1px solid var(--navy-line);
-    color:var(--parchment-dim);
-    font-family:'Inter',sans-serif;
-    font-size:11px;
-    padding:5px 10px;
-    border-radius:4px;
-    cursor:pointer;
-    transition:border-color 0.15s, color 0.15s;
-  }
-  .icon-btn:hover{border-color:var(--gold); color:var(--gold);}
-  .icon-btn.danger:hover{border-color:var(--rust); color:var(--rust);}
-
-  /* ---- Modal ---- */
-  .modal-overlay{
-    position:fixed; inset:0; z-index:60;
-    background:rgba(6,14,24,0.72);
-    display:flex; align-items:flex-end; justify-content:center;
-    animation:fadeIn 0.2s ease;
-  }
-  .modal-overlay.centered{align-items:center; padding:16px;}
-  .modal-card{
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-top:2px solid var(--gold);
-    border-radius:10px 10px 0 0;
-    width:100%; max-width:520px;
-    max-height:88vh;
-    overflow-y:auto;
-    padding:20px 20px 24px;
-    animation:popIn 0.25s cubic-bezier(.16,.8,.3,1);
-  }
-  .modal-overlay.centered .modal-card{border-radius:10px;}
-  .modal-head{
+  /* ---- Header / Binnacle bar ---- */
+  header.binnacle {
+    position: sticky; top:0; z-index:50;
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:14px;
+    padding: 14px 22px;
+    background: linear-gradient(180deg, var(--bg-panel), var(--bg-panel) 90%, transparent);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    gap: 16px; flex-wrap: wrap;
   }
-  .modal-head h3{
-    font-family:'Playfair Display', serif;
-    font-size:16.5px; font-weight:700; margin:0; color:var(--parchment);
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand .wheel {
+    width:38px; height:38px; border-radius:50%;
+    border: 3px solid var(--accent);
+    position:relative; flex-shrink:0;
+    background: conic-gradient(from 0deg, var(--accent) 0 8%, transparent 8% 17%, var(--accent) 17% 25%, transparent 25% 33%, var(--accent) 33% 42%, transparent 42% 50%, var(--accent) 50% 58%, transparent 58% 67%, var(--accent) 67% 75%, transparent 75% 83%, var(--accent) 83% 92%, transparent 92% 100%);
   }
-  .modal-x{
-    background:none; border:none; color:var(--parchment-dim);
-    font-size:20px; cursor:pointer; line-height:1; padding:2px 6px;
+  .brand .wheel::after {
+    content:''; position:absolute; inset:11px; border-radius:50%;
+    background: var(--bg); border: 2px solid var(--accent);
   }
-  .modal-x:hover{color:var(--parchment);}
-  .form-row{margin-bottom:13px;}
-  .form-row label{
-    display:block;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10px; letter-spacing:0.08em; text-transform:uppercase;
-    color:var(--parchment-dim);
-    margin-bottom:6px;
-  }
-  .form-row input[type=text], .form-row input[type=number], .form-row input[type=time], .form-row select{
-    width:100%;
-    background:var(--navy-deep);
-    border:1px solid var(--navy-line);
-    border-radius:4px;
-    color:var(--parchment);
-    font-family:'Inter',sans-serif;
-    font-size:13.5px;
-    padding:10px 11px;
-  }
-  .form-row input:focus, .form-row select:focus{outline:none; border-color:var(--gold);}
-  .form-grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
-  .day-picker{display:flex; flex-wrap:wrap; gap:6px;}
-  .day-chip{
-    background:var(--navy-deep);
-    border:1px solid var(--navy-line);
-    color:var(--parchment-dim);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    padding:7px 0;
-    width:40px; text-align:center;
-    border-radius:4px;
-    cursor:pointer;
-    transition:border-color 0.15s, color 0.15s, background 0.15s;
-  }
-  .day-chip.active{border-color:var(--gold); color:var(--gold); background:rgba(199,154,61,0.1);}
-  .modal-actions{display:flex; gap:10px; margin-top:6px;}
-  .modal-actions .btn-primary{flex:1;}
-  .btn-secondary{
-    flex:1;
-    background:none;
-    border:1px solid var(--navy-line);
-    color:var(--parchment-dim);
-    font-family:'Inter',sans-serif;
-    font-weight:600; font-size:13px;
-    padding:11px 16px;
-    border-radius:4px;
-    cursor:pointer;
-  }
-  .btn-secondary:hover{border-color:var(--parchment-dim); color:var(--parchment);}
-  .form-error{color:var(--rust); font-size:11.5px; margin-top:-6px; margin-bottom:10px; min-height:14px;}
+  .brand-text h1 { margin:0; font-size:1.35rem; font-weight:700; line-height:1; color: var(--text); }
+  .brand-text .tag { font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color: var(--text-dim); }
 
-  /* ---- Study sources (Personal Study / NotebookLM-style) ---- */
-  .study-intro{
-    font-size:12px; color:var(--parchment-dim); line-height:1.5;
+  .watch-readout {
+    display:flex; align-items:center; gap:14px;
+    padding: 6px 14px; border:1px solid var(--border); border-radius: 999px;
+    background: var(--bg-raised);
   }
-  .upload-zone{
-    border:1.5px dashed var(--navy-line);
-    border-radius:8px;
-    padding:20px 14px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color 0.2s, background 0.2s;
+  .watch-readout .dot { width:8px; height:8px; border-radius:50%; background: var(--accent); box-shadow:0 0 8px var(--accent); }
+  .watch-readout .label { font-size:0.72rem; color: var(--text-dim); }
+  .watch-readout .name { font-size:0.85rem; font-weight:600; }
+  .watch-readout .time { font-size:0.85rem; color: var(--text-dim); }
+
+  .theme-toggle {
+    display:flex; align-items:center; gap:8px;
+    border:1px solid var(--border); border-radius:999px; padding:4px;
+    background: var(--bg-raised);
   }
-  .upload-zone:hover, .upload-zone.drag-over{border-color:var(--gold); background:rgba(199,154,61,0.05);}
-  .upload-zone .upload-icon{font-size:22px; margin-bottom:6px;}
-  .upload-zone .upload-main{font-size:13px; color:var(--parchment); font-weight:600;}
-  .upload-zone .upload-hint{font-size:10.5px; color:var(--parchment-dim); margin-top:4px;}
-  .source-card{
-    background:var(--navy-panel);
-    border:1px solid var(--navy-line);
-    border-radius:6px;
-    padding:12px 13px;
-    display:flex; flex-direction:column; gap:8px;
-    animation:fadeInUp 0.3s ease;
+  .theme-toggle button {
+    border:none; background:transparent; color: var(--text-dim);
+    font-size:0.72rem; padding:6px 12px; border-radius:999px; cursor:pointer;
+    font-family: inherit; font-weight:600; letter-spacing:0.03em;
+    transition: all 0.2s;
   }
-  .source-card-head{display:flex; align-items:flex-start; gap:10px;}
-  .source-icon{
-    width:30px; height:30px; flex-shrink:0;
-    border-radius:5px;
-    background:rgba(62,115,130,0.18);
-    color:var(--teal);
-    display:flex; align-items:center; justify-content:center;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px; font-weight:600;
+  .theme-toggle button.active { background: var(--accent); color: var(--navy-950); }
+
+  /* ---- Nav tabs ---- */
+  nav.tabs {
+    display:flex; gap:8px; padding: 16px 22px 0; max-width: 980px; margin: 0 auto; flex-wrap:wrap;
   }
-  .source-info{flex:1; min-width:0;}
-  .source-name{font-size:13px; color:var(--parchment); font-weight:600; word-break:break-word;}
-  .source-meta-line{font-size:10.5px; color:var(--parchment-dim); margin-top:2px; font-family:'IBM Plex Mono', monospace;}
-  .source-footer{display:flex; align-items:center; justify-content:space-between; gap:10px;}
-  .source-toggle-label{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--parchment-dim);}
-  .toggle-switch{
-    position:relative; width:36px; height:20px; flex-shrink:0;
+  nav.tabs button {
+    flex:1; min-width:110px; padding: 12px 10px; border-radius: 10px 10px 0 0;
+    border: 1px solid var(--border); border-bottom:none;
+    background: var(--bg-panel); color: var(--text-dim);
+    font-family: inherit; font-size:0.85rem; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition: all 0.2s;
   }
-  .toggle-switch input{opacity:0; width:0; height:0; position:absolute;}
-  .toggle-slider{
-    position:absolute; inset:0; cursor:pointer;
-    background:var(--navy-line);
-    border-radius:20px;
-    transition:background 0.2s;
+  nav.tabs button.active { background: var(--bg-raised); color: var(--accent); box-shadow: 0 -2px 10px rgba(0,0,0,0.08); }
+  nav.tabs button:hover:not(.active) { color: var(--text); }
+
+  main {
+    max-width: 980px; margin: 0 auto; padding: 0 22px 60px;
   }
-  .toggle-slider::before{
-    content:""; position:absolute; left:2px; top:2px;
-    width:16px; height:16px; border-radius:50%;
-    background:var(--parchment-dim);
-    transition:transform 0.2s, background 0.2s;
+  .panel {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 0 10px 10px 10px; padding: 24px;
+    box-shadow: var(--shadow); min-height: 420px;
   }
-  .toggle-switch input:checked + .toggle-slider{background:rgba(199,154,61,0.35);}
-  .toggle-switch input:checked + .toggle-slider::before{transform:translateX(16px); background:var(--gold);}
-  .source-preview{
-    display:none;
-    font-size:11.5px; line-height:1.5; color:var(--parchment-dim);
-    background:var(--navy-deep);
-    border:1px solid var(--navy-line);
-    border-radius:5px;
-    padding:9px 10px;
-    max-height:140px;
-    overflow-y:auto;
-    white-space:pre-wrap;
+
+  .chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding: 7px 13px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg-panel); color: var(--text); font-size:0.78rem; cursor:pointer;
+    transition: all 0.15s; font-family: inherit;
   }
-  .source-card.expanded .source-preview{display:block;}
-  .context-budget{
-    font-size:10.5px; color:var(--parchment-dim); font-family:'IBM Plex Mono', monospace;
-    text-align:right;
+  .chip:hover { border-color: var(--accent); color: var(--accent-strong); }
+  .chip.selected { background: var(--accent); color: var(--navy-950); border-color: var(--accent); font-weight:600; }
+  .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin: 10px 0 18px; }
+
+  /* ---- Chat ---- */
+  .chat-log { display:flex; flex-direction:column; gap:16px; margin-bottom: 16px; max-height: 52vh; overflow-y:auto; padding-right:4px; }
+  .msg { max-width: 88%; padding: 12px 16px; border-radius: 12px; font-size:0.92rem; line-height:1.55; }
+  .msg.user { align-self:flex-end; background: var(--accent); color: var(--navy-950); border-bottom-right-radius:3px; }
+  .msg.assistant { align-self:flex-start; background: var(--bg-panel); border:1px solid var(--border); border-bottom-left-radius:3px; }
+  .msg.assistant .badge {
+    display:inline-flex; align-items:center; gap:5px; font-size:0.65rem; text-transform:uppercase;
+    letter-spacing:0.06em; padding:3px 8px; border-radius:999px; margin-bottom:8px; font-weight:700;
   }
-  .context-budget.over{color:var(--rust);}
+  .badge.verified { background: rgba(30,122,95,0.18); color: var(--stbd-green); }
+  .badge.core { background: rgba(138,148,166,0.18); color: var(--text-dim); }
+  .badge.unverified { background: rgba(193,39,45,0.15); color: var(--port-red); }
+  .sources { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .source-pill { font-size:0.68rem; padding:3px 9px; border-radius:6px; background: var(--bg-raised); border:1px solid var(--border); color: var(--text-dim); }
+  .chat-input-row { display:flex; gap:10px; }
+  textarea, input[type=text] {
+    font-family: inherit; background: var(--bg-panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size:0.9rem;
+    resize:none;
+  }
+  textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset:1px; }
+  .chat-input-row textarea { flex:1; }
+  button.primary {
+    background: var(--accent); color: var(--navy-950); border:none; border-radius:10px;
+    padding: 0 22px; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.88rem;
+    transition: background 0.15s;
+  }
+  button.primary:hover { background: var(--accent-strong); }
+  button.primary:disabled { opacity:0.5; cursor:not-allowed; }
+  button.ghost {
+    background:transparent; border:1px solid var(--border); color: var(--text-dim);
+    border-radius:10px; padding:10px 16px; cursor:pointer; font-family:inherit; font-size:0.82rem;
+  }
+  button.ghost:hover { border-color: var(--accent); color: var(--accent-strong); }
+
+  .empty-state { text-align:center; padding: 40px 20px; color: var(--text-dim); }
+  .empty-state .display { font-size:1.3rem; color: var(--text); margin-bottom:8px; }
+
+  .loading-line { display:flex; align-items:center; gap:10px; color: var(--text-dim); font-size:0.85rem; padding: 10px 0; }
+  .spinner { width:14px; height:14px; border-radius:50%; border:2px solid var(--border); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: rgba(193,39,45,0.1); border:1px solid rgba(193,39,45,0.35); color: var(--port-red);
+    padding: 12px 16px; border-radius:10px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+
+  /* ---- Quiz ---- */
+  .quiz-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .score-badge { font-family:'JetBrains Mono', monospace; font-size:0.85rem; color: var(--accent-strong); }
+  .progress-bar { height:5px; background: var(--bg-panel); border-radius:3px; overflow:hidden; margin-bottom:20px; }
+  .progress-fill { height:100%; background: var(--accent); transition: width 0.3s ease; }
+  .q-card { background: var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:20px; }
+  .q-text { font-size:1.02rem; font-weight:600; margin-bottom:16px; line-height:1.5; }
+  .opt {
+    display:block; width:100%; text-align:left; padding: 12px 15px; margin-bottom:9px;
+    border-radius:9px; border:1px solid var(--border); background: var(--bg-raised); color: var(--text);
+    cursor:pointer; font-family:inherit; font-size:0.88rem; transition: all 0.15s;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt.correct { background: rgba(30,122,95,0.18); border-color: var(--stbd-green); }
+  .opt.incorrect { background: rgba(193,39,45,0.15); border-color: var(--port-red); }
+  .opt:disabled { cursor:default; }
+  .explain { margin-top:14px; padding:14px; border-radius:9px; background: var(--bg-raised); font-size:0.85rem; line-height:1.5; border-left:3px solid var(--accent); }
+  .deck-history { margin-top:22px; border-top:1px solid var(--border); padding-top:16px; }
+  .deck-history h3 { font-size:0.9rem; margin: 0 0 10px; color: var(--text-dim); text-transform:uppercase; letter-spacing:0.06em; }
+  .hist-row { display:flex; justify-content:space-between; font-size:0.82rem; padding:7px 0; border-bottom:1px dashed var(--border); color: var(--text-dim); }
+
+  /* ---- Flashcards ---- */
+  .flash-wrap { display:flex; flex-direction:column; align-items:center; }
+  .flashcard {
+    width:100%; max-width:560px; height:260px; perspective:1200px; cursor:pointer; margin-bottom:18px;
+  }
+  .flashcard-inner {
+    position:relative; width:100%; height:100%; transition: transform 0.5s; transform-style:preserve-3d;
+  }
+  .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
+  .flash-face {
+    position:absolute; inset:0; backface-visibility:hidden; border-radius:14px;
+    display:flex; align-items:center; justify-content:center; text-align:center; padding: 30px;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .flash-face.front { background: var(--bg-panel); font-size:1.1rem; font-weight:600; font-family:'Fraunces',serif; }
+  .flash-face.back { background: var(--navy-900); color: var(--parchment); transform: rotateY(180deg); font-size:0.95rem; line-height:1.5; }
+  [data-theme="light"] .flash-face.back { background: var(--navy-800); }
+  .flash-meta { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color: var(--accent); position:absolute; top:16px; left:20px; }
+  .flash-controls { display:flex; gap:12px; }
+  .flash-progress { font-size:0.8rem; color: var(--text-dim); margin-bottom:10px; font-family:'JetBrains Mono',monospace; }
+
+  select {
+    font-family:inherit; background: var(--bg-panel); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:9px 12px; font-size:0.85rem;
+  }
+  label.field-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color: var(--text-dim); display:block; margin-bottom:6px; }
+  .controls-row { display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:6px; }
+
+  footer.note { max-width:980px; margin:0 auto; padding: 0 22px 40px; font-size:0.72rem; color: var(--text-dim); text-align:center; }
+
+  ::-webkit-scrollbar { width:7px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius:4px; }
+
+  /* ---- Motion ---- */
+  @keyframes fadeInUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .msg { animation: fadeInUp 0.4s cubic-bezier(.2,.7,.3,1) both; }
+  .panel-content { animation: fadeInUp 0.35s cubic-bezier(.2,.7,.3,1) both; }
+  .q-card { animation: fadeInUp 0.3s ease both; }
+  .flashcard { animation: fadeInUp 0.35s ease both; }
+  header.binnacle, nav.tabs, .panel { animation: fadeIn 0.5s ease both; }
+  .chip, .opt, button.primary, button.ghost, .theme-toggle button, nav.tabs button {
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
+  }
+  .chip:active, .opt:active:not(:disabled), button.primary:active, button.ghost:active { transform: scale(0.97); }
+  nav.tabs button.active { animation: fadeIn 0.25s ease; }
+  .source-pill { animation: fadeIn 0.4s ease both; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
+  }
+
+  /* ---- Live bridge watch radar ---- */
+  .radar {
+    position: relative; width:52px; height:52px; border-radius:50%;
+    background: var(--bg-panel); border:1px solid var(--border); overflow:hidden; flex-shrink:0;
+  }
+  .radar-ring { position:absolute; border:1px solid var(--border); border-radius:50%; }
+  .radar-ring.r1 { inset:8px; }
+  .radar-ring.r2 { inset:17px; }
+  .radar-ring.r3 { inset:26px; }
+  .radar-cross { position:absolute; inset:0; }
+  .radar-cross::before, .radar-cross::after {
+    content:''; position:absolute; background: var(--border);
+  }
+  .radar-cross::before { left:50%; top:2px; bottom:2px; width:1px; transform:translateX(-50%); }
+  .radar-cross::after { top:50%; left:2px; right:2px; height:1px; transform:translateY(-50%); }
+  .radar-sweep {
+    position:absolute; inset:0;
+    background: conic-gradient(from 0deg, rgba(201,162,39,0.7), rgba(201,162,39,0.18) 22%, transparent 38%);
+    animation: radar-spin 3.6s linear infinite;
+    border-radius:50%;
+  }
+  [data-theme="light"] .radar-sweep {
+    background: conic-gradient(from 0deg, rgba(138,109,15,0.55), rgba(138,109,15,0.14) 22%, transparent 38%);
+  }
+  .radar-blip {
+    position:absolute; width:5px; height:5px; border-radius:50%;
+    background: var(--stbd-green); box-shadow:0 0 6px var(--stbd-green);
+    animation: blip-pulse 2.6s ease-in-out infinite;
+  }
+  .radar-blip.b2 { background: var(--accent); box-shadow:0 0 6px var(--accent); animation-delay: 1.1s; }
+  @keyframes radar-spin { to { transform: rotate(360deg); } }
+  @keyframes blip-pulse { 0%,100% { opacity:0.2; transform: scale(0.75); } 45% { opacity:1; transform: scale(1.15); } 100% { opacity:0.2; } }
+  .radar-label { font-size:0.6rem; text-align:center; color: var(--text-dim); margin-top:4px; letter-spacing:0.06em; text-transform:uppercase; }
+  .watch-block { display:flex; flex-direction:column; align-items:center; gap:2px; }
+
+  /* ---- Shared form bits ---- */
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .form-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:14px; margin-bottom:14px; }
+  input[type=date], input[type=time], input[type=number], input[type=email], input[type=url] {
+    font-family: inherit; background: var(--bg-panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size:0.88rem; width:100%;
+  }
+  input[type=checkbox] { accent-color: var(--accent); width:16px; height:16px; cursor:pointer; }
+  .section-title { font-size:0.95rem; font-weight:700; margin: 22px 0 10px; display:flex; align-items:center; gap:8px; }
+  .section-title:first-child { margin-top:0; }
+  .subtle { color: var(--text-dim); font-size:0.82rem; line-height:1.5; }
+  .divider { border:none; border-top:1px dashed var(--border); margin:22px 0; }
+  .important-badge {
+    display:inline-flex; align-items:center; gap:4px; font-size:0.62rem; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.07em; padding:3px 9px; border-radius:999px;
+    background: rgba(193,39,45,0.15); color: var(--port-red); border:1px solid rgba(193,39,45,0.35);
+  }
+  .info-banner {
+    background: rgba(201,162,39,0.08); border:1px solid var(--border); border-left:3px solid var(--accent);
+    border-radius:8px; padding:12px 16px; font-size:0.82rem; line-height:1.55; color: var(--text-dim); margin-bottom:18px;
+  }
+  .info-banner b { color: var(--text); }
+  .toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-switch .slider {
+    position:absolute; inset:0; background: var(--bg-panel); border:1px solid var(--border);
+    border-radius:999px; cursor:pointer; transition: all 0.2s;
+  }
+  .toggle-switch .slider::before {
+    content:''; position:absolute; width:16px; height:16px; left:2px; top:2px; background: var(--text-dim);
+    border-radius:50%; transition: all 0.2s;
+  }
+  .toggle-switch input:checked + .slider { background: var(--accent); border-color: var(--accent); }
+  .toggle-switch input:checked + .slider::before { transform: translateX(18px); background: var(--navy-950); }
+
+  /* ---- Personal Study ---- */
+  .dropzone {
+    border: 2px dashed var(--border); border-radius:12px; padding: 22px; text-align:center;
+    cursor:pointer; color: var(--text-dim); font-size:0.85rem; transition: all 0.15s; margin-bottom:18px;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); color: var(--accent-strong); background: rgba(201,162,39,0.05); }
+  .source-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap:10px; margin-bottom:6px; }
+  .source-card {
+    border:1px solid var(--border); border-radius:10px; padding:12px; background: var(--bg-panel);
+    cursor:pointer; position:relative; transition: all 0.15s;
+  }
+  .source-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: rgba(201,162,39,0.06); }
+  .source-card .s-icon { font-size:1.3rem; margin-bottom:6px; }
+  .source-card .s-name { font-size:0.82rem; font-weight:600; word-break:break-word; margin-bottom:2px; }
+  .source-card .s-meta { font-size:0.68rem; color: var(--text-dim); }
+  .source-card .s-actions { position:absolute; top:8px; right:8px; display:flex; gap:4px; }
+  .icon-btn {
+    border:none; background: var(--bg-raised); color: var(--text-dim); width:22px; height:22px; border-radius:6px;
+    cursor:pointer; font-size:0.7rem; display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .icon-btn:hover { color: var(--accent-strong); }
+  .note-card {
+    border:1px solid var(--border); border-radius:10px; padding:14px; background: var(--bg-panel); margin-bottom:10px;
+  }
+  .note-card.pinned { border-left:3px solid var(--accent); }
+  .note-card .n-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px; }
+  .note-card .n-title { font-weight:700; font-size:0.92rem; }
+  .note-card .n-body { font-size:0.85rem; line-height:1.55; color: var(--text-dim); white-space:pre-wrap; }
+  .note-card .n-meta { font-size:0.68rem; color: var(--text-dim); margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .note-card .n-actions { display:flex; gap:6px; flex-shrink:0; }
+
+  /* ---- Class Schedule ---- */
+  .class-card {
+    border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:10px; padding:14px 16px;
+    background: var(--bg-panel); margin-bottom:10px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;
+  }
+  .class-card.minor { border-left-color: var(--fog); }
+  .class-card .c-name { font-weight:700; font-size:0.95rem; }
+  .class-card .c-meta { font-size:0.78rem; color: var(--text-dim); margin-top:4px; }
+  .class-card .c-days { display:flex; gap:4px; margin-top:6px; }
+  .day-dot { font-size:0.62rem; font-weight:700; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; background: var(--bg-raised); color: var(--text-dim); border:1px solid var(--border); }
+  .day-dot.on { background: var(--accent); color: var(--navy-950); border-color: var(--accent); }
+
+  /* ---- Assignments ---- */
+  .assign-row {
+    border:1px solid var(--border); border-radius:10px; padding:14px 16px; background: var(--bg-panel);
+    margin-bottom:10px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;
+  }
+  .assign-row.done { opacity:0.55; }
+  .assign-row .a-title { font-weight:700; font-size:0.92rem; }
+  .assign-row .a-title.done { text-decoration:line-through; }
+  .assign-row .a-meta { font-size:0.78rem; color: var(--text-dim); margin-top:4px; }
+  .status-pill { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:4px 10px; border-radius:999px; }
+  .status-pill.ok { background: rgba(30,122,95,0.15); color: var(--stbd-green); }
+  .status-pill.soon { background: rgba(201,162,39,0.18); color: var(--accent-strong); }
+  .status-pill.overdue { background: rgba(193,39,45,0.15); color: var(--port-red); }
+  .status-pill.done { background: rgba(138,148,166,0.18); color: var(--text-dim); }
+  .assign-actions { display:flex; gap:8px; align-items:center; }
+  .filter-row { display:flex; gap:8px; margin-bottom:16px; }
+
+  /* ---- Reminders / settings ---- */
+  .settings-box { border:1px solid var(--border); border-radius:12px; padding:18px; background: var(--bg-panel); margin-bottom:18px; }
+  .custom-reminder-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-bottom:1px dashed var(--border); font-size:0.85rem; }
+  .custom-reminder-row:last-child { border-bottom:none; }
+  .sync-status { font-size:0.75rem; color: var(--text-dim); margin-top:8px; }
+  .sync-status.ok { color: var(--stbd-green); }
+  .sync-status.err { color: var(--port-red); }
 </style>
 </head>
 <body>
-<div id="auth-overlay" class="auth-overlay">
-  <div class="auth-card">
-    <div class="compass"><div class="needle"></div></div>
-    <h2 class="auth-title">Bridge Watch</h2>
-    <div class="auth-subtitle">Private study console — passcode required</div>
+<div id="root"></div>
 
-    <!-- Shown only the very first time, before a passcode hash has been configured. -->
-    <div id="passcode-setup" style="display:none">
-      <div class="auth-setup-warning">No passcode is configured yet. Choose one below, generate its hash, then paste that hash into <code>ACCESS_PASSCODE_HASH</code> near the top of this file's script and reload the page.</div>
-      <div class="auth-form">
-        <label>Choose a passcode
-          <input type="password" id="setup-passcode-input" autocomplete="new-password">
-        </label>
-        <button type="button" class="btn-primary" id="setup-generate-btn">GENERATE HASH</button>
-        <label>Copy this into ACCESS_PASSCODE_HASH
-          <input type="text" id="setup-hash-output" readonly placeholder="hash will appear here" onclick="this.select()">
-        </label>
+<script>
+const TOPICS = [
+  "COLREGS — Steering & Sailing Rules",
+  "COLREGS — Lights & Shapes",
+  "COLREGS — Sound & Light Signals",
+  "Buoyage (IALA A/B)",
+  "Terrestrial Navigation & Piloting",
+  "Celestial Navigation",
+  "Meteorology & Oceanography",
+  "Ship Construction & Stability",
+  "Cargo Handling & Stowage",
+  "Maritime Law & STCW"
+];
+
+const CHAT_SYSTEM = `You are the Officer of the Watch — a maritime study assistant for a BSMT (Bachelor of Science in Marine Transportation) cadet preparing for COLREGS and core BSMT subjects (navigation, seamanship, meteorology, cargo, ship construction, maritime law, STCW).
+
+Rules you must follow strictly:
+1. Never guess. If a claim is factual (exact rule numbers, IMO/COLREGS wording, numeric values, dates, regulation citations), use the web_search tool to verify it against a bonafide source (IMO, USCG Navigation Rules, national maritime authorities, Bowditch, STCW text, established textbooks) before stating it as fact.
+2. If sources conflict, or you cannot verify something, say so plainly rather than presenting an unverified answer as settled fact.
+3. Cite the source by name in your answer (e.g., "per IMO COLREGS Rule 15" or "per USCG Navigation Rules").
+4. Keep answers exam-focused and concise — cadets have limited study time. Use short paragraphs or tight bullet points. No filler, no restating the question, no long preambles.
+5. Well-established definitions that do not require verification can be answered directly, but prefer a quick search when in doubt.`;
+
+let state = {
+  tab: "chat",
+  themeOverride: null,
+  now: new Date(),
+  chat: { messages: [], loading: false, error: null },
+  quiz: { topic: TOPICS[0], count: 5, quiz: null, idx: 0, selected: null, score: 0, loading: false, error: null, history: [] },
+  flash: { topic: TOPICS[0], count: 8, deck: null, idx: 0, flipped: false, known: 0, loading: false, error: null, savedDecks: [] },
+  study: {
+    sources: [], activeIds: [], notes: [],
+    noteForm: { title: "", body: "", sourceId: "" }, editingNoteId: null,
+    chat: { messages: [], loading: false, error: null },
+    uploading: false, uploadError: null, summarizingId: null
+  },
+  schedule: {
+    classes: [],
+    form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "" },
+    editingId: null
+  },
+  assign: {
+    items: [],
+    form: { title: "", classId: "", dueDate: "", notes: "" },
+    editingId: null,
+    filter: "active"
+  },
+  reminders: {
+    email: "keanutugonon87@gmail.com",
+    dailyEnabled: true,
+    dailyTime: "07:00",
+    gasUrl: "",
+    custom: [],
+    syncing: false, syncMsg: null, syncOk: null, lastSyncedAt: null,
+    testing: false, testMsg: null, testOk: null
+  }
+};
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/* ---------- misc helpers (new features) ---------- */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function todayISO() { const d = new Date(); d.setHours(0,0,0,0); return d.toISOString().slice(0,10); }
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const due = new Date(dateStr + "T00:00:00");
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((due - now) / 86400000);
+}
+function formatDateNice(dateStr) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error("Could not read file"));
+    r.readAsDataURL(file);
+  });
+}
+function base64FromDataUrl(dataUrl) {
+  const idx = dataUrl.indexOf(",");
+  return idx === -1 ? dataUrl : dataUrl.slice(idx + 1);
+}
+
+/* ---------- utilities ---------- */
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+function nl2br(str) { return escapeHtml(str).replace(/\n/g, "<br>"); }
+
+function getWatch(date) {
+  const h = date.getHours();
+  if (h >= 0 && h < 4) return { name: "Middle Watch", dark: true };
+  if (h >= 4 && h < 8) return { name: "Morning Watch", dark: h < 6 };
+  if (h >= 8 && h < 12) return { name: "Forenoon Watch", dark: false };
+  if (h >= 12 && h < 16) return { name: "Afternoon Watch", dark: false };
+  if (h >= 16 && h < 18) return { name: "First Dog Watch", dark: false };
+  if (h >= 18 && h < 20) return { name: "Second Dog Watch", dark: true };
+  return { name: "First Watch", dark: true };
+}
+
+async function storageGet(key, fallback) {
+  try {
+    if (window.storage) {
+      const r = await window.storage.get(key);
+      return r ? JSON.parse(r.value) : fallback;
+    }
+  } catch (e) { /* fall through to localStorage */ }
+  try {
+    const v = localStorage.getItem(key);
+    return v !== null ? JSON.parse(v) : fallback;
+  } catch (e) { return fallback; }
+}
+async function storageSet(key, value) {
+  try {
+    if (window.storage) {
+      await window.storage.set(key, JSON.stringify(value));
+      return;
+    }
+  } catch (e) { /* fall through to localStorage */ }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) { /* non-fatal: session continues in-memory only */ }
+}
+
+async function callClaude({ system, messages, useSearch }) {
+  const body = { model: "claude-sonnet-4-6", max_tokens: 1500, system, messages };
+  if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error("The API returned an error (status " + res.status + "). Please try again.");
+  const data = await res.json();
+  const textBlocks = (data.content || []).filter(b => b.type === "text").map(b => b.text);
+  const usedSearch = (data.content || []).some(b => b.type === "server_tool_use" && b.name === "web_search");
+  const sources = [];
+  (data.content || []).forEach(b => {
+    if (b.type === "web_search_tool_result" && Array.isArray(b.content)) {
+      b.content.forEach(item => {
+        if (item.url) { try { sources.push(new URL(item.url).hostname.replace(/^www\./, "")); } catch (e) {} }
+      });
+    }
+  });
+  return { text: textBlocks.join("\n\n").trim(), usedSearch, sources: [...new Set(sources)].slice(0, 6) };
+}
+
+function extractJSON(text) {
+  let t = text.trim();
+  t = t.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+  const start = t.indexOf("{") === -1 ? t.indexOf("[") : t.indexOf("{");
+  const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
+  if (start !== -1 && end !== -1) t = t.substring(start, end + 1);
+  return JSON.parse(t);
+}
+
+/* ---------- render: header ---------- */
+function renderHeader() {
+  const watch = getWatch(state.now);
+  const isDark = state.themeOverride ? state.themeOverride === "dark" : watch.dark;
+  const timeStr = state.now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `
+  <header class="binnacle">
+    <div class="brand">
+      <div class="wheel"></div>
+      <div class="brand-text">
+        <h1>Bridge Watch</h1>
+        <div class="tag">BSMT · COLREGS Study Console</div>
       </div>
     </div>
-
-    <!-- Normal unlock screen, shown once a passcode hash is configured. -->
-    <form id="unlock-form" class="auth-form" style="display:none">
-      <label>Passcode
-        <input type="password" id="unlock-passcode-input" autocomplete="current-password" required>
-      </label>
-      <div class="auth-error" id="unlock-error"></div>
-      <button type="submit" class="btn-primary auth-submit">UNLOCK</button>
-    </form>
-    <div class="auth-note">This is a single shared passcode stored as a hash in this file — a lightweight gate, not full account security. Anyone with the passcode and this link can view and edit the Ship's Log.</div>
-  </div>
-</div>
-<div id="app" style="display:none">
-  <header>
-    <div class="compass"><div class="needle"></div></div>
-    <div class="titles">
-      <div class="eyebrow">BSMT Study Console</div>
-      <h1>Bridge Watch<span class="scope-badge">MARITIME ONLY</span></h1>
-      <div class="subtitle">Your AI Maritime Teacher — Navigation · Seamanship · Stability · Engineering · Law · Safety</div>
-    </div>
-    <button type="button" id="lock-btn" class="log-clear-link header-lock-btn">Lock</button>
-  </header>
-
-  <div id="tabs">
-    <button class="tab-btn active" data-view="log-view">SHIP'S LOG</button>
-    <button class="tab-btn" data-view="nav-view">NAVIGATION</button>
-    <button class="tab-btn" data-view="quiz-view">QUIZ</button>
-    <button class="tab-btn" data-view="flash-view">FLASHCARDS</button>
-    <button class="tab-btn" data-view="classes-view">CLASSES</button>
-    <button class="tab-btn" data-view="study-view">STUDY</button>
-  </div>
-
-  <div id="log-view" class="view active">
-    <div id="log"></div>
-    <div id="composer">
-      <div class="composer-row">
-        <textarea id="input" placeholder="Ask about navigation, seamanship, stability, engineering, maritime law, safety, or any BSMT subject..." rows="1"></textarea>
-        <button id="send">LOG ENTRY</button>
+    <div class="watch-block">
+      <div class="radar" aria-hidden="true" title="On watch">
+        <div class="radar-ring r1"></div>
+        <div class="radar-ring r2"></div>
+        <div class="radar-ring r3"></div>
+        <div class="radar-cross"></div>
+        <div class="radar-sweep"></div>
+        <div class="radar-blip" style="top:32%;left:64%;"></div>
+        <div class="radar-blip b2" style="top:62%;left:38%;"></div>
       </div>
-      <div class="hint">Your AI Maritime Teacher checks bonafide sources (IMO, PCG, MARINA, official texts) before answering — no guessing, no unverified theory. Entries are saved automatically and restored on refresh. <button type="button" id="clear-log-btn" class="log-clear-link">Clear log</button></div>
+      <div class="radar-label">Live</div>
     </div>
-  </div>
+    <div class="watch-readout">
+      <span class="dot"></span>
+      <span class="label">On watch</span>
+      <span class="name" id="watchName">${watch.name}</span>
+      <span class="time mono" id="watchTime">${timeStr}</span>
+    </div>
+    <div class="theme-toggle">
+      <button data-action="set-theme" data-val="auto" class="${state.themeOverride === null ? "active" : ""}">Auto</button>
+      <button data-action="set-theme" data-val="light" class="${state.themeOverride === "light" ? "active" : ""}">Light</button>
+      <button data-action="set-theme" data-val="dark" class="${state.themeOverride === "dark" ? "active" : ""}">Dark</button>
+    </div>
+  </header>`;
+}
 
-  <div id="nav-view" class="view">
-    <div class="topic-picker" id="nav-modes">
-      <button class="topic-chip active" data-mode="plot">PLOT DR COURSE</button>
-      <button class="topic-chip" data-mode="findbd">FIND BEARING &amp; DISTANCE</button>
-    </div>
-    <div class="quiz-score" id="nav-score">Score: <b>0</b> / 0</div>
-    <div class="nav-prompt" id="nav-prompt">Loading exercise...</div>
-    <div class="nav-teach-note" id="nav-teach-note"></div>
-    <div class="nav-chart-wrap">
-      <svg id="nav-chart" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg"></svg>
-    </div>
-    <div id="nav-answer-controls"></div>
-    <div class="nav-feedback" id="nav-feedback"></div>
-    <div class="nav-actions">
-      <button class="btn-primary" id="nav-new">NEW EXERCISE</button>
-    </div>
-  </div>
+function renderNav() {
+  const tabs = [["chat", "Ask the Officer"], ["quiz", "Quiz"], ["flash", "Flashcards"], ["study", "Personal Study"], ["schedule", "Class Schedule"], ["assign", "Assignments ⚑"], ["reminders", "Reminders ⚑"]];
+  return `<nav class="tabs">${tabs.map(([id, label]) =>
+    `<button data-action="set-tab" data-val="${id}" class="${state.tab === id ? "active" : ""}">${label}</button>`
+  ).join("")}</nav>`;
+}
 
-  <div id="quiz-view" class="view">
-    <div class="topic-picker" id="quiz-topics"></div>
-    <div class="quiz-score" id="quiz-score">Score: <b>0</b> / 0</div>
-    <div id="quiz-body">
-      <div class="empty-state">Pick a topic, then start the quiz.<br><br>
-        <button class="btn-primary" id="quiz-start">START QUIZ</button>
-      </div>
-    </div>
-  </div>
+/* ---------- render: chat ---------- */
+function badgeHtml(usedSearch) {
+  return usedSearch
+    ? `<span class="badge verified">✓ Source-verified</span>`
+    : `<span class="badge core">Core knowledge</span>`;
+}
+function renderChat() {
+  const c = state.chat;
+  const quickPrompts = [
+    "Explain Rule 15 (crossing situation)",
+    "IALA Region A vs B buoyage differences",
+    "How do I compute compass error?",
+    "Sound signals in restricted visibility"
+  ];
+  let html = `<div class="panel-content">`;
+  if (c.messages.length === 0) {
+    html += `<div class="chip-row">${quickPrompts.map((p, i) =>
+      `<button class="chip" data-action="quick-prompt" data-idx="${i}">${escapeHtml(p)}</button>`
+    ).join("")}</div>`;
+  }
+  html += `<div class="chat-log" id="chatLog">`;
+  if (c.messages.length === 0 && !c.loading) {
+    html += `<div class="empty-state">
+      <div class="display">Ask the Officer of the Watch</div>
+      <div>Every factual answer is checked against a live, bonafide source before it reaches you — no guessing.</div>
+    </div>`;
+  }
+  c.messages.forEach(m => {
+    html += `<div class="msg ${m.role}">`;
+    if (m.role === "assistant") html += `<div>${badgeHtml(m.usedSearch)}</div>`;
+    html += `<div>${nl2br(m.content)}</div>`;
+    if (m.sources && m.sources.length) {
+      html += `<div class="sources">${m.sources.map(s => `<span class="source-pill">${escapeHtml(s)}</span>`).join("")}</div>`;
+    }
+    html += `</div>`;
+  });
+  if (c.loading) {
+    html += `<div class="loading-line"><div class="spinner"></div>Checking sources and drafting a verified answer…</div>`;
+  }
+  html += `</div>`;
+  if (c.error) {
+    html += `<div class="error-box" style="margin-bottom:12px;"><span>${escapeHtml(c.error)}</span><button class="ghost" data-action="retry-chat">Retry</button></div>`;
+  }
+  html += `<div class="chat-input-row">
+    <textarea id="chatInput" rows="2" placeholder="Ask about COLREGS, navigation, meteorology, cargo…" ${c.loading ? "disabled" : ""}></textarea>
+    <button class="primary" data-action="send-chat" ${c.loading ? "disabled" : ""}>Ask</button>
+  </div></div>`;
+  return html;
+}
 
-  <div id="flash-view" class="view">
-    <div class="flash-topic-row">
-      <div class="topic-picker" id="flash-topics"></div>
+/* ---------- render: quiz ---------- */
+function renderQuiz() {
+  const q = state.quiz;
+  if (q.loading) {
+    return `<div class="panel-content loading-line" style="padding:60px 0; justify-content:center;"><div class="spinner"></div>Building a verified quiz on "${escapeHtml(q.topic)}"…</div>`;
+  }
+  if (!q.quiz) {
+    let html = `<div class="panel-content">
+      <label class="field-label">Topic</label>
+      <div class="chip-row">${TOPICS.map(t =>
+        `<button class="chip ${t === q.topic ? "selected" : ""}" data-action="set-quiz-topic" data-val="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+      ).join("")}</div>
+      <div class="controls-row">
+        <div>
+          <label class="field-label">Number of questions</label>
+          <select data-action="set-quiz-count">${[3, 5, 8, 10].map(n => `<option value="${n}" ${n === q.count ? "selected" : ""}>${n}</option>`).join("")}</select>
+        </div>
+        <button class="primary" data-action="generate-quiz">Generate quiz</button>
+      </div>`;
+    if (q.error) html += `<div class="error-box" style="margin-top:14px;"><span>${escapeHtml(q.error)}</span><button class="ghost" data-action="generate-quiz">Retry</button></div>`;
+    if (q.history.length) {
+      html += `<div class="deck-history"><h3>Past attempts</h3>${q.history.map(h =>
+        `<div class="hist-row"><span>${escapeHtml(h.topic)}</span><span class="mono">${h.score}/${h.total} — ${escapeHtml(h.when)}</span></div>`
+      ).join("")}</div>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+  const cur = q.quiz.questions[q.idx];
+  let html = `<div class="panel-content">
+    <div class="quiz-header">
+      <div>${escapeHtml(q.topic)}</div>
+      <div class="score-badge">Score: ${q.score}/${q.quiz.questions.length} · Q${q.idx + 1}/${q.quiz.questions.length}</div>
     </div>
-    <div class="flash-counter" id="flash-counter">Card 1 of 8</div>
-    <div class="flashcard" id="flashcard">
+    <div class="progress-bar"><div class="progress-fill" style="width:${(q.idx / q.quiz.questions.length) * 100}%"></div></div>
+    <div class="q-card">
+      <div class="q-text">${escapeHtml(cur.question)}</div>`;
+  cur.options.forEach((opt, i) => {
+    let cls = "opt";
+    if (q.selected !== null) {
+      if (i === cur.correctIndex) cls += " correct";
+      else if (i === q.selected) cls += " incorrect";
+    }
+    html += `<button class="${cls}" data-action="choose-option" data-val="${i}" ${q.selected !== null ? "disabled" : ""}>${escapeHtml(opt)}</button>`;
+  });
+  if (q.selected !== null) html += `<div class="explain">${escapeHtml(cur.explanation)}</div>`;
+  html += `</div>`;
+  if (q.selected !== null) {
+    html += `<div style="margin-top:16px; text-align:right;"><button class="primary" data-action="next-question">${q.idx + 1 < q.quiz.questions.length ? "Next question" : "Finish quiz"}</button></div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+/* ---------- render: flashcards ---------- */
+function renderFlash() {
+  const f = state.flash;
+  if (f.loading) {
+    return `<div class="panel-content loading-line" style="padding:60px 0; justify-content:center;"><div class="spinner"></div>Preparing a verified deck on "${escapeHtml(f.topic)}"…</div>`;
+  }
+  if (!f.deck) {
+    let html = `<div class="panel-content">
+      <label class="field-label">Topic</label>
+      <div class="chip-row">${TOPICS.map(t =>
+        `<button class="chip ${t === f.topic ? "selected" : ""}" data-action="set-flash-topic" data-val="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+      ).join("")}</div>
+      <div class="controls-row">
+        <div>
+          <label class="field-label">Number of cards</label>
+          <select data-action="set-flash-count">${[6, 8, 12, 16].map(n => `<option value="${n}" ${n === f.count ? "selected" : ""}>${n}</option>`).join("")}</select>
+        </div>
+        <button class="primary" data-action="generate-flash">Generate deck</button>
+      </div>`;
+    if (f.error) html += `<div class="error-box" style="margin-top:14px;"><span>${escapeHtml(f.error)}</span><button class="ghost" data-action="generate-flash">Retry</button></div>`;
+    if (f.savedDecks.length) {
+      html += `<div class="deck-history"><h3>Saved decks</h3>${f.savedDecks.map((d, i) =>
+        `<div class="hist-row"><span>${escapeHtml(d.topic)} · ${d.cards.length} cards</span><button class="chip" data-action="load-saved-deck" data-val="${i}">Review</button></div>`
+      ).join("")}</div>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+  const card = f.deck.cards[f.idx];
+  const isLast = f.idx + 1 >= f.deck.cards.length;
+  return `<div class="panel-content flash-wrap">
+    <div class="flash-progress">${escapeHtml(f.deck.topic)} — card ${f.idx + 1} of ${f.deck.cards.length} · known: ${f.known}</div>
+    <div class="flashcard ${f.flipped ? "flipped" : ""}" data-action="flip-card">
       <div class="flashcard-inner">
-        <div class="flash-face flash-front">
-          <div class="flash-tag" id="flash-tag-front">RULE</div>
-          <div class="flash-title" id="flash-front-text">Loading...</div>
-          <div class="flash-hint">Tap to reveal</div>
-        </div>
-        <div class="flash-face flash-back">
-          <div class="flash-tag">ANSWER</div>
-          <div id="flash-back-text">—</div>
-        </div>
+        <div class="flash-face front"><span class="flash-meta">TERM</span>${escapeHtml(card.front)}</div>
+        <div class="flash-face back"><span class="flash-meta">ANSWER</span>${escapeHtml(card.back)}</div>
       </div>
     </div>
     <div class="flash-controls">
-      <button class="btn-ghost" id="flash-prev">◀ PREV</button>
-      <button class="btn-ghost" id="flash-more">+ GENERATE MORE</button>
-      <button class="btn-ghost" id="flash-next">NEXT ▶</button>
+      <button class="ghost" data-action="end-session">End session</button>
+      <button class="ghost" data-action="still-learning">Still learning →</button>
+      <button class="primary" data-action="know-it">${isLast ? "Know it — finish" : "Know it →"}</button>
     </div>
-  </div>
+  </div>`;
+}
 
-  <!-- ================= CLASS SCHEDULE ================= -->
-  <div id="classes-view" class="view section-view">
-    <div class="section-toolbar">
-      <div>
-        <div class="section-title">Class Schedule</div>
-        <div class="section-sub">Your watch bill — subjects, professors, and sailing times.</div>
-      </div>
-      <button class="btn-add" id="class-add-btn">+ ADD CLASS</button>
-    </div>
-    <div id="notif-permission-row" class="notif-permission-row" style="display:none;">
-      <span>Turn on notifications so Bridge Watch can remind you before class starts.</span>
-      <button type="button" id="notif-enable-btn">ENABLE</button>
-    </div>
-    <div id="classes-reminder-banner"></div>
-    <div id="classes-list"></div>
-  </div>
+/* ---------- render: personal study (NotebookLM-style) ---------- */
+function sourceIcon(kind) { return kind === "image" ? "🖼️" : kind === "pdf" ? "📄" : "📝"; }
+function renderStudy() {
+  const s = state.study;
+  let html = `<div class="panel-content">
+    <div class="info-banner"><b>Why keep notes?</b> Writing things in your own words forces active recall, gives you a fast pre-exam review, and turns scattered readings into one searchable log you can revisit before every watch. Pin the notes that matter most and link them to the source they came from.</div>
 
-  <!-- ================= PERSONAL STUDY ================= -->
-  <div id="study-view" class="view section-view">
-    <div class="section-toolbar">
-      <div>
-        <div class="section-title">Personal Study</div>
-        <div class="section-sub">Upload your notes, reviewers, and files — grounds the AI Assistant in your own material, NotebookLM-style.</div>
-      </div>
+    <div class="section-title">📚 Sources</div>
+    <div class="dropzone" data-action="pick-file">
+      <div>Drop or click to attach PDFs, images, or text files for this session</div>
+      <div style="font-size:0.72rem; margin-top:4px;">Stored on this device only · used to ground the AI's answers to your material</div>
     </div>
-    <div class="study-intro">Add text notes, Markdown files, or PDFs below. Toggle a source on to let the AI Assistant read it before answering in the Ship's Log — its own answers, plus your material.</div>
-    <div class="upload-zone" id="study-upload-zone">
-      <div class="upload-icon">📎</div>
-      <div class="upload-main">Tap to add files</div>
-      <div class="upload-hint">.txt, .md, .pdf — extracted text stays on this device</div>
-      <input type="file" id="study-file-input" accept=".txt,.md,.markdown,.pdf" multiple style="display:none;">
-    </div>
-    <div class="context-budget" id="study-context-budget"></div>
-    <div id="study-sources-list"></div>
-  </div>
-</div>
+    <input type="file" id="fileInput" multiple accept=".pdf,image/*,.txt,.md" style="display:none;">`;
 
-<!-- ---- Add/Edit Class modal ---- -->
-<div id="class-modal-overlay" class="modal-overlay" style="display:none;">
-  <div class="modal-card">
-    <div class="modal-head">
-      <h3 id="class-modal-title">Add Class</h3>
-      <button type="button" class="modal-x" id="class-modal-close">&times;</button>
-    </div>
-    <form id="class-form">
-      <input type="hidden" id="class-id-input">
-      <div class="form-row">
-        <label>Subject Name</label>
-        <input type="text" id="class-subject-input" placeholder="e.g. Terrestrial &amp; Coastal Navigation" required>
-      </div>
-      <div class="form-row">
-        <label>Professor</label>
-        <input type="text" id="class-professor-input" placeholder="e.g. Capt. Dela Cruz">
-      </div>
-      <div class="form-grid-2">
-        <div class="form-row">
-          <label>Units</label>
-          <input type="number" id="class-units-input" min="0" step="0.5" placeholder="3">
+  if (s.uploadError) html += `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(s.uploadError)}</span></div>`;
+
+  if (!s.sources.length) {
+    html += `<div class="subtle" style="margin-bottom:18px;">No sources yet. Attach your module PDFs, lecture photos, or notes to start.</div>`;
+  } else {
+    html += `<div class="source-grid" style="margin-bottom:18px;">`;
+    s.sources.forEach(src => {
+      const active = s.activeIds.includes(src.id);
+      html += `<div class="source-card ${active ? "active" : ""}" data-action="toggle-source" data-val="${src.id}">
+        <div class="s-actions">
+          <button class="icon-btn" data-action="summarize-source" data-val="${src.id}" title="Summarize into a note">${s.summarizingId === src.id ? "…" : "✎"}</button>
+          <button class="icon-btn" data-action="remove-source" data-val="${src.id}" title="Remove">✕</button>
         </div>
-        <div class="form-row">
-          <label>Room / Venue</label>
-          <input type="text" id="class-room-input" placeholder="e.g. COMED Bldg 2">
-        </div>
+        <div class="s-icon">${sourceIcon(src.kind)}</div>
+        <div class="s-name">${escapeHtml(src.name)}</div>
+        <div class="s-meta">${(src.size / 1024).toFixed(0)} KB · ${active ? "included in study chat" : "tap to include"}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<hr class="divider">
+    <div class="section-title">🗒️ Notes</div>
+    <div class="form-grid">
+      <div class="field" style="grid-column: 1 / -1;">
+        <label class="field-label">Title</label>
+        <input type="text" id="note_title" placeholder="e.g. Rule 15 — crossing situation" value="${escapeHtml(s.noteForm.title)}">
       </div>
-      <div class="form-row">
-        <label>Days</label>
-        <div class="day-picker" id="class-day-picker">
-          <div class="day-chip" data-day="Mon">Mon</div>
-          <div class="day-chip" data-day="Tue">Tue</div>
-          <div class="day-chip" data-day="Wed">Wed</div>
-          <div class="day-chip" data-day="Thu">Thu</div>
-          <div class="day-chip" data-day="Fri">Fri</div>
-          <div class="day-chip" data-day="Sat">Sat</div>
-          <div class="day-chip" data-day="Sun">Sun</div>
-        </div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <label class="field-label">Note</label>
+        <textarea id="note_body" rows="3" placeholder="Write it in your own words…">${escapeHtml(s.noteForm.body)}</textarea>
       </div>
-      <div class="form-grid-2">
-        <div class="form-row">
-          <label>Start Time</label>
-          <input type="time" id="class-start-input" required>
-        </div>
-        <div class="form-row">
-          <label>End Time</label>
-          <input type="time" id="class-end-input" required>
-        </div>
-      </div>
-      <div class="form-row">
-        <label>Remind Me Before Class</label>
-        <select id="class-reminder-input">
-          <option value="0">No reminder</option>
-          <option value="5">5 minutes before</option>
-          <option value="10">10 minutes before</option>
-          <option value="15" selected>15 minutes before</option>
-          <option value="30">30 minutes before</option>
-          <option value="60">1 hour before</option>
+      <div class="field">
+        <label class="field-label">Link to source (optional)</label>
+        <select data-action="set-note-source">
+          <option value="">— none —</option>
+          ${s.sources.map(src => `<option value="${src.id}" ${s.noteForm.sourceId === src.id ? "selected" : ""}>${escapeHtml(src.name)}</option>`).join("")}
         </select>
       </div>
-      <div class="form-error" id="class-form-error"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn-secondary" id="class-cancel-btn">CANCEL</button>
-        <button type="submit" class="btn-primary">SAVE CLASS</button>
-      </div>
-    </form>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+      <button class="primary" data-action="save-note">${s.editingNoteId ? "Update note" : "Add note"}</button>
+      ${s.editingNoteId ? `<button class="ghost" data-action="cancel-edit-note">Cancel</button>` : ""}
+    </div>`;
+
+  if (!s.notes.length) {
+    html += `<div class="subtle" style="margin-bottom:18px;">No notes yet — your saved and pinned notes will appear here.</div>`;
+  } else {
+    const sorted = [...s.notes].sort((a, b) => (b.pinned - a.pinned) || (b.updatedAt - a.updatedAt));
+    sorted.forEach(n => {
+      const src = s.sources.find(x => x.id === n.sourceId);
+      html += `<div class="note-card ${n.pinned ? "pinned" : ""}">
+        <div class="n-head">
+          <div class="n-title">${n.pinned ? "📌 " : ""}${escapeHtml(n.title || "Untitled note")}</div>
+          <div class="n-actions">
+            <button class="icon-btn" data-action="pin-note" data-val="${n.id}" title="Pin">${n.pinned ? "★" : "☆"}</button>
+            <button class="icon-btn" data-action="edit-note" data-val="${n.id}" title="Edit">✎</button>
+            <button class="icon-btn" data-action="delete-note" data-val="${n.id}" title="Delete">✕</button>
+          </div>
+        </div>
+        <div class="n-body">${nl2br(n.body)}</div>
+        <div class="n-meta"><span>${new Date(n.updatedAt).toLocaleString()}</span>${src ? `<span class="source-pill">${escapeHtml(src.name)}</span>` : ""}</div>
+      </div>`;
+    });
+  }
+
+  html += `<hr class="divider">
+    <div class="section-title">💬 Ask about your sources</div>`;
+  if (!s.activeIds.length) {
+    html += `<div class="subtle" style="margin-bottom:14px;">Select one or more sources above to ground your questions in them — otherwise the Officer answers from general BSMT knowledge.</div>`;
+  }
+  html += `<div class="chat-log" id="studyChatLog" style="max-height:38vh;">`;
+  s.chat.messages.forEach(m => {
+    html += `<div class="msg ${m.role}"><div>${nl2br(m.content)}</div></div>`;
+  });
+  if (s.chat.loading) html += `<div class="loading-line"><div class="spinner"></div>Reading your sources…</div>`;
+  html += `</div>`;
+  if (s.chat.error) html += `<div class="error-box" style="margin-bottom:12px;"><span>${escapeHtml(s.chat.error)}</span></div>`;
+  html += `<div class="chat-input-row">
+    <textarea id="studyChatInput" rows="2" placeholder="Ask a question about your attached sources…" ${s.chat.loading ? "disabled" : ""}></textarea>
+    <button class="primary" data-action="send-study-chat" ${s.chat.loading ? "disabled" : ""}>Ask</button>
   </div>
-</div>
-
-<script>
-const MARITIME_TOPICS = [
-  { key:'colregs',          label:'COLREGS',                     category:'rules',       prompt:'COLREGS — International Regulations for Preventing Collisions at Sea' },
-  { key:'terrestrial-nav',  label:'Terrestrial & Coastal Nav',   category:'nav',         prompt:'Terrestrial and Coastal Navigation (Navigation 1): chartwork, dead reckoning, fixes, tides and currents' },
-  { key:'celestial-nav',    label:'Celestial Navigation',        category:'nav',         prompt:'Celestial Navigation (Navigation 2): sextant altitudes, sight reduction, nautical almanac, time and longitude' },
-  { key:'electronic-nav',   label:'Electronic Navigation',       category:'nav',         prompt:'Electronic Navigation (Navigation 3): ECDIS, radar/ARPA, GPS/GNSS, AIS' },
-  { key:'nav-instruments',  label:'Nav Instruments & Compasses', category:'nav',         prompt:'Navigational Instruments and Compasses: magnetic compass, gyrocompass, azimuth/bearing instruments, compass error correction' },
-  { key:'meteorology',      label:'Meteorology & Oceanography',  category:'nav',         prompt:'Meteorology and Oceanography for mariners: weather systems, routing, sea state, tides and currents' },
-  { key:'ship-construction',label:'Ship Construction & Routines',category:'seamanship',  prompt:'Ship, Ship Routines, and Ship Construction (Seamanship 1): parts of the ship, shipboard routines, ship types' },
-  { key:'ship-stability',   label:'Ship Stability & Trim',       category:'seamanship',  prompt:'Ship Stability, Trim, and Buoyancy (Naval Architecture)' },
-  { key:'cargo',            label:'Cargo Handling & Stowage',    category:'seamanship',  prompt:'Cargo Handling, Stowage, and Securing (Cargo Operations)' },
-  { key:'marine-engineering',label:'Marine Engineering Basics',  category:'seamanship',  prompt:'Marine Engineering fundamentals relevant to deck officers: main propulsion, auxiliary machinery, basic electro-technology' },
-  { key:'brm',              label:'Bridge Resource Mgmt & Watch',category:'seamanship',  prompt:'Bridge Resource Management, Watchkeeping, and Bridge Procedures (OOW duties)' },
-  { key:'ship-it',          label:'Ship IT & Network Systems',   category:'seamanship',  prompt:'Software Applications and Network Systems Used in Seagoing Ships (ICT for BSMT)' },
-  { key:'maritime-law',     label:'Maritime Law',                category:'rules',       prompt:'Maritime Law: SOLAS, MARPOL, STCW, ISM Code, MLC 2006, flag/port state control' },
-  { key:'ships-business',   label:"Ship's Business & Docs",      category:'rules',       prompt:"Ship's Business, Documentation, and Maritime Insurance" },
-  { key:'gmdss',            label:'GMDSS & Communications',      category:'safety',      prompt:'GMDSS and Marine Communications' },
-  { key:'firefighting',     label:'Fire Prevention & Firefighting',category:'safety',    prompt:'Fire Prevention and Firefighting aboard ships' },
-  { key:'survival',         label:'Personal Survival Techniques',category:'safety',      prompt:'Personal Survival Techniques and Sea Survival' },
-  { key:'sar',              label:'Search & Rescue',             category:'safety',      prompt:'Search and Rescue (SAR) and shipboard Emergency Procedures' },
-  { key:'first-aid',        label:'Medical First Aid at Sea',    category:'safety',      prompt:'Medical First Aid and Medical Care aboard ship' },
-  { key:'security',         label:'Maritime Security (ISPS)',    category:'safety',      prompt:'Maritime Security and the ISPS Code' },
-  { key:'environment',      label:'Marine Environmental Protection',category:'safety',   prompt:'Marine Environmental Protection: MARPOL annexes and pollution prevention' },
-  { key:'ph-context',       label:'PH Licensure & Careers',      category:'career',      prompt:'Philippine maritime education context: CHED/PIT/COMED curriculum, PRC licensure exams, POEA/DMW deployment, cadetship' },
-];
-
-const TOPIC_CATEGORIES = [
-  { key:'rules',      label:'Rules & Law' },
-  { key:'nav',         label:'Navigation & Piloting' },
-  { key:'seamanship',  label:'Seamanship & Ship Ops' },
-  { key:'safety',      label:'Safety & Emergency' },
-  { key:'career',      label:'Career & PH Context' },
-];
-
-// Builds collapsible <details>-style category groups of topic chips.
-// `activeValue` marks which chip (by data-topic value) starts active, and
-// its category starts expanded; `leadingChipHtml` (optional) is rendered
-// above the categories, outside any collapsible group (e.g. "Core COLREGS").
-function renderCategorizedTopicPicker(containerId, activeValue, leadingChipHtml){
-  const groups = TOPIC_CATEGORIES.map(cat => ({
-    ...cat,
-    topics: MARITIME_TOPICS.filter(t => t.category === cat.key)
-  })).filter(g => g.topics.length);
-
-  const html = groups.map(g => {
-    const hasActive = g.topics.some(t => t.prompt === activeValue);
-    const chips = g.topics.map(t =>
-      `<button class="topic-chip${t.prompt === activeValue ? ' active' : ''}" data-topic="${escapeAttr(t.prompt)}">${t.label}</button>`
-    ).join('');
-    return `
-    <div class="category-group${hasActive ? ' open' : ''}">
-      <button type="button" class="category-header">
-        <span class="category-chevron">▸</span>
-        <span class="category-label">${g.label}</span>
-        <span class="category-count">${g.topics.length}</span>
-      </button>
-      <div class="category-body"><div class="category-chips">${chips}</div></div>
-    </div>`;
-  }).join('');
-
-  document.getElementById(containerId).innerHTML = (leadingChipHtml || '') + html;
+  </div>`;
+  return html;
 }
 
-// Shared delegated handler: toggles a category open/closed, or selects a
-// topic chip within it (leaving other categories' open/closed state alone).
-function wireCategorizedTopicPicker(containerId, onSelect){
-  document.getElementById(containerId).addEventListener('click', (e) => {
-    const header = e.target.closest('.category-header');
-    if(header){
-      header.closest('.category-group').classList.toggle('open');
-      return;
-    }
-    const chip = e.target.closest('.topic-chip');
-    if(!chip) return;
-    document.querySelectorAll(`#${containerId} .topic-chip`).forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    onSelect(chip.dataset.topic);
-  });
-}
-
-const SYSTEM_PROMPT = `You are "Bridge Watch," an AI Maritime Teacher and grounded reference tool for MARITIME TRANSPORTATION — not a conversationalist who speculates. You are teaching a BSMT (Bachelor of Science in Marine Transportation) student in the Philippines across the full breadth of their curriculum. You have a web_search tool. Use it as your primary method of answering.
-
-TEACHING STYLE — you are a teacher first, a reference tool second:
-- Teach the concept, don't just answer the question. Explain the reasoning behind a rule or procedure, not only the rule itself — connect it to how it plays out on an actual bridge, deck, or engine room.
-- Where it helps, break a concept into small steps or a short analogy a first-year cadet could follow, then reinforce it with the precise, exam-ready wording they'll need for their boards.
-- End substantive answers with a brief one-line takeaway the student can commit to memory, when that would help retention.
-- Tone: encouraging but exacting, like a good training officer reviewing a cadet's watch report — direct about mistakes, generous with the "why."
-
-HARD RULE — NO GUESSING:
-- For any factual, regulatory, technical, or numeric claim (rule text, formulas, definitions, procedures, dates, licensure/exam requirements, equipment specs, legal citations), you MUST search before answering. Do not answer straight from memory as if it were settled fact.
-- Only cite bonafide, authoritative sources: IMO (imo.org), COLREGS/SOLAS/MARPOL/STCW official or officially-hosted texts, PCG (Philippine Coast Guard), MARINA (Maritime Industry Authority), CHED, PIT/COMED official pages, USCG Navigation Center, admiralty/hydrographic offices, established maritime academies, and reputable maritime industry/reference publishers. Avoid random blogs, forums, or unverifiable sites.
-- After searching, name the source you drew from in plain text (e.g., "Per IMO's COLREGS text..." or "Per MARINA Memorandum Circular..."). If your search does not turn up a bonafide source for a claim, say so plainly instead of filling the gap with a guess — tell the student what is uncertain and what to verify with their instructor or an official source.
-- Never present a theory, approximation, or your own inference as if it were verified fact. If something is genuinely a matter of judgment or common practice rather than a documented rule, label it explicitly as such.
-- Simple clarifying or conversational exchanges (e.g., "what do you mean") don't require a search, but any substantive question does.
-- Ground claims sentence-by-sentence rather than citing once for an entire paragraph, so each specific factual statement is individually traceable to the source passage that supports it.
-
-IN SCOPE (teach helpfully and in depth, grounded per the rule above — this spans the full BSMT/STCW curriculum):
-${MARITIME_TOPICS.map(t => '- ' + t.prompt).join('\n')}
-- Career guidance specific to seafaring/BSMT (cadetship, licensure exams, onboard training)
-
-OUT OF SCOPE (politely decline and redirect back to maritime topics):
-- Anything unrelated to maritime transportation: general homework in unrelated subjects, coding help unrelated to maritime tools, general life advice, entertainment, unrelated current events, etc.
-- Do not get pulled into extended off-topic conversation even if the user pushes back — briefly and kindly decline, note that this assistant is scoped to maritime transportation, and invite a maritime-related question instead.
-
-Structure answers with clear steps or short lists where helpful. Keep answers focused and study-relevant rather than exhaustively long, unless the student asks for depth.`;
-
-const log = document.getElementById('log');
-const input = document.getElementById('input');
-const sendBtn = document.getElementById('send');
-
-let entryCount = 0;
-let history = [];
-let displayLog = [];
-
-// ---------------------------------------------------------------------------
-// STORAGE — works both as a Claude.ai Artifact (window.storage) and as a
-// standalone GitHub Pages site (falls back to localStorage). Everything
-// below — the passcode gate and the Ship's Log — goes through these two
-// helpers so it behaves the same in either deployment.
-// ---------------------------------------------------------------------------
-const HAS_ARTIFACT_STORAGE = typeof window !== 'undefined' && !!window.storage;
-
-async function storageGet(key){
-  if(HAS_ARTIFACT_STORAGE){
-    try{
-      const r = await window.storage.get(key, false);
-      return r ? r.value : null;
-    }catch(err){ return null; }
-  }
-  try{ return localStorage.getItem(key); }catch(err){ return null; }
-}
-async function storageSet(key, value){
-  if(HAS_ARTIFACT_STORAGE){
-    try{ await window.storage.set(key, value, false); }catch(err){ console.warn('Storage set failed:', err); }
-    return;
-  }
-  try{ localStorage.setItem(key, value); }catch(err){ console.warn('Storage set failed:', err); }
-}
-async function storageDelete(key){
-  if(HAS_ARTIFACT_STORAGE){
-    try{ await window.storage.delete(key, false); }catch(err){ /* ignore */ }
-    return;
-  }
-  try{ localStorage.removeItem(key); }catch(err){ /* ignore */ }
-}
-
-// ---------------------------------------------------------------------------
-// AI PROXY — the Ship's Log chat, Quiz, and "Generate More" flashcards need
-// to call the Anthropic API. Inside a Claude.ai Artifact preview, calling
-// https://api.anthropic.com directly works for free (Claude's sandbox
-// proxies it, no API key needed). On a standalone deploy like GitHub
-// Pages, there is no such proxy — a bare browser fetch to
-// api.anthropic.com with no key will always fail with "Failed to fetch",
-// since the API doesn't accept anonymous cross-origin requests.
-//
-// SETUP for GitHub Pages (or any standalone host):
-//   1. Get an Anthropic API key from console.anthropic.com (this requires
-//      billing on that account — it's a paid API, separate from Claude.ai).
-//   2. Deploy the included Code.gs as a Google Apps Script Web App:
-//        - Paste your key into Script Properties as ANTHROPIC_API_KEY
-//          (Project Settings > Script Properties in the Apps Script editor).
-//        - Deploy > New deployment > type "Web app".
-//          Execute as: Me. Who has access: Anyone.
-//   3. Copy the deployed /exec URL and paste it into AI_PROXY_URL below.
-// The proxy keeps your API key server-side — it's never exposed in this
-// HTML file. If AI_PROXY_URL is left empty, this file automatically falls
-// back to calling api.anthropic.com directly, which still works fine
-// inside a Claude.ai Artifact preview.
-// ---------------------------------------------------------------------------
-const AI_PROXY_URL = 'https://script.google.com/macros/s/AKfycbwk2mbs6tyLGhEeQUGPSKXCGCaLuJDs4jPRbaOSDGVCannBvB_u6uI7biTuiW8qalz3/exec'; // <-- paste your deployed Apps Script /exec URL here for GitHub Pages use
-
-async function callAnthropicAPI(payload){
-  let response;
-  if(AI_PROXY_URL){
-    // Sent as text/plain (not application/json) so the browser doesn't fire
-    // a CORS preflight OPTIONS request, which Apps Script Web Apps can't answer.
-    response = await fetch(AI_PROXY_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-  }else{
-    response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-  }
-  const data = await response.json();
-  if(!response.ok || data.type === 'error' || data.error){
-    throw new Error((data && data.error && (data.error.message || data.error)) || `API error (${response.status})`);
-  }
-  return data;
-}
-
-// ---------------------------------------------------------------------------
-// PASSCODE GATE — single shared passcode for one person (you). The
-// passcode itself is never stored in the file, only its SHA-256 hash, so
-// casual viewing of the source doesn't hand it over. This is a lightweight
-// deterrent, not real account security — anyone who has both the hash's
-// matching passcode and this link can get in.
-//
-// SETUP: leave ACCESS_PASSCODE_HASH empty and reload. A setup panel will
-// let you type a passcode and generate its hash in-browser. Paste that
-// hash below, save the file, and reload — the setup panel is replaced by
-// the normal unlock screen from then on.
-// ---------------------------------------------------------------------------
-const ACCESS_PASSCODE_HASH = '972ef8e69fa0c5f5d638ea40091a2d1f90d08fe94d55d877bd166655542b288b'; // <-- paste your generated SHA-256 hash here
-
-const UNLOCK_CACHE_KEY = 'bridgewatch-unlocked';
-
-async function sha256Hex(text){
-  const enc = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-const authOverlay = document.getElementById('auth-overlay');
-const appEl = document.getElementById('app');
-
-function showAuthOverlay(){
-  authOverlay.style.display = 'flex';
-  authOverlay.classList.remove('leaving');
-  appEl.style.display = 'none';
-}
-function hideAuthOverlay(){
-  authOverlay.classList.add('leaving');
-  appEl.style.display = 'flex';
-  setTimeout(() => { authOverlay.style.display = 'none'; }, 250);
-}
-function showSetupPanel(){
-  document.getElementById('passcode-setup').style.display = 'block';
-  document.getElementById('unlock-form').style.display = 'none';
-}
-async function showUnlockPanel(){
-  document.getElementById('passcode-setup').style.display = 'none';
-  document.getElementById('unlock-form').style.display = 'flex';
-  await refreshLockoutState();
-  if(!lockoutTimerId) document.getElementById('unlock-passcode-input').focus();
-}
-
-document.getElementById('setup-generate-btn').addEventListener('click', async () => {
-  const val = document.getElementById('setup-passcode-input').value;
-  if(!val) return;
-  const hash = await sha256Hex(val);
-  const outEl = document.getElementById('setup-hash-output');
-  outEl.value = hash;
-  outEl.select();
-});
-
-// ---------------------------------------------------------------------------
-// BRUTE-FORCE PROTECTION — failed attempts and lockout state persist
-// through storageGet/storageSet (survives page reloads, not just an
-// in-memory counter). Lockout duration escalates each time the attempt
-// cap is hit again, so repeated guessing gets slower, not just paused.
-// ---------------------------------------------------------------------------
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_STEPS_SECONDS = [30, 60, 300, 900, 3600]; // 30s, 1m, 5m, 15m, then 1h repeating
-const FAILED_ATTEMPTS_KEY = 'bridgewatch-failed-attempts';
-const LOCKOUT_UNTIL_KEY = 'bridgewatch-lockout-until';
-const LOCKOUT_STRIKES_KEY = 'bridgewatch-lockout-strikes';
-
-let lockoutTimerId = null;
-
-function nextLockoutSeconds(strikeIndex){
-  const i = Math.min(strikeIndex, LOCKOUT_STEPS_SECONDS.length - 1);
-  return LOCKOUT_STEPS_SECONDS[i];
-}
-
-async function getLockoutUntil(){
-  const raw = await storageGet(LOCKOUT_UNTIL_KEY);
-  const n = raw ? parseInt(raw, 10) : 0;
-  return Number.isFinite(n) ? n : 0;
-}
-
-async function refreshLockoutState(){
-  const until = await getLockoutUntil();
-  const remainingMs = until - Date.now();
-  const input = document.getElementById('unlock-passcode-input');
-  const submitBtn = document.querySelector('#unlock-form .auth-submit');
-  const errorEl = document.getElementById('unlock-error');
-
-  if(lockoutTimerId){ clearInterval(lockoutTimerId); lockoutTimerId = null; }
-
-  if(remainingMs > 0){
-    input.disabled = true;
-    submitBtn.disabled = true;
-    const tick = () => {
-      const secsLeft = Math.max(0, Math.ceil((until - Date.now()) / 1000));
-      if(secsLeft <= 0){
-        clearInterval(lockoutTimerId);
-        lockoutTimerId = null;
-        input.disabled = false;
-        submitBtn.disabled = false;
-        errorEl.textContent = '';
-        input.focus();
-        return;
-      }
-      const mins = Math.floor(secsLeft / 60);
-      const secs = secsLeft % 60;
-      const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-      errorEl.textContent = `Too many attempts. Try again in ${timeStr}.`;
-    };
-    tick();
-    lockoutTimerId = setInterval(tick, 1000);
-  }else{
-    input.disabled = false;
-    submitBtn.disabled = false;
-  }
-}
-
-async function registerFailedAttempt(){
-  const raw = await storageGet(FAILED_ATTEMPTS_KEY);
-  const attempts = (raw ? parseInt(raw, 10) : 0) + 1;
-
-  if(attempts >= MAX_ATTEMPTS){
-    const strikesRaw = await storageGet(LOCKOUT_STRIKES_KEY);
-    const strikes = strikesRaw ? parseInt(strikesRaw, 10) : 0;
-    const seconds = nextLockoutSeconds(strikes);
-    const until = Date.now() + seconds * 1000;
-    await storageSet(LOCKOUT_UNTIL_KEY, String(until));
-    await storageSet(LOCKOUT_STRIKES_KEY, String(strikes + 1));
-    await storageSet(FAILED_ATTEMPTS_KEY, '0');
-    await refreshLockoutState();
-  }else{
-    await storageSet(FAILED_ATTEMPTS_KEY, String(attempts));
-    const errorEl = document.getElementById('unlock-error');
-    const remaining = MAX_ATTEMPTS - attempts;
-    errorEl.textContent = `Incorrect passcode. ${remaining} attempt${remaining === 1 ? '' : 's'} left before a lockout.`;
-  }
-}
-
-async function clearFailedAttempts(){
-  await storageSet(FAILED_ATTEMPTS_KEY, '0');
-  await storageSet(LOCKOUT_STRIKES_KEY, '0');
-  await storageDelete(LOCKOUT_UNTIL_KEY);
-}
-
-document.getElementById('unlock-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const until = await getLockoutUntil();
-  if(until > Date.now()) return; // locked out — ignore submit
-
-  const val = document.getElementById('unlock-passcode-input').value;
-  const errorEl = document.getElementById('unlock-error');
-  errorEl.textContent = '';
-  const hash = await sha256Hex(val);
-  if(hash === ACCESS_PASSCODE_HASH){
-    await clearFailedAttempts();
-    await storageSet(UNLOCK_CACHE_KEY, '1');
-    hideAuthOverlay();
-    await initLog();
-  }else{
-    document.getElementById('unlock-passcode-input').value = '';
-    document.getElementById('unlock-passcode-input').focus();
-    await registerFailedAttempt();
-  }
-});
-
-document.getElementById('lock-btn').addEventListener('click', async () => {
-  await storageDelete(UNLOCK_CACHE_KEY);
-  showAuthOverlay();
-  await showUnlockPanel();
-});
-
-// ---------------------------------------------------------------------------
-// SHIP'S LOG PERSISTENCE
-// ---------------------------------------------------------------------------
-const LOG_STORAGE_KEY = 'bridgewatch-shiplog';
-
-async function saveLog(){
-  try{
-    await storageSet(LOG_STORAGE_KEY, JSON.stringify({ history, displayLog }));
-  }catch(err){
-    console.warn("Could not save ship's log:", err);
-  }
-}
-
-async function loadLog(){
-  try{
-    const raw = await storageGet(LOG_STORAGE_KEY);
-    if(raw){
-      const data = JSON.parse(raw);
-      if(Array.isArray(data.displayLog) && data.displayLog.length){
-        history = Array.isArray(data.history) ? data.history : [];
-        displayLog = data.displayLog;
-        log.innerHTML = '';
-        entryCount = 0;
-        displayLog.forEach(entry => {
-          if(entry.role === 'user'){
-            addEntry('user', entry.text);
-          }else if(entry.role === 'assistant'){
-            const segs = entry.segments || [{ text: entry.text || '', footnoteNum: null }];
-            addEntry('assistant', segmentsToFragment(segs), entry.footnotes || []);
-          }
-        });
-        return true;
-      }
-    }
-  }catch(err){
-    console.warn("Could not load ship's log:", err);
-  }
-  return false;
-}
-
-function addWelcomeEntry(){
-  const welcomeText = "Bridge Watch online. I'm your AI Maritime Teacher — I check bonafide sources (IMO, PCG, MARINA, official texts) before teaching a point, and I cover the full BSMT curriculum: navigation, seamanship, stability, marine engineering basics, maritime law, safety, and more. Ask me anything, and I'll explain the reasoning, not just the rule.";
-  addEntry('assistant', welcomeText);
-  displayLog.push({ role:'assistant', segments:[{ text: welcomeText, footnoteNum:null }], footnotes: [] });
-  saveLog();
-}
-
-async function clearLog(){
-  history = [];
-  displayLog = [];
-  entryCount = 0;
-  log.innerHTML = '';
-  await saveLog();
-  addWelcomeEntry();
-}
-
-async function initLog(){
-  const restored = await loadLog();
-  if(!restored) addWelcomeEntry();
-}
-
-// Init: gate on the passcode first, then restore the Ship's Log (or show
-// the welcome entry if empty) once unlocked.
-(async () => {
-  if(!ACCESS_PASSCODE_HASH){
-    showAuthOverlay();
-    showSetupPanel();
-    return;
-  }
-  const cached = await storageGet(UNLOCK_CACHE_KEY);
-  if(cached === '1'){
-    hideAuthOverlay();
-    await initLog();
-  }else{
-    showAuthOverlay();
-    await showUnlockPanel();
-  }
-})();
-
-function bellsTime(){
-  const now = new Date();
-  return now.toTimeString().slice(0,5).replace(':','') + 'H';
-}
-
-function addEntry(role, content, footnotes){
-  entryCount++;
-  const div = document.createElement('div');
-  div.className = 'entry ' + role;
-  const label = role === 'user' ? 'YOU' : role === 'assistant' ? 'BRIDGE WATCH' : 'NOTICE';
-  div.innerHTML = `<div class="entry-meta"><span>ENTRY ${String(entryCount).padStart(3,'0')}</span><span>${bellsTime()}</span><span>${label}</span></div><div class="bubble"></div>`;
-  const bubble = div.querySelector('.bubble');
-  if(typeof content === 'string'){
-    bubble.textContent = content;
-  }else if(content){
-    bubble.appendChild(content);
-  }
-  if(footnotes && footnotes.length){
-    const srcWrap = document.createElement('details');
-    srcWrap.className = 'sources-block';
-    const uniqueSourceCount = new Set(footnotes.map(f => f.url)).size;
-    const summary = document.createElement('summary');
-    summary.innerHTML = `VERIFIED FROM <span class="sources-count">(${uniqueSourceCount} source${uniqueSourceCount === 1 ? '' : 's'} — tap to expand)</span>`;
-    srcWrap.appendChild(summary);
-    const body = document.createElement('div');
-    body.className = 'sources-block-body';
-    footnotes.forEach(f => {
-      const item = document.createElement('div');
-      item.className = 'source-item';
-      const head = document.createElement('div');
-      head.className = 'source-item-head';
-      const num = document.createElement('span');
-      num.className = 'source-num';
-      num.textContent = '[' + f.num + ']';
-      const a = document.createElement('a');
-      a.href = f.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      a.className = 'source-link';
-      a.textContent = f.title || f.url;
-      head.appendChild(num);
-      head.appendChild(a);
-      item.appendChild(head);
-      if(f.quote){
-        const q = document.createElement('span');
-        q.className = 'source-quote';
-        q.textContent = '“' + f.quote + '”';
-        item.appendChild(q);
-      }
-      body.appendChild(item);
-    });
-    srcWrap.appendChild(body);
-    div.appendChild(srcWrap);
-  }
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-  return div;
-}
-
-// Trims an over-long quoted excerpt down to a readable snippet without
-// altering the wording — just truncates at a word boundary.
-function trimQuote(raw, maxLen){
-  if(!raw) return '';
-  const s = raw.trim();
-  if(s.length <= maxLen) return s;
-  const cut = s.slice(0, maxLen);
-  const lastSpace = cut.lastIndexOf(' ');
-  return (lastSpace > 40 ? cut.slice(0, lastSpace) : cut) + '…';
-}
-
-// Walks the API's content blocks and produces a serializable "segments"
-// list ({text, footnoteNum}) plus the footnote/source data. Segments are
-// stored (for persistence) and rendered into highlighted spans via
-// segmentsToFragment — used both for live replies and restored history.
-function buildAssistantContent(contentBlocks){
-  const segments = [];
-  const footnotes = [];
-  let footnoteNum = 0;
-  let plainText = '';
-
-  contentBlocks.filter(b => b.type === 'text').forEach(block => {
-    const text = block.text || '';
-    plainText += text;
-    if(Array.isArray(block.citations) && block.citations.length){
-      footnoteNum++;
-      segments.push({ text, footnoteNum });
-      block.citations.forEach(c => {
-        if(c.url){
-          footnotes.push({
-            num: footnoteNum,
-            url: c.url,
-            title: c.title || c.url,
-            quote: trimQuote(c.cited_text || '', 220)
-          });
-        }
-      });
-    }else{
-      segments.push({ text, footnoteNum: null });
-    }
-  });
-
-  return { segments, footnotes, plainText: plainText.trim() };
-}
-
-function segmentsToFragment(segments){
-  const frag = document.createDocumentFragment();
-  (segments || []).forEach(seg => {
-    if(seg.footnoteNum){
-      const span = document.createElement('span');
-      span.className = 'cited-highlight';
-      span.appendChild(document.createTextNode(seg.text));
-      const sup = document.createElement('sup');
-      sup.className = 'footnote-marker';
-      sup.textContent = '[' + seg.footnoteNum + ']';
-      span.appendChild(sup);
-      frag.appendChild(span);
-    }else{
-      frag.appendChild(document.createTextNode(seg.text));
-    }
-  });
-  return frag;
-}
-
-function addThinking(){
-  const div = document.createElement('div');
-  div.className = 'entry assistant';
-  div.id = 'thinking-entry';
-  div.innerHTML = `<div class="thinking"><div class="mini-compass"></div><span>CHECKING BONAFIDE SOURCES...</span></div>`;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-
-function removeThinking(){
-  const el = document.getElementById('thinking-entry');
-  if(el) el.remove();
-}
-
-async function sendMessage(){
-  const text = input.value.trim();
-  if(!text) return;
-  input.value = '';
-  input.style.height = 'auto';
-  sendBtn.disabled = true;
-
-  addEntry('user', text);
-  history.push({role:'user', content: text});
-  displayLog.push({role:'user', text});
-  saveLog();
-  addThinking();
-
-  try{
-    const data = await callAnthropicAPI({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1500,
-      system: buildSystemPromptWithSources(),
-      messages: history,
-      tools: [{ type: "web_search_20250305", name: "web_search" }]
-    });
-    removeThinking();
-
-    const blocks = data.content || [];
-    const { segments, footnotes, plainText } = buildAssistantContent(blocks);
-
-    if(!plainText){
-      addEntry('assistant', "Unable to log a response — try rephrasing your question.");
-    }else{
-      addEntry('assistant', segmentsToFragment(segments), footnotes);
-      displayLog.push({role:'assistant', segments, footnotes});
-      saveLog();
-    }
-    history.push({role:'assistant', content: plainText || "Unable to log a response."});
-  }catch(err){
-    removeThinking();
-    addEntry('system', `Signal lost — ${err.message || 'could not reach the log'}. Please try again.`);
-    console.error(err);
-  }finally{
-    sendBtn.disabled = false;
-    input.focus();
-  }
-}
-
-sendBtn.addEventListener('click', sendMessage);
-input.addEventListener('keydown', (e) => {
-  if(e.key === 'Enter' && !e.shiftKey){
-    e.preventDefault();
-    sendMessage();
-  }
-});
-input.addEventListener('input', () => {
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-});
-
-document.getElementById('clear-log-btn').addEventListener('click', () => {
-  if(confirm("Clear the entire ship's log? This can't be undone.")){
-    clearLog();
-  }
-});
-
-/* ---------------- TAB SWITCHING ---------------- */
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.view).classList.add('active');
-  });
-});
-
-async function callClaude(systemPrompt, userPrompt){
-  const data = await callAnthropicAPI({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1500,
-    system: systemPrompt,
-    messages: [{role:'user', content: userPrompt}],
-    tools: [{ type: "web_search_20250305", name: "web_search" }]
-  });
-  const blocks = (data.content || []).filter(b => b.type === 'text');
-  const text = blocks.map(b => b.text).join('\n').trim();
-  if(!text) throw new Error('Empty response from API');
-  return { text };
-}
-
-function parseJsonLoose(raw){
-  const cleaned = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(cleaned);
-}
-
-/* ---------------- QUIZ MODE ---------------- */
-const QUIZ_SYSTEM = `You are "Bridge Watch," acting as an AI Maritime Teacher who writes multiple-choice quiz questions covering the full BSMT/STCW curriculum for a student in the Philippines. You have a web_search tool — use it to verify the exact rule text, number, or fact before writing the question. Do not invent or guess rule numbers, figures, or definitions; base them on what you find from bonafide sources (IMO, PCG, MARINA, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references).
-
-After searching, respond with ONLY a raw JSON object as your final output, no markdown fences, no preamble, in exactly this shape:
-{"question": "...", "options": ["A text","B text","C text","D text"], "correctIndex": 0, "explanation": "...", "source": "short source name, e.g. 'IMO COLREGS Rule 15'"}
-
-The question must be non-trivial and exam-relevant. Exactly 4 options, only one correct. Write the explanation the way a teacher reviews a wrong answer with a cadet: 2-4 sentences that teach the underlying principle and why the correct option follows from it, grounded in what you verified — not just a restatement of the rule.`;
-
-function escapeAttr(str){
-  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-}
-
-let quizTopic = MARITIME_TOPICS[0].prompt;
-let quizCorrect = 0;
-let quizTotal = 0;
-
-renderCategorizedTopicPicker('quiz-topics', quizTopic);
-wireCategorizedTopicPicker('quiz-topics', (topic) => { quizTopic = topic; });
-
-document.getElementById('quiz-body').addEventListener('click', (e) => {
-  if(e.target.id === 'quiz-start' || e.target.id === 'quiz-next') loadQuizQuestion();
-});
-
-function updateScore(){
-  document.getElementById('quiz-score').innerHTML = `Score: <b>${quizCorrect}</b> / ${quizTotal}`;
-}
-
-async function loadQuizQuestion(){
-  const body = document.getElementById('quiz-body');
-  body.innerHTML = `<div class="thinking"><div class="mini-compass"></div><span>VERIFYING AGAINST SOURCES...</span></div>`;
-  try{
-    const { text } = await callClaude(QUIZ_SYSTEM, `Topic: ${quizTopic}. Give me one fresh multiple-choice question.`);
-    const q = parseJsonLoose(text);
-    renderQuizQuestion(q);
-  }catch(err){
-    body.innerHTML = `<div class="empty-state">Couldn't draw up a verified question — try again.<br><br><button class="btn-primary" id="quiz-start">RETRY</button></div>`;
-    console.error(err);
-  }
-}
-
-function renderQuizQuestion(q){
-  const body = document.getElementById('quiz-body');
-  const card = document.createElement('div');
-  card.className = 'quiz-card';
-  card.innerHTML = `
-    <div class="quiz-question">${q.question}</div>
-    <div id="quiz-options"></div>
-    <div id="quiz-explain" style="display:none" class="quiz-explain"></div>
-    <div class="quiz-actions" id="quiz-actions" style="display:none">
-      <button class="btn-primary" id="quiz-next">NEXT QUESTION</button>
+/* ---------- render: class schedule ---------- */
+function renderSchedule() {
+  const sc = state.schedule;
+  const f = sc.form;
+  let html = `<div class="panel-content">
+    <div class="section-title">➕ ${sc.editingId ? "Edit class" : "Add a class"}</div>
+    <div class="form-grid">
+      <div class="field"><label class="field-label">Class name</label><input type="text" id="sch_name" placeholder="e.g. Marine Engineering 1" value="${escapeHtml(f.name)}"></div>
+      <div class="field"><label class="field-label">Professor</label><input type="text" id="sch_prof" placeholder="e.g. Capt. Dela Cruz" value="${escapeHtml(f.professor)}"></div>
+      <div class="field"><label class="field-label">Units</label><input type="number" id="sch_units" min="0" step="0.5" placeholder="3" value="${escapeHtml(f.units)}"></div>
+      <div class="field"><label class="field-label">Room / venue</label><input type="text" id="sch_room" placeholder="e.g. Bridge Simulator" value="${escapeHtml(f.room)}"></div>
+      <div class="field"><label class="field-label">Start time</label><input type="time" id="sch_start" value="${f.start}"></div>
+      <div class="field"><label class="field-label">End time</label><input type="time" id="sch_end" value="${f.end}"></div>
     </div>
-  `;
-  body.innerHTML = '';
-  body.appendChild(card);
+    <label class="field-label">Major / Minor</label>
+    <div class="chip-row">
+      <button class="chip ${f.type === "major" ? "selected" : ""}" data-action="set-class-type" data-val="major">Major</button>
+      <button class="chip ${f.type === "minor" ? "selected" : ""}" data-action="set-class-type" data-val="minor">Minor</button>
+    </div>
+    <label class="field-label">Days</label>
+    <div class="chip-row">
+      ${DAY_NAMES.map(d => `<button class="chip ${f.days.includes(d) ? "selected" : ""}" data-action="toggle-class-day" data-val="${d}">${d}</button>`).join("")}
+    </div>
+    <div style="display:flex; gap:10px; margin: 6px 0 22px;">
+      <button class="primary" data-action="save-class">${sc.editingId ? "Update class" : "Add class"}</button>
+      ${sc.editingId ? `<button class="ghost" data-action="cancel-edit-class">Cancel</button>` : ""}
+    </div>
+    <hr class="divider">
+    <div class="section-title">🧭 Your schedule</div>`;
 
-  const optsWrap = card.querySelector('#quiz-options');
-  q.options.forEach((opt, i) => {
-    const b = document.createElement('button');
-    b.className = 'quiz-option';
-    b.textContent = opt;
-    b.addEventListener('click', () => {
-      quizTotal++;
-      const correct = i === q.correctIndex;
-      if(correct) quizCorrect++;
-      card.querySelectorAll('.quiz-option').forEach((el, j) => {
-        el.disabled = true;
-        if(j === q.correctIndex) el.classList.add('correct');
-        else if(j === i) el.classList.add('incorrect');
-      });
-      const explain = card.querySelector('#quiz-explain');
-      let explainText = (correct ? 'Correct. ' : 'Not quite. ') + q.explanation;
-      if(q.source) explainText += `  [Source: ${q.source}]`;
-      explain.textContent = explainText;
-      explain.style.display = 'block';
-      card.querySelector('#quiz-actions').style.display = 'flex';
-      updateScore();
+  if (!sc.classes.length) {
+    html += `<div class="subtle">No classes added yet.</div>`;
+  } else {
+    const dayOrder = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const sorted = [...sc.classes].sort((a,b) => {
+      const da = Math.min(...(a.days.length ? a.days.map(d=>dayOrder.indexOf(d)) : [7]));
+      const db = Math.min(...(b.days.length ? b.days.map(d=>dayOrder.indexOf(d)) : [7]));
+      if (da !== db) return da - db;
+      return a.start.localeCompare(b.start);
     });
-    optsWrap.appendChild(b);
-  });
-}
-
-/* ---------------- FLASHCARD MODE ---------------- */
-const CORE_COLREGS_DECK = [
-  {tag:'RULE 5', front:'Look-out', back:'Every vessel shall at all times maintain a proper look-out by sight and hearing, as well as by all available means, to make a full appraisal of the situation and risk of collision.'},
-  {tag:'RULE 6', front:'Safe Speed', back:'Every vessel shall proceed at a safe speed so she can take proper and effective action to avoid collision, factoring visibility, traffic density, maneuverability, and background lights.'},
-  {tag:'RULE 7', front:'Risk of Collision', back:'Assume risk of collision exists if compass bearing to an approaching vessel does not appreciably change. When in doubt, assume risk exists.'},
-  {tag:'RULE 8', front:'Action to Avoid Collision', back:'Actions must be positive, made in ample time, and with due regard to good seamanship — avoid a succession of small alterations.'},
-  {tag:'RULE 13', front:'Overtaking', back:'An overtaking vessel must keep clear of the vessel being overtaken, regardless of which is the give-way vessel under other rules.'},
-  {tag:'RULE 14', front:'Head-on Situation', back:'When two power-driven vessels meet head-on, both shall alter course to starboard so each passes on the port side of the other.'},
-  {tag:'RULE 15', front:'Crossing Situation', back:'When two power-driven vessels are crossing, the vessel with the other on her own starboard side is the give-way vessel and shall keep clear.'},
-  {tag:'RULE 17', front:'Action by Stand-on Vessel', back:'The stand-on vessel shall keep her course and speed, but may act to avoid collision if it becomes apparent the give-way vessel is not taking appropriate action.'},
-];
-
-const FLASH_SYSTEM = `You are "Bridge Watch," acting as an AI Maritime Teacher who writes concise study flashcards covering the full BSMT/STCW curriculum for a student in the Philippines. You have a web_search tool — use it to verify each fact, rule number, or definition against a bonafide source (IMO, PCG, MARINA, official COLREGS/SOLAS/MARPOL/STCW texts, established maritime references) before writing the card. Do not invent or guess.
-
-After searching, respond with ONLY a raw JSON array as your final output, no markdown fences, no preamble, in exactly this shape:
-[{"tag":"short label e.g. rule/concept number or category","front":"short term or question (max 8 words)","back":"concise 1-3 sentence explanation that teaches the concept, not just restates it — briefly note why it matters on watch or in practice where relevant","source":"short source name, e.g. 'IMO SOLAS Ch. V'"}]
-
-Generate exactly 6 cards on the given topic. Avoid duplicating extremely basic COLREGS Rules 5,6,7,8,13,14,15,17 unless the topic specifically requires them.`;
-
-let flashDeck = [...CORE_COLREGS_DECK];
-let flashIndex = 0;
-let flashTopic = 'core';
-
-function renderFlashTopicChips(){
-  const coreChip = `<button class="topic-chip active" data-topic="core">Core COLREGS</button>`;
-  renderCategorizedTopicPicker('flash-topics', flashTopic === 'core' ? null : flashTopic, coreChip);
-}
-renderFlashTopicChips();
-
-function renderFlashcard(){
-  const c = flashDeck[flashIndex];
-  document.getElementById('flashcard').classList.remove('flipped');
-  document.getElementById('flash-tag-front').textContent = c.tag;
-  document.getElementById('flash-front-text').textContent = c.front;
-  document.getElementById('flash-back-text').textContent = c.back + (c.source ? `  [Source: ${c.source}]` : '');
-  document.getElementById('flash-counter').textContent = `Card ${flashIndex + 1} of ${flashDeck.length}`;
-  document.getElementById('flash-prev').disabled = flashIndex === 0;
-  document.getElementById('flash-next').disabled = flashIndex === flashDeck.length - 1;
-}
-
-document.getElementById('flashcard').addEventListener('click', () => {
-  document.getElementById('flashcard').classList.toggle('flipped');
-});
-document.getElementById('flash-prev').addEventListener('click', () => {
-  if(flashIndex > 0){ flashIndex--; renderFlashcard(); }
-});
-document.getElementById('flash-next').addEventListener('click', () => {
-  if(flashIndex < flashDeck.length - 1){ flashIndex++; renderFlashcard(); }
-});
-
-wireCategorizedTopicPicker('flash-topics', (topic) => {
-  flashTopic = topic;
-  if(flashTopic === 'core'){
-    flashDeck = [...CORE_COLREGS_DECK];
-    flashIndex = 0;
-    renderFlashcard();
-  }
-});
-
-document.getElementById('flash-more').addEventListener('click', async () => {
-  const btn = document.getElementById('flash-more');
-  btn.disabled = true;
-  btn.textContent = 'VERIFYING...';
-  try{
-    const topicForPrompt = flashTopic === 'core' ? 'Core COLREGS rules beyond 5,6,7,8,13,14,15,17' : flashTopic;
-    const { text } = await callClaude(FLASH_SYSTEM, `Topic: ${topicForPrompt}. Generate 6 flashcards.`);
-    const cards = parseJsonLoose(text);
-    if(Array.isArray(cards) && cards.length){
-      const startIdx = flashDeck.length;
-      flashDeck = flashDeck.concat(cards);
-      flashIndex = startIdx;
-      renderFlashcard();
-    }
-  }catch(err){
-    console.error(err);
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '+ GENERATE MORE';
-  }
-});
-
-renderFlashcard();
-
-/* ---------------- NAVIGATION PRACTICE ---------------- */
-// Pure client-side geometry — no API calls, so this tab always works.
-const NAV_NM_TO_PX = 8;        // pixels per nautical mile at this scale
-const NAV_SVG_SIZE = 420;      // svg viewBox is NAV_SVG_SIZE x NAV_SVG_SIZE
-const NAV_ORIGIN = { x: NAV_SVG_SIZE / 2, y: NAV_SVG_SIZE / 2 }; // own ship's fixed departure point, centered so any course/distance stays on-chart
-
-let navMode = 'plot';
-let navCorrect = 0;
-let navTotal = 0;
-let navCurrent = null;
-let navAnswered = false;
-
-const navChart = document.getElementById('nav-chart');
-const navPromptEl = document.getElementById('nav-prompt');
-const navTeachNoteEl = document.getElementById('nav-teach-note');
-const navAnswerControls = document.getElementById('nav-answer-controls');
-const navFeedbackEl = document.getElementById('nav-feedback');
-
-const NAV_TEACH_NOTES = {
-  plot: "Teacher's note: a DR (dead reckoning) position advances the last known fix along the course steered, for the distance run since that fix. Resolve the course into components, or simply walk it off the compass rose in your head, then measure the distance to scale — direction matters as much as distance here.",
-  findbd: "Teacher's note: true bearing is read clockwise from 000°T (north) to the line of sight toward the object. Distance is measured along that same line, to scale, using the chart's latitude scale (1′ of latitude ≈ 1 nm)."
-};
-
-function navUpdateScore(){
-  document.getElementById('nav-score').innerHTML = `Score: <b>${navCorrect}</b> / ${navTotal}`;
-}
-
-function navSvgEl(tag, attrs){
-  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
-  return el;
-}
-
-// Bearing 0-359 (000°T = up/north) + distance in nm -> chart pixel coords
-function navPolarToXY(bearingDeg, distNm){
-  const rad = bearingDeg * Math.PI / 180;
-  return {
-    x: NAV_ORIGIN.x + distNm * NAV_NM_TO_PX * Math.sin(rad),
-    y: NAV_ORIGIN.y - distNm * NAV_NM_TO_PX * Math.cos(rad)
-  };
-}
-
-function navRandRange(min, max){
-  return Math.random() * (max - min) + min;
-}
-
-function navDrawBaseChart(){
-  navChart.innerHTML = '';
-  navChart.appendChild(navSvgEl('rect', { x:0, y:0, width:NAV_SVG_SIZE, height:NAV_SVG_SIZE, fill:'#0E2438', rx:6 }));
-
-  // grid every 5 nm
-  const step = 5 * NAV_NM_TO_PX;
-  for(let p = step; p < NAV_SVG_SIZE; p += step){
-    navChart.appendChild(navSvgEl('line', { x1:p, y1:0, x2:p, y2:NAV_SVG_SIZE, stroke:'#1c3c58', 'stroke-width':1 }));
-    navChart.appendChild(navSvgEl('line', { x1:0, y1:p, x2:NAV_SVG_SIZE, y2:p, stroke:'#1c3c58', 'stroke-width':1 }));
-  }
-  // center cross-hairs through own ship
-  navChart.appendChild(navSvgEl('line', { x1:NAV_ORIGIN.x, y1:0, x2:NAV_ORIGIN.x, y2:NAV_SVG_SIZE, stroke:'#2c4d6d', 'stroke-width':1, 'stroke-dasharray':'2,3' }));
-  navChart.appendChild(navSvgEl('line', { x1:0, y1:NAV_ORIGIN.y, x2:NAV_SVG_SIZE, y2:NAV_ORIGIN.y, stroke:'#2c4d6d', 'stroke-width':1, 'stroke-dasharray':'2,3' }));
-
-  // mini compass rose, top-right corner (reference only — 000°T is always "up" on this chart)
-  const roseCx = 368, roseCy = 52, roseR = 30;
-  navChart.appendChild(navSvgEl('circle', { cx:roseCx, cy:roseCy, r:roseR, fill:'none', stroke:'#C79A3D', 'stroke-width':1.2 }));
-  for(let deg = 0; deg < 360; deg += 10){
-    const rad = deg * Math.PI / 180;
-    const rInner = deg % 30 === 0 ? roseR - 7 : roseR - 4;
-    navChart.appendChild(navSvgEl('line', {
-      x1: roseCx + roseR * Math.sin(rad), y1: roseCy - roseR * Math.cos(rad),
-      x2: roseCx + rInner * Math.sin(rad), y2: roseCy - rInner * Math.cos(rad),
-      stroke:'#C79A3D', 'stroke-width': deg % 30 === 0 ? 1.4 : 0.8
-    }));
-  }
-  ['N','E','S','W'].forEach((label, i) => {
-    const rad = (i * 90) * Math.PI / 180;
-    const r = roseR + 11;
-    const t = navSvgEl('text', {
-      x: roseCx + r * Math.sin(rad), y: roseCy - r * Math.cos(rad) + 3,
-      'text-anchor':'middle', 'font-size':10, fill:'#E0B85C', 'font-family':"'IBM Plex Mono', monospace"
-    });
-    t.textContent = label;
-    navChart.appendChild(t);
-  });
-
-  // own ship marker
-  navChart.appendChild(navSvgEl('circle', { cx:NAV_ORIGIN.x, cy:NAV_ORIGIN.y, r:5, fill:'#E0B85C' }));
-  navChart.appendChild(navSvgEl('circle', { cx:NAV_ORIGIN.x, cy:NAV_ORIGIN.y, r:9, fill:'none', stroke:'#E0B85C', 'stroke-width':1.2 }));
-  const shipLabel = navSvgEl('text', { x:NAV_ORIGIN.x + 12, y:NAV_ORIGIN.y - 10, 'font-size':10, fill:'#F3ECDA', 'font-family':"'IBM Plex Mono', monospace" });
-  shipLabel.textContent = 'OWN SHIP';
-  navChart.appendChild(shipLabel);
-
-  // 10 NM scale bar
-  const sbX = 20, sbY = NAV_SVG_SIZE - 20, sbLen = 10 * NAV_NM_TO_PX;
-  navChart.appendChild(navSvgEl('line', { x1:sbX, y1:sbY, x2:sbX + sbLen, y2:sbY, stroke:'#C9C0A8', 'stroke-width':1.5 }));
-  navChart.appendChild(navSvgEl('line', { x1:sbX, y1:sbY - 4, x2:sbX, y2:sbY + 4, stroke:'#C9C0A8', 'stroke-width':1.5 }));
-  navChart.appendChild(navSvgEl('line', { x1:sbX + sbLen, y1:sbY - 4, x2:sbX + sbLen, y2:sbY + 4, stroke:'#C9C0A8', 'stroke-width':1.5 }));
-  const sbLabel = navSvgEl('text', { x:sbX, y:sbY - 8, 'font-size':9.5, fill:'#C9C0A8', 'font-family':"'IBM Plex Mono', monospace" });
-  sbLabel.textContent = '10 NM';
-  navChart.appendChild(sbLabel);
-}
-
-function navNewExercise(){
-  navAnswered = false;
-  navFeedbackEl.innerHTML = '';
-  navTeachNoteEl.textContent = NAV_TEACH_NOTES[navMode];
-  navDrawBaseChart();
-
-  if(navMode === 'plot'){
-    const course = Math.floor(navRandRange(0, 360));
-    const distance = Math.round(navRandRange(6, 20) * 10) / 10;
-    navCurrent = { course, distance };
-    navPromptEl.innerHTML = `Own ship departs the fix (⚓ shown) on course <b>${String(course).padStart(3,'0')}°T</b>, log distance <b>${distance.toFixed(1)} nm</b>. Click the chart where the new DR position should be plotted.`;
-    navAnswerControls.innerHTML = '';
-    navChart.style.cursor = 'crosshair';
-    navChart.onclick = navHandlePlotClick;
-  }else{
-    const bearing = Math.floor(navRandRange(0, 360));
-    const distance = Math.round(navRandRange(6, 20) * 10) / 10;
-    navCurrent = { bearing, distance };
-    const pt = navPolarToXY(bearing, distance);
-
-    navChart.appendChild(navSvgEl('circle', { cx:pt.x, cy:pt.y, r:5, fill:'#B6552E' }));
-    navChart.appendChild(navSvgEl('circle', { cx:pt.x, cy:pt.y, r:9, fill:'none', stroke:'#B6552E', 'stroke-width':1.2 }));
-    const tLabel = navSvgEl('text', { x:pt.x + 12, y:pt.y - 10, 'font-size':10, fill:'#F0B8A0', 'font-family':"'IBM Plex Mono', monospace" });
-    tLabel.textContent = 'CHARTED LIGHT';
-    navChart.appendChild(tLabel);
-
-    navPromptEl.innerHTML = `Determine the true bearing and distance from own ship to the charted light shown on the chart.`;
-    navAnswerControls.innerHTML = `
-      <div class="nav-input-row">
-        <label>BEARING (°T)<input type="number" id="nav-bearing-input" min="0" max="359" placeholder="000"></label>
-        <label>DISTANCE (NM)<input type="number" id="nav-distance-input" min="0" step="0.1" placeholder="0.0"></label>
-        <button class="btn-primary" id="nav-check">CHECK</button>
-      </div>
-    `;
-    document.getElementById('nav-check').addEventListener('click', navHandleFindBDCheck);
-    navChart.onclick = null;
-    navChart.style.cursor = 'default';
-  }
-}
-
-function navHandlePlotClick(e){
-  if(navAnswered) return;
-  const rect = navChart.getBoundingClientRect();
-  const scaleX = NAV_SVG_SIZE / rect.width;
-  const scaleY = NAV_SVG_SIZE / rect.height;
-  const clickX = (e.clientX - rect.left) * scaleX;
-  const clickY = (e.clientY - rect.top) * scaleY;
-
-  navAnswered = true;
-  navTotal++;
-
-  const correctPt = navPolarToXY(navCurrent.course, navCurrent.distance);
-  const errPx = Math.hypot(clickX - correctPt.x, clickY - correctPt.y);
-  const errNm = errPx / NAV_NM_TO_PX;
-  const tolerance = 2; // nm
-  const isCorrect = errNm <= tolerance;
-  if(isCorrect) navCorrect++;
-  navUpdateScore();
-
-  navChart.appendChild(navSvgEl('line', { x1:NAV_ORIGIN.x, y1:NAV_ORIGIN.y, x2:correctPt.x, y2:correctPt.y, stroke:'#C79A3D', 'stroke-width':1.4, 'stroke-dasharray':'4,3' }));
-  navChart.appendChild(navSvgEl('circle', { cx:correctPt.x, cy:correctPt.y, r:5, fill:'none', stroke:'#C79A3D', 'stroke-width':1.6 }));
-  navChart.appendChild(navSvgEl('circle', { cx:clickX, cy:clickY, r:5, fill: isCorrect ? '#5C9C6C' : '#B6552E' }));
-
-  navFeedbackEl.innerHTML = isCorrect
-    ? `<b>Well plotted.</b> Your mark was ${errNm.toFixed(1)} nm from the correct DR position — within the ${tolerance} nm tolerance.`
-    : `<b>Off the mark.</b> Your click landed ${errNm.toFixed(1)} nm from the correct DR position (gold circle, dashed line). That position is ${navCurrent.distance.toFixed(1)} nm out on course ${String(navCurrent.course).padStart(3,'0')}°T from the fix.`;
-}
-
-function navHandleFindBDCheck(){
-  if(navAnswered) return;
-  const bInput = document.getElementById('nav-bearing-input');
-  const dInput = document.getElementById('nav-distance-input');
-  const bVal = parseFloat(bInput.value);
-  const dVal = parseFloat(dInput.value);
-  if(Number.isNaN(bVal) || Number.isNaN(dVal)) return;
-
-  navAnswered = true;
-  navTotal++;
-
-  let bearingErr = Math.abs(bVal - navCurrent.bearing);
-  if(bearingErr > 180) bearingErr = 360 - bearingErr;
-  const distErr = Math.abs(dVal - navCurrent.distance);
-  const isCorrect = bearingErr <= 5 && distErr <= 1.5;
-  if(isCorrect) navCorrect++;
-  navUpdateScore();
-
-  document.getElementById('nav-check').disabled = true;
-  bInput.disabled = true;
-  dInput.disabled = true;
-
-  navFeedbackEl.innerHTML = isCorrect
-    ? `<b>Correct.</b> The actual bearing/distance to the light is ${String(navCurrent.bearing).padStart(3,'0')}°T, ${navCurrent.distance.toFixed(1)} nm.`
-    : `<b>Not quite.</b> The actual bearing/distance is ${String(navCurrent.bearing).padStart(3,'0')}°T, ${navCurrent.distance.toFixed(1)} nm. (You entered ${String(Math.round(bVal)).padStart(3,'0')}°T, ${dVal.toFixed(1)} nm.)`;
-}
-
-document.getElementById('nav-modes').addEventListener('click', (e) => {
-  const chip = e.target.closest('.topic-chip');
-  if(!chip) return;
-  document.querySelectorAll('#nav-modes .topic-chip').forEach(c => c.classList.remove('active'));
-  chip.classList.add('active');
-  navMode = chip.dataset.mode;
-  navNewExercise();
-});
-
-document.getElementById('nav-new').addEventListener('click', navNewExercise);
-
-navNewExercise();
-
-/* =====================================================================
-   CLASS SCHEDULE — subject / professor / units / duration, with edit,
-   delete, and a reminder that checks the schedule every time the app
-   is opened or brought back into view (plus a periodic check while
-   it stays open), and fires a browser notification (or an in-app
-   banner if notifications aren't available/granted).
-   ===================================================================== */
-const CLASSES_KEY = 'bw_classes_v1';
-const CLASS_NOTIFIED_KEY = 'bw_class_notified_v1';
-const DAY_ORDER = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const DAY_JS_INDEX = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
-
-let classes = [];
-let selectedDays = [];
-let editingClassId = null;
-let notifiedLog = {}; // { "classId|YYYY-MM-DD": true }
-
-function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-
-async function loadClasses(){
-  const raw = await storageGet(CLASSES_KEY);
-  try{ classes = raw ? JSON.parse(raw) : []; }catch(err){ classes = []; }
-  const notifiedRaw = await storageGet(CLASS_NOTIFIED_KEY);
-  try{ notifiedLog = notifiedRaw ? JSON.parse(notifiedRaw) : {}; }catch(err){ notifiedLog = {}; }
-}
-async function saveClasses(){ await storageSet(CLASSES_KEY, JSON.stringify(classes)); }
-async function saveNotifiedLog(){ await storageSet(CLASS_NOTIFIED_KEY, JSON.stringify(notifiedLog)); }
-
-function fmtTime12(hhmm){
-  if(!hhmm) return '';
-  const [h,m] = hhmm.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
-  const h12 = ((h % 12) || 12);
-  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
-}
-
-function renderClasses(){
-  const list = document.getElementById('classes-list');
-  if(!classes.length){
-    list.innerHTML = `<div class="empty-state">No classes logged yet.<br><br><button class="btn-primary" id="class-add-btn-empty">+ ADD YOUR FIRST CLASS</button></div>`;
-    const btn = document.getElementById('class-add-btn-empty');
-    if(btn) btn.addEventListener('click', () => openClassModal());
-    return;
-  }
-  const now = new Date();
-  const todayKey = DAY_ORDER[(now.getDay() + 6) % 7]; // convert JS Sun=0 to Mon-first index
-  const sorted = [...classes].sort((a,b) => (a.start || '').localeCompare(b.start || ''));
-
-  // find the next upcoming class today, if any, to highlight
-  let nextUpId = null;
-  const nowHM = now.toTimeString().slice(0,5);
-  sorted.forEach(c => {
-    if(!nextUpId && (c.days||[]).includes(todayKey) && c.start >= nowHM){ nextUpId = c.id; }
-  });
-
-  list.innerHTML = sorted.map(c => {
-    const daysLabel = (c.days && c.days.length) ? c.days.join(' · ') : 'No days set';
-    const timeLabel = (c.start && c.end) ? `${fmtTime12(c.start)} – ${fmtTime12(c.end)}` : 'No time set';
-    const isNext = c.id === nextUpId;
-    return `
-    <div class="class-card${isNext ? ' next-up' : ''}" data-id="${c.id}">
-      <div class="class-card-head">
+    sorted.forEach(c => {
+      html += `<div class="class-card ${c.type === "minor" ? "minor" : ""}">
         <div>
-          <div class="class-subject">${escapeHtml(c.subject || 'Untitled Subject')}</div>
-          <div class="class-prof">${c.professor ? escapeHtml(c.professor) : 'Professor not set'}</div>
+          <div class="c-name">${escapeHtml(c.name)} <span class="chip" style="pointer-events:none; padding:2px 9px; font-size:0.65rem;">${c.type === "major" ? "Major" : "Minor"}</span></div>
+          <div class="c-meta">${escapeHtml(c.professor || "No professor set")} · ${c.units || "—"} units · ${escapeHtml(c.room || "No room set")} · ${c.start}–${c.end}</div>
+          <div class="c-days">${DAY_NAMES.map(d => `<span class="day-dot ${c.days.includes(d) ? "on" : ""}">${d[0]}</span>`).join("")}</div>
         </div>
-        ${isNext ? '<span class="class-badge">NEXT UP</span>' : ''}
-      </div>
-      <div class="class-meta-row">
-        <span><b>${daysLabel}</b></span>
-        <span>${timeLabel}</span>
-        ${c.units ? `<span>${escapeHtml(String(c.units))} units</span>` : ''}
-        ${c.room ? `<span>${escapeHtml(c.room)}</span>` : ''}
-        <span>${c.reminderMinutes && Number(c.reminderMinutes) > 0 ? `🔔 ${c.reminderMinutes} min before` : 'No reminder'}</span>
-      </div>
-      <div class="class-actions">
-        <button class="icon-btn class-edit-btn" data-id="${c.id}">EDIT</button>
-        <button class="icon-btn danger class-delete-btn" data-id="${c.id}">DELETE</button>
-      </div>
-    </div>`;
-  }).join('');
-
-  list.querySelectorAll('.class-edit-btn').forEach(b => b.addEventListener('click', () => openClassModal(b.dataset.id)));
-  list.querySelectorAll('.class-delete-btn').forEach(b => b.addEventListener('click', () => deleteClass(b.dataset.id)));
-}
-
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-}
-
-function openClassModal(id){
-  editingClassId = id || null;
-  const overlay = document.getElementById('class-modal-overlay');
-  const title = document.getElementById('class-modal-title');
-  document.getElementById('class-form-error').textContent = '';
-  if(id){
-    const c = classes.find(x => x.id === id);
-    if(!c) return;
-    title.textContent = 'Edit Class';
-    document.getElementById('class-id-input').value = c.id;
-    document.getElementById('class-subject-input').value = c.subject || '';
-    document.getElementById('class-professor-input').value = c.professor || '';
-    document.getElementById('class-units-input').value = c.units || '';
-    document.getElementById('class-room-input').value = c.room || '';
-    document.getElementById('class-start-input').value = c.start || '';
-    document.getElementById('class-end-input').value = c.end || '';
-    document.getElementById('class-reminder-input').value = String(c.reminderMinutes ?? 15);
-    selectedDays = [...(c.days || [])];
-  }else{
-    title.textContent = 'Add Class';
-    document.getElementById('class-id-input').value = '';
-    document.getElementById('class-form').reset();
-    document.getElementById('class-reminder-input').value = '15';
-    selectedDays = [];
-  }
-  document.querySelectorAll('#class-day-picker .day-chip').forEach(chip => {
-    chip.classList.toggle('active', selectedDays.includes(chip.dataset.day));
-  });
-  overlay.style.display = 'flex';
-}
-function closeClassModal(){
-  document.getElementById('class-modal-overlay').style.display = 'none';
-  editingClassId = null;
-}
-
-document.getElementById('class-add-btn').addEventListener('click', () => openClassModal());
-document.getElementById('class-modal-close').addEventListener('click', closeClassModal);
-document.getElementById('class-cancel-btn').addEventListener('click', closeClassModal);
-document.getElementById('class-modal-overlay').addEventListener('click', (e) => {
-  if(e.target.id === 'class-modal-overlay') closeClassModal();
-});
-document.getElementById('class-day-picker').addEventListener('click', (e) => {
-  const chip = e.target.closest('.day-chip');
-  if(!chip) return;
-  const day = chip.dataset.day;
-  if(selectedDays.includes(day)){
-    selectedDays = selectedDays.filter(d => d !== day);
-  }else{
-    selectedDays.push(day);
-  }
-  chip.classList.toggle('active');
-});
-
-document.getElementById('class-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const subject = document.getElementById('class-subject-input').value.trim();
-  const start = document.getElementById('class-start-input').value;
-  const end = document.getElementById('class-end-input').value;
-  const errorEl = document.getElementById('class-form-error');
-  if(!subject){ errorEl.textContent = 'Subject name is required.'; return; }
-  if(!start || !end){ errorEl.textContent = 'Start and end time are required.'; return; }
-  if(!selectedDays.length){ errorEl.textContent = 'Pick at least one day.'; return; }
-
-  const payload = {
-    id: editingClassId || uid(),
-    subject,
-    professor: document.getElementById('class-professor-input').value.trim(),
-    units: document.getElementById('class-units-input').value.trim(),
-    room: document.getElementById('class-room-input').value.trim(),
-    days: [...selectedDays].sort((a,b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)),
-    start, end,
-    reminderMinutes: Number(document.getElementById('class-reminder-input').value) || 0
-  };
-
-  if(editingClassId){
-    const idx = classes.findIndex(c => c.id === editingClassId);
-    if(idx > -1) classes[idx] = payload;
-  }else{
-    classes.push(payload);
-  }
-  await saveClasses();
-  renderClasses();
-  closeClassModal();
-  maybeShowNotifPermissionRow();
-  checkClassReminders();
-});
-
-async function deleteClass(id){
-  if(!confirm('Remove this class from your schedule?')) return;
-  classes = classes.filter(c => c.id !== id);
-  await saveClasses();
-  renderClasses();
-}
-
-/* ---- Reminder engine ---- */
-function maybeShowNotifPermissionRow(){
-  const row = document.getElementById('notif-permission-row');
-  const hasReminderClasses = classes.some(c => Number(c.reminderMinutes) > 0);
-  const canAsk = typeof Notification !== 'undefined' && Notification.permission === 'default';
-  row.style.display = (hasReminderClasses && canAsk) ? 'flex' : 'none';
-}
-const notifEnableBtn = document.getElementById('notif-enable-btn');
-if(notifEnableBtn){
-  notifEnableBtn.addEventListener('click', async () => {
-    if(typeof Notification === 'undefined') return;
-    await Notification.requestPermission();
-    maybeShowNotifPermissionRow();
-    checkClassReminders();
-  });
-}
-
-function nextOccurrence(cls){
-  // Returns the Date of this class's next start time from "now", searching
-  // the next 7 days (including today).
-  const now = new Date();
-  for(let offset = 0; offset < 7; offset++){
-    const d = new Date(now);
-    d.setDate(d.getDate() + offset);
-    const dayKey = DAY_ORDER[(d.getDay() + 6) % 7];
-    if(!(cls.days || []).includes(dayKey)) continue;
-    const [h,m] = (cls.start || '00:00').split(':').map(Number);
-    d.setHours(h, m, 0, 0);
-    if(d.getTime() >= now.getTime() - 60000){ return d; }
-  }
-  return null;
-}
-
-function dateKey(d){ return d.toISOString().slice(0,10); }
-
-async function checkClassReminders(){
-  const banner = document.getElementById('classes-reminder-banner');
-  const now = new Date();
-  let bannerText = null;
-
-  for(const c of classes){
-    const mins = Number(c.reminderMinutes) || 0;
-    if(mins <= 0) continue;
-    const occ = nextOccurrence(c);
-    if(!occ) continue;
-    const minutesUntil = (occ.getTime() - now.getTime()) / 60000;
-    const key = `${c.id}|${dateKey(occ)}`;
-
-    if(minutesUntil <= mins && minutesUntil >= -2 && !notifiedLog[key]){
-      const msg = `${c.subject} starts at ${fmtTime12(c.start)}${c.room ? ' in ' + c.room : ''}${c.professor ? ' with ' + c.professor : ''}.`;
-      fireReminder(`Upcoming class: ${c.subject}`, msg);
-      notifiedLog[key] = true;
-      await saveNotifiedLog();
-      bannerText = msg;
-    }
-    // Also surface a live "starting soon" banner even if already notified once,
-    // so it's visible whenever the Classes tab is accessed.
-    if(!bannerText && minutesUntil > 0 && minutesUntil <= mins){
-      bannerText = `${c.subject} starts at ${fmtTime12(c.start)} — in ${Math.ceil(minutesUntil)} min${c.room ? ' · ' + c.room : ''}.`;
-    }
-  }
-
-  if(bannerText){
-    banner.innerHTML = `<div class="reminder-banner"><span class="bell">🔔</span><span><b>Reminder —</b> ${escapeHtml(bannerText)}</span><button class="reminder-dismiss" id="reminder-dismiss-btn">&times;</button></div>`;
-    const dismissBtn = document.getElementById('reminder-dismiss-btn');
-    if(dismissBtn) dismissBtn.addEventListener('click', () => { banner.innerHTML = ''; });
-  }else{
-    banner.innerHTML = '';
-  }
-}
-
-function fireReminder(title, body){
-  if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
-    try{ new Notification(title, { body, icon: undefined }); }catch(err){ /* ignore */ }
-  }
-  // In-app banner (set by caller) covers the case notifications are denied
-  // or unsupported, and always shows regardless of permission — this is
-  // what makes the reminder fire "wherever the app is accessed."
-}
-
-// Check reminders whenever the app becomes visible/focused (i.e. every time
-// it's accessed), and on a periodic timer while it stays open.
-document.addEventListener('visibilitychange', () => { if(!document.hidden) checkClassReminders(); });
-window.addEventListener('focus', checkClassReminders);
-setInterval(checkClassReminders, 60000);
-
-/* =====================================================================
-   PERSONAL STUDY — NotebookLM-style sources. Uploaded files are read
-   client-side, extracted to plain text, stored locally, and (when
-   toggled on) folded into the AI Assistant's system prompt so its
-   answers can draw on the student's own notes/reviewers.
-   ===================================================================== */
-const STUDY_SOURCES_KEY = 'bw_study_sources_v1';
-const MAX_CHARS_PER_SOURCE = 15000;
-const MAX_TOTAL_CONTEXT_CHARS = 45000;
-let studySources = []; // { id, name, type, chars, text, enabled, addedAt }
-let pdfjsLoaded = false;
-
-async function loadStudySources(){
-  const raw = await storageGet(STUDY_SOURCES_KEY);
-  try{ studySources = raw ? JSON.parse(raw) : []; }catch(err){ studySources = []; }
-}
-async function saveStudySources(){ await storageSet(STUDY_SOURCES_KEY, JSON.stringify(studySources)); }
-
-async function ensurePdfJs(){
-  if(pdfjsLoaded && window.pdfjsLib) return;
-  await new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  pdfjsLoaded = true;
-}
-
-async function extractPdfText(file){
-  await ensurePdfJs();
-  const buf = await file.arrayBuffer();
-  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-  let text = '';
-  const maxPages = Math.min(pdf.numPages, 60);
-  for(let i = 1; i <= maxPages; i++){
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    text += content.items.map(it => it.str).join(' ') + '\n\n';
-    if(text.length > MAX_CHARS_PER_SOURCE) break;
-  }
-  return text.trim();
-}
-
-function readTextFile(file){
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
-}
-
-async function handleStudyFiles(fileList){
-  const files = Array.from(fileList || []);
-  for(const file of files){
-    let text = '';
-    let type = 'TXT';
-    try{
-      if(file.name.toLowerCase().endsWith('.pdf')){
-        type = 'PDF';
-        text = await extractPdfText(file);
-      }else{
-        type = file.name.toLowerCase().endsWith('.md') || file.name.toLowerCase().endsWith('.markdown') ? 'MD' : 'TXT';
-        text = await readTextFile(file);
-      }
-    }catch(err){
-      console.warn('Could not extract text from', file.name, err);
-      text = '';
-    }
-    const truncated = text.length > MAX_CHARS_PER_SOURCE;
-    if(truncated) text = text.slice(0, MAX_CHARS_PER_SOURCE);
-    studySources.push({
-      id: uid(),
-      name: file.name,
-      type,
-      chars: text.length,
-      truncated,
-      text: text || '(No text could be extracted from this file.)',
-      enabled: true,
-      addedAt: Date.now()
+        <div class="assign-actions">
+          <button class="icon-btn" data-action="edit-class" data-val="${c.id}" title="Edit">✎</button>
+          <button class="icon-btn" data-action="delete-class" data-val="${c.id}" title="Delete">✕</button>
+        </div>
+      </div>`;
     });
   }
-  await saveStudySources();
-  renderStudySources();
+  html += `</div>`;
+  return html;
 }
 
-function renderStudySources(){
-  const list = document.getElementById('study-sources-list');
-  if(!studySources.length){
-    list.innerHTML = `<div class="empty-state">No study materials added yet.<br><br>Upload lecture notes, reviewers, or class handouts to enhance the AI Assistant's answers.</div>`;
-    updateContextBudget();
+/* ---------- render: assignments (with email reminders) ---------- */
+function assignStatusPill(item) {
+  if (item.status === "done") return `<span class="status-pill done">Done</span>`;
+  const d = daysUntil(item.dueDate);
+  if (d === null) return `<span class="status-pill ok">No date</span>`;
+  if (d < 0) return `<span class="status-pill overdue">Overdue ${Math.abs(d)}d</span>`;
+  if (d <= 3) return `<span class="status-pill soon">Due in ${d}d · emailing daily</span>`;
+  return `<span class="status-pill ok">Due in ${d}d</span>`;
+}
+function renderAssign() {
+  const a = state.assign;
+  const f = a.form;
+  let html = `<div class="panel-content">
+    <div class="section-title">➕ ${a.editingId ? "Edit assignment" : "Add assignment"} <span class="important-badge">Important</span></div>
+    <div class="info-banner">Assignments due within <b>3 days</b> trigger an email reminder to <b>${escapeHtml(state.reminders.email)}</b>, repeated every day until you mark it finished. Set up the Google Apps Script trigger once (see the Reminders tab) so this keeps running even when this page is closed.</div>
+    <div class="form-grid">
+      <div class="field" style="grid-column: 1 / -1;"><label class="field-label">Title</label><input type="text" id="asg_title" placeholder="e.g. Cargo Stowage Plan — Ch. 4" value="${escapeHtml(f.title)}"></div>
+      <div class="field"><label class="field-label">Class</label>
+        <select data-action="set-assign-class">
+          <option value="">— none —</option>
+          ${state.schedule.classes.map(c => `<option value="${c.id}" ${f.classId === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field"><label class="field-label">Due date</label><input type="date" id="asg_due" value="${f.dueDate}"></div>
+    </div>
+    <div class="field" style="margin-bottom:14px;"><label class="field-label">Notes</label><textarea id="asg_notes" rows="2" placeholder="Requirements, format, submission link…">${escapeHtml(f.notes)}</textarea></div>
+    <div style="display:flex; gap:10px; margin-bottom:22px;">
+      <button class="primary" data-action="save-assign">${a.editingId ? "Update assignment" : "Add assignment"}</button>
+      ${a.editingId ? `<button class="ghost" data-action="cancel-edit-assign">Cancel</button>` : ""}
+    </div>
+    <hr class="divider">
+    <div class="toolbar">
+      <div class="section-title" style="margin:0;">📋 Assignments</div>
+      <div class="filter-row">
+        <button class="chip ${a.filter === "active" ? "selected" : ""}" data-action="set-assign-filter" data-val="active">Active</button>
+        <button class="chip ${a.filter === "all" ? "selected" : ""}" data-action="set-assign-filter" data-val="all">All</button>
+        <button class="chip ${a.filter === "done" ? "selected" : ""}" data-action="set-assign-filter" data-val="done">Done</button>
+      </div>
+    </div>`;
+
+  let items = [...a.items];
+  if (a.filter === "active") items = items.filter(i => i.status !== "done");
+  if (a.filter === "done") items = items.filter(i => i.status === "done");
+  items.sort((x, y) => (x.dueDate || "9999").localeCompare(y.dueDate || "9999"));
+
+  if (!items.length) {
+    html += `<div class="subtle">Nothing here.</div>`;
+  } else {
+    items.forEach(item => {
+      const cls = state.schedule.classes.find(c => c.id === item.classId);
+      html += `<div class="assign-row ${item.status === "done" ? "done" : ""}">
+        <div>
+          <div class="a-title ${item.status === "done" ? "done" : ""}">${escapeHtml(item.title)}</div>
+          <div class="a-meta">${cls ? escapeHtml(cls.name) + " · " : ""}Due ${formatDateNice(item.dueDate)}${item.notes ? " · " + escapeHtml(item.notes) : ""}</div>
+        </div>
+        <div class="assign-actions">
+          ${assignStatusPill(item)}
+          <button class="icon-btn" data-action="toggle-assign-done" data-val="${item.id}" title="${item.status === "done" ? "Mark not done" : "Mark finished"}">${item.status === "done" ? "↺" : "✓"}</button>
+          <button class="icon-btn" data-action="edit-assign" data-val="${item.id}" title="Edit">✎</button>
+          <button class="icon-btn" data-action="delete-assign" data-val="${item.id}" title="Delete">✕</button>
+        </div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+  return html;
+}
+
+/* ---------- render: reminders (daily email + settings) ---------- */
+function renderReminders() {
+  const r = state.reminders;
+  let html = `<div class="panel-content">
+    <div class="section-title">🔔 Daily reminder email <span class="important-badge">Important</span></div>
+    <div class="info-banner">This sends one professional daily digest to your email — today's classes, assignments due soon, and anything you add below. Delivery happens from a small <b>Google Apps Script</b> backend on a daily timer, so it fires even if this page isn't open. One-time setup is required — see the guide below.</div>
+
+    <div class="settings-box">
+      <div class="form-grid">
+        <div class="field"><label class="field-label">Reminder email address</label><input type="email" id="rem_email" value="${escapeHtml(r.email)}"></div>
+        <div class="field"><label class="field-label">Daily send time</label><input type="time" id="rem_time" value="${r.dailyTime}"></div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label class="field-label">Google Apps Script Web App URL</label>
+          <input type="url" id="rem_gasurl" placeholder="https://script.google.com/macros/s/…/exec" value="${escapeHtml(r.gasUrl)}">
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+        <label class="toggle-switch"><input type="checkbox" id="rem_enabled" ${r.dailyEnabled ? "checked" : ""}><span class="slider"></span></label>
+        <span class="subtle">Daily digest enabled</span>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="primary" data-action="save-reminder-settings">Save settings</button>
+        <button class="ghost" data-action="sync-reminders" ${r.syncing ? "disabled" : ""}>${r.syncing ? "Syncing…" : "Sync data to Apps Script"}</button>
+        <button class="ghost" data-action="test-reminder" ${r.testing ? "disabled" : ""}>${r.testing ? "Sending…" : "Send test email"}</button>
+      </div>
+      ${r.syncMsg ? `<div class="sync-status ${r.syncOk ? "ok" : "err"}">${escapeHtml(r.syncMsg)}</div>` : ""}
+      ${r.testMsg ? `<div class="sync-status ${r.testOk ? "ok" : "err"}">${escapeHtml(r.testMsg)}</div>` : ""}
+      ${r.lastSyncedAt ? `<div class="sync-status">Last synced: ${new Date(r.lastSyncedAt).toLocaleString()}</div>` : ""}
+    </div>
+
+    <hr class="divider">
+    <div class="section-title">📝 Extra items for the daily digest</div>
+    <div class="chat-input-row" style="margin-bottom:14px;">
+      <textarea id="rem_custom_text" rows="1" placeholder="e.g. Bring PE uniform on Fridays"></textarea>
+      <button class="primary" data-action="add-custom-reminder">Add</button>
+    </div>`;
+  if (!r.custom.length) {
+    html += `<div class="subtle" style="margin-bottom:18px;">No extra items — the digest will still include today's classes and assignments due soon.</div>`;
+  } else {
+    r.custom.forEach(c => {
+      html += `<div class="custom-reminder-row">
+        <span style="${c.active ? "" : "text-decoration:line-through; opacity:0.5;"}">${escapeHtml(c.text)}</span>
+        <div class="assign-actions">
+          <label class="toggle-switch"><input type="checkbox" data-action="toggle-custom-reminder" data-val="${c.id}" ${c.active ? "checked" : ""}><span class="slider"></span></label>
+          <button class="icon-btn" data-action="delete-custom-reminder" data-val="${c.id}">✕</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  html += `<hr class="divider">
+    <div class="section-title">⚙️ One-time backend setup</div>
+    <div class="subtle" style="margin-bottom:10px;">
+      A static page can't send email on a schedule by itself once you close the tab — it needs a small always-on backend, same as your other Apps Script proxies:
+    </div>
+    <ol class="subtle" style="padding-left:18px; line-height:1.9;">
+      <li>Create a new Apps Script project (script.google.com) and paste in the <b>Code.gs</b> provided alongside this app.</li>
+      <li>Deploy it as a <b>Web App</b> ("Execute as: me", "Who has access: Anyone"), then paste the deployment URL above and click <b>Save settings</b>, then <b>Sync data to Apps Script</b>.</li>
+      <li>In the Apps Script editor, open <b>Triggers</b> → <b>Add Trigger</b> → function <code>sendDailyCheck</code> → time-driven → day timer → pick the hour that matches your send time above.</li>
+      <li>Click <b>Send test email</b> here to confirm delivery before relying on it.</li>
+    </ol>
+  </div>`;
+  return html;
+}
+
+/* ---------- master render ---------- */
+function render() {
+  const watch = getWatch(state.now);
+  const isDark = state.themeOverride ? state.themeOverride === "dark" : watch.dark;
+  let panelHtml = "";
+  if (state.tab === "chat") panelHtml = renderChat();
+  else if (state.tab === "quiz") panelHtml = renderQuiz();
+  else if (state.tab === "flash") panelHtml = renderFlash();
+  else if (state.tab === "study") panelHtml = renderStudy();
+  else if (state.tab === "schedule") panelHtml = renderSchedule();
+  else if (state.tab === "assign") panelHtml = renderAssign();
+  else panelHtml = renderReminders();
+
+  const root = document.getElementById("root");
+  root.innerHTML = `
+    <div data-theme="${isDark ? "dark" : "light"}">
+      ${renderHeader()}
+      ${renderNav()}
+      <main><div class="panel">${panelHtml}</div></main>
+      <footer class="note">Answers are checked against live maritime sources where facts are involved. Always cross-check critical figures against your official COLREGS text before an exam or watch.</footer>
+    </div>`;
+  document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+
+  if (state.tab === "chat") {
+    const log = document.getElementById("chatLog");
+    if (log) log.scrollTop = log.scrollHeight;
+    const input = document.getElementById("chatInput");
+    if (input) input.focus();
+  }
+  if (state.tab === "study") {
+    const log = document.getElementById("studyChatLog");
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+
+/* ---------- lightweight clock tick (no full re-render) ---------- */
+setInterval(() => {
+  state.now = new Date();
+  const watch = getWatch(state.now);
+  const isDark = state.themeOverride ? state.themeOverride === "dark" : watch.dark;
+  const nameEl = document.getElementById("watchName");
+  const timeEl = document.getElementById("watchTime");
+  if (nameEl) nameEl.textContent = watch.name;
+  if (timeEl) timeEl.textContent = state.now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const currentTheme = document.documentElement.getAttribute("data-theme");
+  if ((isDark ? "dark" : "light") !== currentTheme) render();
+}, 30000);
+
+/* ---------- actions ---------- */
+async function sendChat(text) {
+  const c = state.chat;
+  const input = document.getElementById("chatInput");
+  const q = (text ?? input?.value ?? "").trim();
+  if (!q || c.loading) return;
+  c.error = null;
+  c.messages.push({ role: "user", content: q });
+  c.loading = true;
+  render();
+  try {
+    const apiMessages = c.messages.map(m => ({ role: m.role, content: m.content }));
+    const result = await callClaude({ system: CHAT_SYSTEM, messages: apiMessages, useSearch: true });
+    c.messages.push({ role: "assistant", content: result.text, usedSearch: result.usedSearch, sources: result.sources });
+  } catch (e) {
+    c.error = e.message || "Something went wrong reaching the bridge. Try again.";
+  } finally {
+    c.loading = false;
+    render();
+  }
+}
+
+async function generateQuiz() {
+  const q = state.quiz;
+  q.loading = true; q.error = null; q.quiz = null; q.idx = 0; q.selected = null; q.score = 0;
+  render();
+  const sys = `You write BSMT board-exam style quiz questions. Ground every question and answer in verified, bonafide maritime sources (IMO COLREGS text, USCG Navigation Rules, IALA, STCW, Bowditch or equivalent standard references) — use the web_search tool to confirm exact rule numbers and facts before writing the question. Never invent a rule number or fact.
+Respond with ONLY a JSON object, no preamble, no markdown fences, matching exactly this shape:
+{"questions":[{"question":"...","options":["A text","B text","C text","D text"],"correctIndex":0,"explanation":"short explanation citing the source"}]}`;
+  const userMsg = `Write ${q.count} multiple-choice questions on: ${q.topic}. Each question needs exactly 4 options and one correct index (0-3).`;
+  try {
+    const result = await callClaude({ system: sys, messages: [{ role: "user", content: userMsg }], useSearch: true });
+    const parsed = extractJSON(result.text);
+    if (!parsed.questions || !parsed.questions.length) throw new Error("No questions were returned. Try again.");
+    q.quiz = parsed;
+  } catch (e) {
+    q.error = e.message || "Couldn't generate the quiz. Try again.";
+  } finally {
+    q.loading = false;
+    render();
+  }
+}
+
+function chooseOption(i) {
+  const q = state.quiz;
+  if (q.selected !== null) return;
+  q.selected = i;
+  if (i === q.quiz.questions[q.idx].correctIndex) q.score += 1;
+  render();
+}
+
+async function nextQuestion() {
+  const q = state.quiz;
+  if (q.idx + 1 < q.quiz.questions.length) {
+    q.idx += 1; q.selected = null;
+    render();
+  } else {
+    const entry = { topic: q.topic, score: q.score, total: q.quiz.questions.length, when: new Date().toLocaleString() };
+    q.history = [entry, ...q.history].slice(0, 12);
+    await storageSet("bw_quiz_history", q.history);
+    q.quiz = null;
+    render();
+  }
+}
+
+async function generateFlash() {
+  const f = state.flash;
+  f.loading = true; f.error = null; f.deck = null; f.idx = 0; f.flipped = false; f.known = 0;
+  render();
+  const sys = `You write concise BSMT/maritime flashcards. Ground every fact in verified, bonafide sources (IMO COLREGS, USCG Navigation Rules, IALA, STCW, standard maritime textbooks) — use web_search to confirm exact wording, numbers, or rule citations before writing a card. Never invent facts.
+Respond with ONLY a JSON object, no preamble, no markdown fences:
+{"cards":[{"front":"short prompt or term","back":"concise, exam-ready answer, cite source if a specific rule/number"}]}`;
+  const userMsg = `Create ${f.count} flashcards on: ${f.topic}.`;
+  try {
+    const result = await callClaude({ system: sys, messages: [{ role: "user", content: userMsg }], useSearch: true });
+    const parsed = extractJSON(result.text);
+    if (!parsed.cards || !parsed.cards.length) throw new Error("No flashcards were returned. Try again.");
+    const newDeck = { topic: f.topic, cards: parsed.cards, savedAt: new Date().toLocaleString() };
+    f.deck = newDeck;
+    f.savedDecks = [{ topic: newDeck.topic, cards: newDeck.cards, savedAt: newDeck.savedAt }, ...f.savedDecks].slice(0, 8);
+    await storageSet("bw_saved_decks", f.savedDecks);
+  } catch (e) {
+    f.error = e.message || "Couldn't generate flashcards. Try again.";
+  } finally {
+    f.loading = false;
+    render();
+  }
+}
+
+function flashAdvance(gotIt) {
+  const f = state.flash;
+  if (gotIt) f.known += 1;
+  const isLast = f.idx + 1 >= f.deck.cards.length;
+  f.flipped = false;
+  if (!isLast) f.idx += 1; else f.deck = null;
+  render();
+}
+
+/* ---------- actions: personal study ---------- */
+async function handleFiles(fileList) {
+  const s = state.study;
+  s.uploadError = null;
+  const files = Array.from(fileList || []);
+  for (const file of files) {
+    if (file.size > 9 * 1024 * 1024) {
+      s.uploadError = `"${file.name}" is over 9MB — attach a smaller file or split it.`;
+      continue;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const mime = file.type || "application/octet-stream";
+      const kind = mime.startsWith("image/") ? "image" : mime === "application/pdf" ? "pdf" : "text";
+      s.sources.push({ id: uid(), name: file.name, mime, kind, dataUrl, size: file.size, addedAt: Date.now() });
+    } catch (e) {
+      s.uploadError = "Couldn't read one of the files. Try again.";
+    }
+  }
+  await storageSet("bw_study_sources", s.sources);
+  render();
+}
+function toggleSource(id) {
+  const s = state.study;
+  s.activeIds = s.activeIds.includes(id) ? s.activeIds.filter(x => x !== id) : [...s.activeIds, id];
+  render();
+}
+async function removeSource(id) {
+  const s = state.study;
+  s.sources = s.sources.filter(x => x.id !== id);
+  s.activeIds = s.activeIds.filter(x => x !== id);
+  await storageSet("bw_study_sources", s.sources);
+  render();
+}
+function sourceContentBlock(src) {
+  if (src.kind === "image") return { type: "image", source: { type: "base64", media_type: src.mime, data: base64FromDataUrl(src.dataUrl) } };
+  if (src.kind === "pdf") return { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64FromDataUrl(src.dataUrl) } };
+  return null; // plain text sources are inlined into the prompt text instead
+}
+async function saveNoteFromAI(sourceId, title, body) {
+  const s = state.study;
+  const now = Date.now();
+  s.notes.push({ id: uid(), title, body, sourceId, tags: [], pinned: false, createdAt: now, updatedAt: now });
+  await storageSet("bw_study_notes", s.notes);
+}
+async function summarizeSource(id) {
+  const s = state.study;
+  const src = s.sources.find(x => x.id === id);
+  if (!src || s.summarizingId) return;
+  s.summarizingId = id;
+  render();
+  try {
+    const sys = "You summarize BSMT study material into concise, exam-ready notes for a cadet. Use short headers and tight bullet points. Include key facts, definitions, formulas, and anything worth memorizing. Do not invent facts not present in the source.";
+    const content = [];
+    const block = sourceContentBlock(src);
+    if (block) content.push(block);
+    else content.push({ type: "text", text: `Source text content ("${src.name}"):\n${atob(base64FromDataUrl(src.dataUrl))}` });
+    content.push({ type: "text", text: "Summarize this into structured study notes." });
+    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false });
+    await saveNoteFromAI(id, `Summary: ${src.name}`, result.text);
+  } catch (e) {
+    s.uploadError = e.message || "Couldn't summarize that source. Try again.";
+  } finally {
+    s.summarizingId = null;
+    render();
+  }
+}
+async function saveNote() {
+  const s = state.study;
+  const title = (document.getElementById("note_title")?.value || "").trim();
+  const body = (document.getElementById("note_body")?.value || "").trim();
+  if (!title && !body) return;
+  const now = Date.now();
+  if (s.editingNoteId) {
+    const n = s.notes.find(x => x.id === s.editingNoteId);
+    if (n) { n.title = title; n.body = body; n.sourceId = s.noteForm.sourceId; n.updatedAt = now; }
+    s.editingNoteId = null;
+  } else {
+    s.notes.push({ id: uid(), title, body, sourceId: s.noteForm.sourceId, tags: [], pinned: false, createdAt: now, updatedAt: now });
+  }
+  s.noteForm = { title: "", body: "", sourceId: "" };
+  await storageSet("bw_study_notes", s.notes);
+  render();
+}
+function editNote(id) {
+  const s = state.study;
+  const n = s.notes.find(x => x.id === id);
+  if (!n) return;
+  s.editingNoteId = id;
+  s.noteForm = { title: n.title, body: n.body, sourceId: n.sourceId || "" };
+  render();
+}
+async function deleteNote(id) {
+  const s = state.study;
+  s.notes = s.notes.filter(x => x.id !== id);
+  await storageSet("bw_study_notes", s.notes);
+  render();
+}
+async function pinNote(id) {
+  const s = state.study;
+  const n = s.notes.find(x => x.id === id);
+  if (n) n.pinned = !n.pinned;
+  await storageSet("bw_study_notes", s.notes);
+  render();
+}
+async function sendStudyChat(text) {
+  const s = state.study;
+  const input = document.getElementById("studyChatInput");
+  const q = (text ?? input?.value ?? "").trim();
+  if (!q || s.chat.loading) return;
+  s.chat.error = null;
+  s.chat.messages.push({ role: "user", content: q });
+  s.chat.loading = true;
+  render();
+  try {
+    const activeSources = s.sources.filter(x => s.activeIds.includes(x.id));
+    const content = [];
+    activeSources.forEach(src => {
+      const block = sourceContentBlock(src);
+      if (block) content.push(block);
+      else { try { content.push({ type: "text", text: `Source "${src.name}":\n${atob(base64FromDataUrl(src.dataUrl))}` }); } catch (e) {} }
+    });
+    content.push({ type: "text", text: q });
+    const sys = activeSources.length
+      ? "You are a study assistant for a BSMT cadet. Answer strictly grounded in the attached source material. If the answer isn't in the sources, say so clearly rather than guessing, and offer to search general maritime knowledge instead."
+      : CHAT_SYSTEM;
+    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: !activeSources.length });
+    s.chat.messages.push({ role: "assistant", content: result.text });
+  } catch (e) {
+    s.chat.error = e.message || "Something went wrong. Try again.";
+  } finally {
+    s.chat.loading = false;
+    render();
+  }
+}
+
+/* ---------- actions: class schedule ---------- */
+async function saveClass() {
+  const sc = state.schedule;
+  const f = sc.form;
+  f.name = (document.getElementById("sch_name")?.value || "").trim();
+  f.professor = (document.getElementById("sch_prof")?.value || "").trim();
+  f.units = (document.getElementById("sch_units")?.value || "").trim();
+  f.room = (document.getElementById("sch_room")?.value || "").trim();
+  f.start = document.getElementById("sch_start")?.value || f.start;
+  f.end = document.getElementById("sch_end")?.value || f.end;
+  if (!f.name) return;
+  if (sc.editingId) {
+    const c = sc.classes.find(x => x.id === sc.editingId);
+    if (c) Object.assign(c, f);
+    sc.editingId = null;
+  } else {
+    sc.classes.push({ id: uid(), ...JSON.parse(JSON.stringify(f)) });
+  }
+  sc.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "" };
+  await storageSet("bw_schedule_classes", sc.classes);
+  render();
+}
+function editClass(id) {
+  const sc = state.schedule;
+  const c = sc.classes.find(x => x.id === id);
+  if (!c) return;
+  sc.editingId = id;
+  sc.form = { name: c.name, professor: c.professor, units: c.units, type: c.type, days: [...c.days], start: c.start, end: c.end, room: c.room };
+  render();
+}
+async function deleteClass(id) {
+  const sc = state.schedule;
+  sc.classes = sc.classes.filter(x => x.id !== id);
+  await storageSet("bw_schedule_classes", sc.classes);
+  render();
+}
+
+/* ---------- actions: assignments ---------- */
+async function saveAssign() {
+  const a = state.assign;
+  const f = a.form;
+  f.title = (document.getElementById("asg_title")?.value || "").trim();
+  f.dueDate = document.getElementById("asg_due")?.value || "";
+  f.notes = (document.getElementById("asg_notes")?.value || "").trim();
+  if (!f.title) return;
+  if (a.editingId) {
+    const it = a.items.find(x => x.id === a.editingId);
+    if (it) { it.title = f.title; it.classId = f.classId; it.dueDate = f.dueDate; it.notes = f.notes; }
+    a.editingId = null;
+  } else {
+    a.items.push({ id: uid(), title: f.title, classId: f.classId, dueDate: f.dueDate, notes: f.notes, status: "pending", createdAt: Date.now() });
+  }
+  a.form = { title: "", classId: "", dueDate: "", notes: "" };
+  await storageSet("bw_assignments", a.items);
+  render();
+}
+function editAssign(id) {
+  const a = state.assign;
+  const it = a.items.find(x => x.id === id);
+  if (!it) return;
+  a.editingId = id;
+  a.form = { title: it.title, classId: it.classId || "", dueDate: it.dueDate || "", notes: it.notes || "" };
+  render();
+}
+async function deleteAssign(id) {
+  const a = state.assign;
+  a.items = a.items.filter(x => x.id !== id);
+  await storageSet("bw_assignments", a.items);
+  render();
+}
+async function toggleAssignDone(id) {
+  const a = state.assign;
+  const it = a.items.find(x => x.id === id);
+  if (it) it.status = it.status === "done" ? "pending" : "done";
+  await storageSet("bw_assignments", a.items);
+  render();
+}
+
+/* ---------- actions: reminders / GAS sync ---------- */
+function buildSyncPayload() {
+  return {
+    classes: state.schedule.classes,
+    assignments: state.assign.items,
+    reminders: {
+      email: state.reminders.email,
+      dailyEnabled: state.reminders.dailyEnabled,
+      dailyTime: state.reminders.dailyTime,
+      custom: state.reminders.custom
+    }
+  };
+}
+async function gasRequest(payload) {
+  const r = state.reminders;
+  if (!r.gasUrl) throw new Error("Add your Apps Script Web App URL first.");
+  const res = await fetch(r.gasUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight, per project convention
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error("The backend returned an error (status " + res.status + ").");
+  return res.json().catch(() => ({}));
+}
+async function saveReminderSettings() {
+  const r = state.reminders;
+  r.email = (document.getElementById("rem_email")?.value || r.email).trim();
+  r.dailyTime = document.getElementById("rem_time")?.value || r.dailyTime;
+  r.gasUrl = (document.getElementById("rem_gasurl")?.value || "").trim();
+  r.dailyEnabled = !!document.getElementById("rem_enabled")?.checked;
+  await storageSet("bw_reminders", r);
+  render();
+}
+async function syncReminders() {
+  const r = state.reminders;
+  r.syncing = true; r.syncMsg = null; render();
+  try {
+    await gasRequest({ action: "sync", ...buildSyncPayload() });
+    r.syncOk = true; r.syncMsg = "Synced — the backend now has your latest classes, assignments, and reminder list.";
+    r.lastSyncedAt = Date.now();
+    await storageSet("bw_reminders", r);
+  } catch (e) {
+    r.syncOk = false; r.syncMsg = e.message || "Sync failed. Check the Web App URL and deployment access.";
+  } finally {
+    r.syncing = false; render();
+  }
+}
+async function testReminder() {
+  const r = state.reminders;
+  r.testing = true; r.testMsg = null; render();
+  try {
+    await gasRequest({ action: "test", ...buildSyncPayload() });
+    r.testOk = true; r.testMsg = `Test email requested — check ${r.email}.`;
+  } catch (e) {
+    r.testOk = false; r.testMsg = e.message || "Couldn't reach the backend.";
+  } finally {
+    r.testing = false; render();
+  }
+}
+async function addCustomReminder() {
+  const r = state.reminders;
+  const el = document.getElementById("rem_custom_text");
+  const text = (el?.value || "").trim();
+  if (!text) return;
+  r.custom.push({ id: uid(), text, active: true });
+  await storageSet("bw_reminders", r);
+  render();
+}
+async function toggleCustomReminder(id) {
+  const r = state.reminders;
+  const c = r.custom.find(x => x.id === id);
+  if (c) c.active = !c.active;
+  await storageSet("bw_reminders", r);
+  render();
+}
+async function deleteCustomReminder(id) {
+  const r = state.reminders;
+  r.custom = r.custom.filter(x => x.id !== id);
+  await storageSet("bw_reminders", r);
+  render();
+}
+
+/* ---------- event delegation ---------- */
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const action = el.dataset.action;
+  const val = el.dataset.val;
+  const quickPrompts = [
+    "Explain Rule 15 (crossing situation)",
+    "IALA Region A vs B buoyage differences",
+    "How do I compute compass error?",
+    "Sound signals in restricted visibility"
+  ];
+  switch (action) {
+    case "set-tab": state.tab = val; render(); break;
+    case "set-theme":
+      state.themeOverride = val === "auto" ? null : val;
+      storageSet("bw_theme_pref", state.themeOverride);
+      render();
+      break;
+    case "send-chat": sendChat(); break;
+    case "retry-chat": {
+      const last = [...state.chat.messages].reverse().find(m => m.role === "user");
+      if (last) sendChat(last.content);
+      break;
+    }
+    case "quick-prompt": sendChat(quickPrompts[Number(el.dataset.idx)]); break;
+    case "set-quiz-topic": state.quiz.topic = val; render(); break;
+    case "generate-quiz": generateQuiz(); break;
+    case "choose-option": chooseOption(Number(val)); break;
+    case "next-question": nextQuestion(); break;
+    case "set-flash-topic": state.flash.topic = val; render(); break;
+    case "generate-flash": generateFlash(); break;
+    case "load-saved-deck": {
+      const d = state.flash.savedDecks[Number(val)];
+      if (d) { state.flash.deck = d; state.flash.idx = 0; state.flash.flipped = false; state.flash.known = 0; render(); }
+      break;
+    }
+    case "flip-card": state.flash.flipped = !state.flash.flipped; render(); break;
+    case "end-session": state.flash.deck = null; render(); break;
+    case "still-learning": flashAdvance(false); break;
+    case "know-it": flashAdvance(true); break;
+
+    /* -- personal study -- */
+    case "pick-file": document.getElementById("fileInput")?.click(); break;
+    case "toggle-source": toggleSource(val); break;
+    case "remove-source": removeSource(val); break;
+    case "summarize-source": summarizeSource(val); break;
+    case "save-note": saveNote(); break;
+    case "edit-note": editNote(val); break;
+    case "delete-note": deleteNote(val); break;
+    case "pin-note": pinNote(val); break;
+    case "cancel-edit-note": state.study.editingNoteId = null; state.study.noteForm = { title: "", body: "", sourceId: "" }; render(); break;
+    case "send-study-chat": sendStudyChat(); break;
+
+    /* -- class schedule -- */
+    case "set-class-type": state.schedule.form.type = val; render(); break;
+    case "toggle-class-day": {
+      const days = state.schedule.form.days;
+      state.schedule.form.days = days.includes(val) ? days.filter(d => d !== val) : [...days, val];
+      render();
+      break;
+    }
+    case "save-class": saveClass(); break;
+    case "edit-class": editClass(val); break;
+    case "delete-class": deleteClass(val); break;
+    case "cancel-edit-class": state.schedule.editingId = null; state.schedule.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "" }; render(); break;
+
+    /* -- assignments -- */
+    case "save-assign": saveAssign(); break;
+    case "edit-assign": editAssign(val); break;
+    case "delete-assign": deleteAssign(val); break;
+    case "toggle-assign-done": toggleAssignDone(val); break;
+    case "set-assign-filter": state.assign.filter = val; render(); break;
+    case "cancel-edit-assign": state.assign.editingId = null; state.assign.form = { title: "", classId: "", dueDate: "", notes: "" }; render(); break;
+
+    /* -- reminders -- */
+    case "save-reminder-settings": saveReminderSettings(); break;
+    case "sync-reminders": syncReminders(); break;
+    case "test-reminder": testReminder(); break;
+    case "add-custom-reminder": addCustomReminder(); break;
+    case "delete-custom-reminder": deleteCustomReminder(val); break;
+  }
+});
+
+document.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.id === "fileInput" && el.files && el.files.length) {
+    handleFiles(el.files);
+    el.value = "";
     return;
   }
-  list.innerHTML = studySources.map(s => `
-    <div class="source-card" data-id="${s.id}">
-      <div class="source-card-head">
-        <div class="source-icon">${s.type}</div>
-        <div class="source-info">
-          <div class="source-name">${escapeHtml(s.name)}</div>
-          <div class="source-meta-line">${s.chars.toLocaleString()} chars${s.truncated ? ' (truncated)' : ''} · added ${new Date(s.addedAt).toLocaleDateString()}</div>
-        </div>
-      </div>
-      <div class="source-preview">${escapeHtml(s.text.slice(0, 2000))}${s.text.length > 2000 ? '…' : ''}</div>
-      <div class="source-footer">
-        <label class="source-toggle-label">
-          <span class="toggle-switch">
-            <input type="checkbox" class="source-toggle" data-id="${s.id}" ${s.enabled ? 'checked' : ''}>
-            <span class="toggle-slider"></span>
-          </span>
-          Use in AI Assistant
-        </label>
-        <div class="class-actions">
-          <button class="icon-btn source-view-btn" data-id="${s.id}">VIEW</button>
-          <button class="icon-btn danger source-delete-btn" data-id="${s.id}">DELETE</button>
-        </div>
-      </div>
-    </div>
-  `).join('');
+  if (!el.dataset || !el.dataset.action) return;
+  if (el.dataset.action === "set-quiz-count") { state.quiz.count = Number(el.value); }
+  if (el.dataset.action === "set-flash-count") { state.flash.count = Number(el.value); }
+  if (el.dataset.action === "set-note-source") { state.study.noteForm.sourceId = el.value; }
+  if (el.dataset.action === "set-assign-class") { state.assign.form.classId = el.value; }
+  if (el.dataset.action === "toggle-custom-reminder") { toggleCustomReminder(el.dataset.val); }
+});
 
-  list.querySelectorAll('.source-toggle').forEach(t => t.addEventListener('change', async (e) => {
-    const s = studySources.find(x => x.id === e.target.dataset.id);
-    if(s){ s.enabled = e.target.checked; await saveStudySources(); updateContextBudget(); }
-  }));
-  list.querySelectorAll('.source-view-btn').forEach(b => b.addEventListener('click', () => {
-    document.querySelector(`.source-card[data-id="${b.dataset.id}"]`).classList.toggle('expanded');
-  }));
-  list.querySelectorAll('.source-delete-btn').forEach(b => b.addEventListener('click', async () => {
-    if(!confirm('Remove this source from Personal Study?')) return;
-    studySources = studySources.filter(x => x.id !== b.dataset.id);
-    await saveStudySources();
-    renderStudySources();
-  }));
-  updateContextBudget();
-}
-
-function updateContextBudget(){
-  const el = document.getElementById('study-context-budget');
-  const totalChars = studySources.filter(s => s.enabled).reduce((sum, s) => sum + s.chars, 0);
-  const over = totalChars > MAX_TOTAL_CONTEXT_CHARS;
-  el.textContent = `${totalChars.toLocaleString()} / ${MAX_TOTAL_CONTEXT_CHARS.toLocaleString()} chars in AI context`;
-  el.classList.toggle('over', over);
-}
-
-function buildSystemPromptWithSources(){
-  const enabled = studySources.filter(s => s.enabled);
-  if(!enabled.length) return SYSTEM_PROMPT;
-  let budget = MAX_TOTAL_CONTEXT_CHARS;
-  const chunks = [];
-  for(const s of enabled){
-    if(budget <= 0) break;
-    const piece = s.text.slice(0, budget);
-    budget -= piece.length;
-    chunks.push(`--- SOURCE: ${s.name} ---\n${piece}`);
+document.addEventListener("keydown", (e) => {
+  if (e.target && e.target.id === "chatInput" && e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
   }
-  return `${SYSTEM_PROMPT}
-
-STUDENT'S PERSONAL STUDY MATERIALS (uploaded by the student in the Personal Study tab — treat as supplementary context, not a replacement for verifying against bonafide sources; if these notes conflict with an authoritative source, say so):
-${chunks.join('\n\n')}`;
-}
-
-const studyUploadZone = document.getElementById('study-upload-zone');
-const studyFileInput = document.getElementById('study-file-input');
-studyUploadZone.addEventListener('click', () => studyFileInput.click());
-studyFileInput.addEventListener('change', (e) => {
-  handleStudyFiles(e.target.files);
-  studyFileInput.value = '';
-});
-studyUploadZone.addEventListener('dragover', (e) => { e.preventDefault(); studyUploadZone.classList.add('drag-over'); });
-studyUploadZone.addEventListener('dragleave', () => studyUploadZone.classList.remove('drag-over'));
-studyUploadZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  studyUploadZone.classList.remove('drag-over');
-  handleStudyFiles(e.dataTransfer.files);
+  if (e.target && e.target.id === "studyChatInput" && e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendStudyChat();
+  }
+  if (e.target && e.target.id === "rem_custom_text" && e.key === "Enter") {
+    e.preventDefault();
+    addCustomReminder();
+  }
 });
 
-/* ---- Init ---- */
-(async function initScheduleAndStudy(){
-  await loadClasses();
-  renderClasses();
-  maybeShowNotifPermissionRow();
-  checkClassReminders();
-  await loadStudySources();
-  renderStudySources();
+/* ---------- boot ---------- */
+(async function init() {
+  state.themeOverride = await storageGet("bw_theme_pref", null);
+  state.quiz.history = await storageGet("bw_quiz_history", []);
+  state.flash.savedDecks = await storageGet("bw_saved_decks", []);
+  state.study.sources = await storageGet("bw_study_sources", []);
+  state.study.notes = await storageGet("bw_study_notes", []);
+  state.schedule.classes = await storageGet("bw_schedule_classes", []);
+  state.assign.items = await storageGet("bw_assignments", []);
+  const savedReminders = await storageGet("bw_reminders", null);
+  if (savedReminders) state.reminders = { ...state.reminders, ...savedReminders, syncing: false, testing: false, syncMsg: null, testMsg: null };
+  render();
 })();
-
 </script>
 </body>
 </html>
