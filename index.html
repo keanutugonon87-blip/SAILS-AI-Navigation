@@ -534,13 +534,27 @@ async function storageSet(key, value) {
 async function callClaude({ system, messages, useSearch }) {
   const body = { model: "claude-sonnet-4-6", max_tokens: 1500, system, messages };
   if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) throw new Error("The API returned an error (status " + res.status + "). Please try again.");
-  const data = await res.json();
+
+  const proxyUrl = (state.reminders && state.reminders.gasUrl) || "";
+  let data;
+  if (proxyUrl) {
+    data = await callClaudeViaProxy(proxyUrl, body);
+  } else {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error("The API returned an error (status " + res.status + "). Please try again.");
+      data = await res.json();
+    } catch (e) {
+      // Direct browser calls to api.anthropic.com only work inside the Claude.ai artifact
+      // preview, where Anthropic injects credentials transparently. Outside that sandbox
+      // (e.g. deployed to GitHub Pages) there's no key and no CORS permission, so this fails.
+      throw new Error("AI features need a backend once this page is deployed outside the Claude preview — direct browser calls to Anthropic aren't possible without one. Paste your Apps Script Web App URL into the Reminders tab (Code.gs proxies AI calls through Gemini, using a GEMINI_API_KEY you set in its Script Properties), then try again.");
+    }
+  }
   const textBlocks = (data.content || []).filter(b => b.type === "text").map(b => b.text);
   const usedSearch = (data.content || []).some(b => b.type === "server_tool_use" && b.name === "web_search");
   const sources = [];
@@ -552,6 +566,26 @@ async function callClaude({ system, messages, useSearch }) {
     }
   });
   return { text: textBlocks.join("\n\n").trim(), usedSearch, sources: [...new Set(sources)].slice(0, 6) };
+}
+
+async function callClaudeViaProxy(url, anthropicBody) {
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      mode: "cors",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight, per project convention
+      body: JSON.stringify({ action: "ask", payload: anthropicBody })
+    });
+  } catch (networkErr) {
+    throw new Error("Couldn't reach your Apps Script backend (\"Failed to fetch\"). Open the Web App URL directly in a browser tab to confirm it's live, and check the deployment's access is set to \"Anyone.\"");
+  }
+  if (!res.ok) throw new Error("The backend responded with an error (status " + res.status + ").");
+  let json;
+  try { json = await res.json(); } catch (e) { throw new Error("The backend responded but didn't return valid JSON — make sure Code.gs is fully pasted in and redeployed."); }
+  if (!json || json.ok === false) throw new Error((json && json.error) || "The backend reported an error handling the AI request.");
+  return json.data;
 }
 
 function extractJSON(text) {
@@ -990,15 +1024,15 @@ function renderAssign() {
 function renderReminders() {
   const r = state.reminders;
   let html = `<div class="panel-content">
-    <div class="section-title">🔔 Daily reminder email <span class="important-badge">Important</span></div>
-    <div class="info-banner">This sends one professional daily digest to your email — today's classes, assignments due soon, and anything you add below. Delivery happens from a small <b>Google Apps Script</b> backend on a daily timer, so it fires even if this page isn't open. One-time setup is required — see the guide below.</div>
+    <div class="section-title">🔔 Backend &amp; daily reminder email <span class="important-badge">Important</span></div>
+    <div class="info-banner">One small <b>Google Apps Script</b> backend does two jobs: it sends your assignment &amp; daily reminder emails on a timer even when this page is closed, <em>and</em> it proxies the AI calls for Ask the Officer, Quiz, Flashcards, and Personal Study (since a browser can't safely hold an API key on its own once this page is deployed outside the Claude preview). One-time setup — see the guide below.</div>
 
     <div class="settings-box">
       <div class="form-grid">
         <div class="field"><label class="field-label">Reminder email address</label><input type="email" id="rem_email" value="${escapeHtml(r.email)}"></div>
         <div class="field"><label class="field-label">Daily send time</label><input type="time" id="rem_time" value="${r.dailyTime}"></div>
         <div class="field" style="grid-column: 1 / -1;">
-          <label class="field-label">Google Apps Script Web App URL</label>
+          <label class="field-label">Apps Script Web App URL (backend + AI proxy)</label>
           <input type="url" id="rem_gasurl" placeholder="https://script.google.com/macros/s/…/exec" value="${escapeHtml(r.gasUrl)}">
         </div>
       </div>
@@ -1008,6 +1042,7 @@ function renderReminders() {
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="primary" data-action="save-reminder-settings">Save settings</button>
+        <button class="ghost" data-action="ping-gas" ${r.testing ? "disabled" : ""}>Test connection</button>
         <button class="ghost" data-action="sync-reminders" ${r.syncing ? "disabled" : ""}>${r.syncing ? "Syncing…" : "Sync data to Apps Script"}</button>
         <button class="ghost" data-action="test-reminder" ${r.testing ? "disabled" : ""}>${r.testing ? "Sending…" : "Send test email"}</button>
       </div>
@@ -1039,14 +1074,18 @@ function renderReminders() {
   html += `<hr class="divider">
     <div class="section-title">⚙️ One-time backend setup</div>
     <div class="subtle" style="margin-bottom:10px;">
-      A static page can't send email on a schedule by itself once you close the tab — it needs a small always-on backend, same as your other Apps Script proxies:
+      A static page can't send scheduled email, and can't safely hold an API key, once you close the tab — both need a small always-on backend, same as your other Apps Script proxies:
     </div>
     <ol class="subtle" style="padding-left:18px; line-height:1.9;">
       <li>Create a new Apps Script project (script.google.com) and paste in the <b>Code.gs</b> provided alongside this app.</li>
-      <li>Deploy it as a <b>Web App</b> ("Execute as: me", "Who has access: Anyone"), then paste the deployment URL above and click <b>Save settings</b>, then <b>Sync data to Apps Script</b>.</li>
+      <li>In the editor: <b>Project Settings → Script Properties → Add script property</b>, name it <code>GEMINI_API_KEY</code>, and paste in a free key from <b>aistudio.google.com/apikey</b> (same Google account). (Skip this step if you only want the reminder emails, not the AI features.)</li>
+      <li>Run the <code>sendDailyCheck</code> function once manually from the editor (▶️ Run) and approve the permission prompts — this authorizes Gmail sending before the trigger relies on it.</li>
+      <li>Deploy it as a <b>Web App</b> ("Execute as: me", "Who has access: Anyone"), then paste the deployment URL above and click <b>Save settings</b>.</li>
+      <li>Click <b>Test connection</b> to confirm the browser can actually reach it, then <b>Sync data to Apps Script</b>.</li>
       <li>In the Apps Script editor, open <b>Triggers</b> → <b>Add Trigger</b> → function <code>sendDailyCheck</code> → time-driven → day timer → pick the hour that matches your send time above.</li>
       <li>Click <b>Send test email</b> here to confirm delivery before relying on it.</li>
     </ol>
+    <div class="subtle">If any step gives an error, redeploying (Deploy → Manage deployments → edit → new version) after every code change is the #1 thing people forget — saving the script alone doesn't update the live URL.</div>
   </div>`;
   return html;
 }
@@ -1427,13 +1466,63 @@ function buildSyncPayload() {
 async function gasRequest(payload) {
   const r = state.reminders;
   if (!r.gasUrl) throw new Error("Add your Apps Script Web App URL first.");
-  const res = await fetch(r.gasUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight, per project convention
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) throw new Error("The backend returned an error (status " + res.status + ").");
-  return res.json().catch(() => ({}));
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(r.gasUrl)) {
+    throw new Error("That doesn't look like a deployed Web App URL — it should start with https://script.google.com/macros/s/ and end with /exec.");
+  }
+  const body = JSON.stringify(payload);
+
+  // Attempt 1: a normal readable cross-origin request, so we can parse the JSON reply.
+  try {
+    const res = await fetch(r.gasUrl, {
+      method: "POST",
+      mode: "cors",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight, per project convention
+      body
+    });
+    if (!res.ok) throw new Error("The backend responded but with an error (status " + res.status + ").");
+    const json = await res.json();
+    if (json && json.ok === false) throw new Error(json.error || "The backend reported an error.");
+    return json;
+  } catch (readableErr) {
+    // Attempt 2: Apps Script's script.google.com → script.googleusercontent.com redirect very
+    // often drops the CORS header on that hop for fetch-driven requests specifically (a known,
+    // long-standing Apps Script limitation — it's unrelated to your deployment's access setting
+    // if a direct browser visit to the URL works fine). Fall back to an opaque, fire-and-forget
+    // request: the browser still delivers it and Apps Script still runs and stores/sends — we
+    // just can't read the response back in JS.
+    try {
+      await fetch(r.gasUrl, {
+        method: "POST",
+        mode: "no-cors",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body
+      });
+      return { ok: true, opaque: true };
+    } catch (opaqueErr) {
+      throw new Error("Couldn't reach the script at all, even as a fire-and-forget request. Double-check the URL is correct and the deployment is still live (open it directly in a browser tab to confirm).");
+    }
+  }
+}
+async function pingGas() {
+  const r = state.reminders;
+  r.testing = true; r.testMsg = null; render();
+  const url = (document.getElementById("rem_gasurl")?.value || r.gasUrl || "").trim();
+  if (!url) { r.testing = false; r.testOk = false; r.testMsg = "Add your Apps Script Web App URL first."; render(); return; }
+  try {
+    const res = await fetch(url + (url.includes("?") ? "&" : "?") + "action=ping", { method: "GET", mode: "cors", redirect: "follow" });
+    if (!res.ok) throw new Error("Reached the script but it returned status " + res.status + ". Check it's deployed as a Web App.");
+    const json = await res.json().catch(() => null);
+    if (!json || json.ok !== true) throw new Error("Reached the script but got an unexpected response — check doGet exists in Code.gs.");
+    r.testOk = true; r.testMsg = "Connection OK — the script responded correctly. You can now try Sync and Send test email.";
+  } catch (e) {
+    r.testOk = false;
+    r.testMsg = e.message && e.message.indexOf("Failed to fetch") === -1 ? e.message
+      : "Couldn't reach the script (\"Failed to fetch\"). Set the deployment's \"Who has access\" to Anyone, redeploy, and try again.";
+  } finally {
+    r.testing = false; render();
+  }
 }
 async function saveReminderSettings() {
   const r = state.reminders;
@@ -1443,6 +1532,26 @@ async function saveReminderSettings() {
   r.dailyEnabled = !!document.getElementById("rem_enabled")?.checked;
   await storageSet("bw_reminders", r);
   render();
+}
+async function pingGas() {
+  const r = state.reminders;
+  const url = (document.getElementById("rem_gasurl")?.value || r.gasUrl || "").trim();
+  r.testing = true; r.testMsg = null; render();
+  if (!url) { r.testing = false; r.testOk = false; r.testMsg = "Add your Apps Script Web App URL first."; render(); return; }
+  try {
+    const res = await fetch(url + (url.includes("?") ? "&" : "?") + "action=ping", { method: "GET", mode: "cors", redirect: "follow" });
+    if (!res.ok) throw new Error("Reached the script but it returned status " + res.status + ". Confirm it's deployed as a Web App.");
+    const json = await res.json().catch(() => null);
+    if (!json || json.ok !== true) throw new Error("Reached the script but got an unexpected reply — check doGet exists in Code.gs and it's redeployed.");
+    r.testOk = true; r.testMsg = "Connection OK — the script responded correctly. You can now Sync and Send test email.";
+  } catch (e) {
+    r.testOk = false;
+    r.testMsg = (e.message && !/Failed to fetch/i.test(e.message))
+      ? e.message
+      : "Couldn't reach the script (\"Failed to fetch\"). Confirm the deployment's \"Who has access\" is set to Anyone and that it's been redeployed after any edits.";
+  } finally {
+    r.testing = false; render();
+  }
 }
 async function syncReminders() {
   const r = state.reminders;
@@ -1571,6 +1680,7 @@ document.addEventListener("click", (e) => {
     /* -- reminders -- */
     case "save-reminder-settings": saveReminderSettings(); break;
     case "sync-reminders": syncReminders(); break;
+    case "ping-gas": pingGas(); break;
     case "test-reminder": testReminder(); break;
     case "add-custom-reminder": addCustomReminder(); break;
     case "delete-custom-reminder": deleteCustomReminder(val); break;
