@@ -645,7 +645,7 @@ function base64FromDataUrl(dataUrl) {
 }
 
 /* ---------- account authentication helpers ---------- */
-const MAX_ACCOUNTS = 10;
+const MAX_ACCOUNTS = 1; // one local account per device — see routeAuthScreen()
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_BASE_MS = 15000;
 const LOCKOUT_MAX_MS = 5 * 60000;
@@ -772,6 +772,7 @@ function signOut() {
   state.auth.error = null;
   state.admin = { logs: [], loading: false, error: null, token: state.admin.token, lastFetched: null };
   resetSessionState();
+  routeAuthScreen();
   render();
 }
 
@@ -781,10 +782,27 @@ function authShowCreate() {
   state.auth.createForm = { username: "", password: "", confirm: "" };
   render();
 }
+/* With MAX_ACCOUNTS = 1, the device is meant to hold a single account —
+   this picks straight into login (or create, if none exists yet) instead
+   of showing the "Who's on watch?" list, so there's no switcher to see
+   for the normal case. The list still works as a fallback for anyone who
+   already created multiple accounts before this device was locked to 1. */
+function routeAuthScreen() {
+  const a = state.auth;
+  a.error = null;
+  if (a.accounts.length === 1) {
+    a.mode = "login";
+    a.selectedId = a.accounts[0].id;
+  } else if (a.accounts.length === 0) {
+    a.mode = "create";
+    a.createForm = { username: "", password: "", confirm: "" };
+  } else {
+    a.mode = "select";
+    a.selectedId = null;
+  }
+}
 function authBack() {
-  state.auth.mode = "select";
-  state.auth.error = null;
-  state.auth.selectedId = null;
+  routeAuthScreen();
   render();
 }
 function authSelectAccount(id) {
@@ -806,7 +824,7 @@ async function authCreateAccount() {
   const password = document.getElementById("auth_new_pass")?.value || "";
   const confirm = document.getElementById("auth_new_confirm")?.value || "";
   a.error = null;
-  if (a.accounts.length >= MAX_ACCOUNTS) { a.error = `This device already has the maximum of ${MAX_ACCOUNTS} accounts.`; render(); return; }
+  if (a.accounts.length >= MAX_ACCOUNTS) { a.error = MAX_ACCOUNTS === 1 ? "This device is locked to one account — delete it first if you want to create a different one." : `This device already has the maximum of ${MAX_ACCOUNTS} accounts.`; render(); return; }
   if (!username) { a.error = "Enter a username."; render(); return; }
   if (a.accounts.some(x => x.username.toLowerCase() === username.toLowerCase())) { a.error = "That username is already taken on this device."; render(); return; }
   if (password.length < 4) { a.error = "Password must be at least 4 characters."; render(); return; }
@@ -879,7 +897,7 @@ async function authDeleteConfirm() {
       a.session = false; a.activeId = null;
       resetSessionState();
     }
-    a.mode = "select"; a.selectedId = null;
+    routeAuthScreen();
   } catch (e) {
     a.error = "Couldn't delete the account. Try again.";
   } finally {
@@ -936,8 +954,9 @@ async function deleteCurrentAccountFlow() {
       await purgeAccountData(acc.id);
       a.accounts = a.accounts.filter(x => x.id !== acc.id);
       await saveAccounts();
-      a.session = false; a.activeId = null; a.mode = "select";
+      a.session = false; a.activeId = null;
       resetSessionState();
+      routeAuthScreen();
     }
   } catch (e) {
     del.msg = "Couldn't delete the account. Try again.";
@@ -1268,7 +1287,7 @@ function renderAuthScreen() {
     inner = `
       <div class="auth-card panel">
         <div class="display" style="font-size:1.2rem; margin-bottom:4px;">New cadet account</div>
-        <div class="subtle" style="margin-bottom:18px;">Up to ${MAX_ACCOUNTS} accounts can share this device. Each account's study data stays separate.</div>
+        <div class="subtle" style="margin-bottom:18px;">${MAX_ACCOUNTS === 1 ? "This device is set up for a single account — your study data stays local to it." : `Up to ${MAX_ACCOUNTS} accounts can share this device. Each account's study data stays separate.`}</div>
         ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
         <div class="field" style="margin-bottom:12px;"><label class="field-label">Username</label><input type="text" id="auth_new_user" maxlength="24" placeholder="e.g. Seebreeze" value="${escapeHtml(a.createForm.username)}"></div>
         <div class="field" style="margin-bottom:12px;"><label class="field-label">Password</label><input type="password" id="auth_new_pass" placeholder="At least 4 characters"></div>
@@ -1314,7 +1333,7 @@ function renderAuthScreen() {
     inner = `
       <div class="auth-card panel">
         <div class="display" style="font-size:1.25rem; margin-bottom:4px;">Who's on watch?</div>
-        <div class="subtle" style="margin-bottom:18px;">${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device</div>
+        <div class="subtle" style="margin-bottom:18px;">${MAX_ACCOUNTS === 1 ? "This device is locked to one account." : `${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device`}</div>
         ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
         <div class="account-list">
         ${a.accounts.length ? a.accounts.map(acc => `
@@ -1326,7 +1345,7 @@ function renderAuthScreen() {
             <button class="icon-btn" title="Delete account" data-action="auth-show-delete" data-val="${acc.id}">✕</button>
           </div>`).join("") : `<div class="subtle" style="margin-bottom:10px;">No accounts yet — create the first one below.</div>`}
         </div>
-        <button class="primary" style="width:100%; margin-top:14px;" data-action="auth-show-create" ${a.accounts.length >= MAX_ACCOUNTS ? "disabled" : ""}>${a.accounts.length >= MAX_ACCOUNTS ? "Maximum accounts reached" : "+ New account"}</button>
+        <button class="primary" style="width:100%; margin-top:14px;" data-action="auth-show-create" ${a.accounts.length >= MAX_ACCOUNTS ? "disabled" : ""}>${a.accounts.length >= MAX_ACCOUNTS ? "This device already has its account" : "+ New account"}</button>
       </div>`;
   }
 
@@ -1807,7 +1826,7 @@ function renderAccountSection() {
         <span class="avatar-circle">${escapeHtml(accountInitial(acc && acc.username))}</span>
         <div>
           <div style="font-weight:700;">${escapeHtml((acc && acc.username) || "")}</div>
-          <div class="subtle">On this device since ${acc ? new Date(acc.createdAt).toLocaleDateString() : "—"} · ${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device</div>
+          <div class="subtle">On this device since ${acc ? new Date(acc.createdAt).toLocaleDateString() : "—"} · ${MAX_ACCOUNTS === 1 ? "this device is locked to one account" : `${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device`}</div>
         </div>
       </div>
       <button class="ghost" data-action="sign-out" style="margin-bottom:18px;">Sign out / switch account</button>
@@ -2621,6 +2640,7 @@ document.addEventListener("keydown", (e) => {
   state.themeOverride = await storageGet("bw_theme_pref", null);
   state.auth.accounts = await storageGet("bw_accounts", []);
   state.admin.token = await storageGet("bw_admin_token", "");
+  routeAuthScreen();
   render();
 })();
 </script>
