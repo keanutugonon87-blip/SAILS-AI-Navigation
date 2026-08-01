@@ -213,6 +213,21 @@
   .chip.selected { background: var(--accent); color: var(--navy-950); border-color: var(--accent); font-weight:600; }
   .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin: 10px 0 18px; }
 
+  /* ---- Collapsible topic picker (Quiz / Flashcards) ---- */
+  .topic-picker { margin-bottom: 18px; }
+  .topic-picker-toggle {
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding: 12px 16px; border-radius:10px; border:1px solid var(--border); background: var(--bg-panel);
+    color: var(--text); cursor:pointer; font-family:inherit; text-align:left; transition: border-color 0.15s;
+  }
+  .topic-picker-toggle:hover { border-color: var(--accent); }
+  .topic-picker-toggle .tp-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .topic-picker-toggle .tp-label { font-size:0.66rem; text-transform:uppercase; letter-spacing:0.08em; color: var(--text-dim); }
+  .topic-picker-toggle .tp-value { font-size:0.92rem; font-weight:600; color: var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .topic-picker-toggle .tp-chevron { font-size:0.7rem; color: var(--accent); flex-shrink:0; transition: transform 0.2s ease; }
+  .topic-picker-toggle .tp-chevron.open { transform: rotate(180deg); }
+  .topic-picker .chip-row { margin: 10px 0 0; animation: fadeInUp 0.2s ease both; }
+
   /* ---- Chat ---- */
   .chat-log { display:flex; flex-direction:column; gap:16px; margin-bottom: 16px; max-height: 52vh; overflow-y:auto; padding-right:4px; }
   .msg { max-width: 88%; padding: 12px 16px; border-radius: 12px; font-size:0.92rem; line-height:1.55; position:relative; }
@@ -533,10 +548,152 @@
   .msg.user .md-table td, .msg.user .md-table th { border-color: rgba(8,17,33,0.2); }
   .md-link { color: var(--accent-strong); text-decoration: underline; text-underline-offset:2px; }
   .msg.user .md-link { color: var(--navy-950); font-weight:600; }
+  /* ---- daily login / study voyage tab ---- */
+  .voyage-caption { color: var(--text-dim); font-size:0.88rem; margin-bottom:16px; font-style:italic; }
+  .voyage-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap:10px; margin-bottom:16px; }
+  .voyage-stat { border:1px solid var(--border); border-radius:12px; padding:14px 10px; text-align:center; background: var(--bg-panel); }
+  .voyage-stat .vs-num { font-family:'Fraunces', serif; font-size:1.7rem; font-weight:700; color: var(--accent-strong); line-height:1; }
+  .voyage-stat .vs-label { font-size:0.68rem; color: var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; margin-top:6px; }
+  .voyage-progress { margin-bottom:18px; }
+  .voyage-map-wrap {
+    position: relative;
+    border:1px solid var(--border); border-radius:14px; padding:8px 4px 0;
+    background: linear-gradient(180deg, transparent, rgba(30,122,95,0.06));
+    overflow:hidden; margin-bottom:8px; transition: background 0.6s ease;
+  }
+  .voyage-map { position:relative; z-index:1; width:100%; height:auto; display:block; }
+  .voyage-ship { animation: ship-bob 2.6s ease-in-out infinite; }
+  @keyframes ship-bob {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-4px) rotate(2deg); }
+  }
+  .milestone-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .milestone-chip {
+    display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+    border:1px solid var(--border); font-size:0.76rem; background: var(--bg-panel);
+  }
+  .milestone-chip .mc-icon { font-size:0.95rem; filter: grayscale(1); opacity:0.4; }
+  .milestone-chip .mc-days { color: var(--text-dim); }
+  .milestone-chip.reached { border-color: var(--accent); background: rgba(201,162,39,0.08); }
+  .milestone-chip.reached .mc-icon { filter:none; opacity:1; }
+  .milestone-chip.reached .mc-title { color: var(--accent-strong); font-weight:600; }
+  .milestone-chip.locked { opacity:0.55; }
+  .cal-nav-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .cal-month-label { font-family:'Fraunces', serif; font-weight:600; font-size:0.95rem; }
+  .cal-grid { display:grid; grid-template-columns: repeat(7, 1fr); gap:5px; }
+  .cal-dow { text-align:center; font-size:0.66rem; color: var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; padding-bottom:4px; }
+  .cal-cell {
+    aspect-ratio: 1; border:1px solid var(--border); border-radius:8px; background: var(--bg-panel);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    cursor:pointer; color: var(--text); font-family:'Inter', sans-serif; padding:2px; transition: all 0.15s;
+  }
+  .cal-cell:hover:not(:disabled):not(.empty) { border-color: var(--accent); transform: translateY(-1px); }
+  .cal-cell.empty { border:none; background:transparent; cursor:default; }
+  .cal-cell .cal-daynum { font-size:0.72rem; color: var(--text-dim); }
+  .cal-cell .cal-mark { font-size:0.85rem; line-height:1; min-height:1em; }
+  .cal-cell.logged { background: rgba(201,162,39,0.1); border-color: var(--accent); }
+  .cal-cell.logged .cal-daynum { color: var(--text); font-weight:600; }
+  .cal-cell.today { box-shadow: 0 0 0 2px var(--accent-strong) inset; }
+  .cal-cell.join { border-style: dashed; }
+  .cal-cell.future { opacity:0.35; cursor:not-allowed; }
+  .cal-cell.selected { background: var(--bg-raised); box-shadow: 0 0 0 2px var(--accent) inset; }
+  .cal-detail { margin-top:12px; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background: var(--bg-panel); font-size:0.84rem; }
+
+  /* ---- toast notifications (login celebration) ---- */
+  .toast-host {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 300; display:flex; flex-direction:column; gap:8px; align-items:center;
+    pointer-events: none; width: min(92vw, 420px);
+  }
+  .bw-toast {
+    pointer-events: auto; display:flex; align-items:flex-start; gap:10px;
+    background: var(--bg-raised); border:1px solid var(--border); border-radius:12px;
+    padding: 12px 14px; box-shadow: var(--shadow); width:100%;
+    opacity:0; transform: translateY(-16px) scale(0.96);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(.2,.8,.2,1);
+  }
+  .bw-toast.show { opacity:1; transform: translateY(0) scale(1); }
+  .bw-toast.hide { opacity:0; transform: translateY(-10px) scale(0.97); }
+  .bw-toast .toast-body { flex:1; font-size:0.85rem; line-height:1.4; }
+  .bw-toast .toast-x { background:none; border:none; color: var(--text-dim); cursor:pointer; font-size:0.85rem; padding:2px 4px; }
+  .bw-toast .toast-x:hover { color: var(--text); }
+  .bw-toast.milestone { border-color: var(--accent); background: linear-gradient(135deg, rgba(201,162,39,0.14), var(--bg-raised)); }
+
+  /* ---- confetti canvas ---- */
+  .confetti-canvas { position: fixed; inset:0; z-index: 290; pointer-events:none; }
+
+  /* ---- sailor rank chip ---- */
+  .rank-chip {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px;
+    border:1px solid var(--accent); background: rgba(201,162,39,0.1); font-size:0.8rem; font-weight:600;
+    color: var(--accent-strong); margin-bottom:14px;
+  }
+
+  /* ---- streak alert banners ---- */
+  .streak-alert { border-radius:10px; padding:10px 14px; font-size:0.82rem; margin-bottom:14px; border:1px solid; line-height:1.4; }
+  .streak-alert.safe { border-color: var(--stbd-green); background: rgba(30,122,95,0.1); color: var(--text); }
+  .streak-alert.broken { border-color: var(--port-red); background: rgba(193,39,45,0.1); color: var(--text); }
+
+  /* ---- captain mascot + speech bubble ---- */
+  .captain-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:16px; }
+  .captain-avatar {
+    flex-shrink:0; width:52px; height:52px; border-radius:50%; border:2px solid var(--accent);
+    background: var(--bg-raised); display:flex; align-items:center; justify-content:center;
+    font-size:1.6rem; cursor:pointer; user-select:none; transition: transform 0.15s ease;
+    animation: captain-idle 3.2s ease-in-out infinite;
+  }
+  .captain-avatar:hover { transform: scale(1.08) rotate(-4deg); }
+  .captain-avatar:active { transform: scale(0.96); }
+  @keyframes captain-idle { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+  .speech-bubble {
+    position: relative; flex:1; background: var(--bg-panel); border:1px solid var(--border);
+    border-radius: 12px; padding: 10px 14px; font-size: 0.85rem; line-height:1.45; cursor: pointer;
+  }
+  .speech-bubble::before {
+    content:''; position:absolute; left:-7px; top:16px; width:12px; height:12px;
+    background: var(--bg-panel); border-left:1px solid var(--border); border-bottom:1px solid var(--border);
+    transform: rotate(45deg);
+  }
+  .speech-bubble .sb-hint { display:block; margin-top:6px; font-size:0.68rem; color: var(--text-dim); }
+  .speech-bubble.trivia { border-color: var(--accent); background: rgba(201,162,39,0.06); }
+
+  /* ---- weather overlay inside the voyage map ---- */
+  .weather-layer { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+  .weather-storm { background: linear-gradient(180deg, rgba(8,17,33,0.5), rgba(30,122,95,0.03)); }
+  .weather-golden { background: linear-gradient(180deg, rgba(228,193,88,0.16), transparent); }
+  .cloud {
+    position:absolute; left:-140px; width:70px; height:24px; border-radius:40px;
+    background: rgba(242,236,221,0.5); box-shadow: 16px -8px 0 -2px rgba(242,236,221,0.5), -16px -4px 0 -4px rgba(242,236,221,0.4);
+    animation: cloud-drift linear infinite;
+  }
+  @keyframes cloud-drift { from { left:-140px; } to { left:110%; } }
+  .raindrop {
+    position:absolute; top:-10%; width:2px; height:16px;
+    background: linear-gradient(var(--fog), transparent); animation: rain-fall linear infinite;
+  }
+  @keyframes rain-fall { from { transform: translateY(-20px); } to { transform: translateY(160px); } }
+  .lightning { position:absolute; inset:0; background:#fff; opacity:0; animation: lightning-flash 6.5s infinite; }
+  @keyframes lightning-flash { 0%, 92%, 100% { opacity:0; } 93% { opacity:0.45; } 94% { opacity:0.05; } 95% { opacity:0.3; } 96% { opacity:0; } }
+  .sun-glow {
+    position:absolute; top:10%; right:8%; width:56px; height:56px; border-radius:50%;
+    background: radial-gradient(circle, var(--brass-bright), transparent 70%);
+    animation: sun-pulse 4.5s ease-in-out infinite;
+  }
+  @keyframes sun-pulse { 0%,100% { opacity:0.55; transform: scale(1); } 50% { opacity:0.9; transform: scale(1.12); } }
+  .sparkle {
+    position:absolute; width:4px; height:4px; border-radius:50%; background: var(--brass-bright);
+    animation: sparkle-twinkle ease-in-out infinite;
+  }
+  @keyframes sparkle-twinkle { 0%,100% { opacity:0; transform: scale(0.4); } 50% { opacity:1; transform: scale(1); } }
+
+  /* ---- share button row ---- */
+  .voyage-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:6px; }
 </style>
 </head>
 <body>
 <div id="root"></div>
+<div id="toastHost" class="toast-host" aria-live="polite"></div>
+<canvas id="confettiCanvas" class="confetti-canvas" aria-hidden="true"></canvas>
 
 <script>
 const TOPICS = [
@@ -551,6 +708,42 @@ const TOPICS = [
   "Cargo Handling & Stowage",
   "Maritime Law & STCW"
 ];
+
+// A wide pool the Officer tab draws 4 random suggestions from each time
+// you land on it, so the empty-state prompts don't go stale.
+const OFFICER_QUICK_PROMPTS_POOL = [
+  "Explain Rule 15 (crossing situation)",
+  "IALA Region A vs B buoyage differences",
+  "How do I compute compass error?",
+  "Sound signals in restricted visibility",
+  "Rule 13 vs Rule 14 — overtaking vs head-on",
+  "What lights does a vessel restricted in ability to manoeuvre show?",
+  "Difference between true and relative wind",
+  "How is Beaufort force estimated at sea?",
+  "Requirements for safe cargo stowage under SOLAS",
+  "What is metacentric height and why does it matter?",
+  "STCW minimum rest hour requirements",
+  "How do I plot a running fix?",
+  "Magnetic vs gyro compass error, explained",
+  "Steps in a man overboard recovery",
+  "Day shapes for a vessel not under command",
+  "How does Beaufort force relate to sea state?",
+  "What's the difference between a TSS and a precautionary area?",
+  "Explain the free surface effect on stability",
+  "What's required before entering an enclosed space?",
+  "How do you determine a vessel's squat in shallow water?"
+];
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function pickQuickPrompts(n = 4) {
+  state.chat.quickPrompts = shuffleArray(OFFICER_QUICK_PROMPTS_POOL).slice(0, n);
+}
 
 const CHAT_SYSTEM = `You are the Officer of the Watch — a maritime study assistant for a BSMT (Bachelor of Science in Marine Transportation) cadet preparing for COLREGS and core BSMT subjects (navigation, seamanship, meteorology, cargo, ship construction, maritime law, STCW).
 
@@ -577,9 +770,9 @@ let state = {
     changePwd: { busy: false, msg: null, ok: null },
     deleteSelf: { busy: false, msg: null }
   },
-  chat: { messages: [], loading: false, error: null },
-  quiz: { topic: TOPICS[0], count: 5, quiz: null, idx: 0, selected: null, score: 0, loading: false, error: null, history: [] },
-  flash: { topic: TOPICS[0], count: 8, deck: null, idx: 0, flipped: false, known: 0, loading: false, error: null, savedDecks: [] },
+  chat: { messages: [], loading: false, error: null, quickPrompts: [] },
+  quiz: { topic: TOPICS[0], topicOpen: false, count: 5, quiz: null, idx: 0, selected: null, score: 0, loading: false, error: null, history: [] },
+  flash: { topic: TOPICS[0], topicOpen: false, count: 8, deck: null, idx: 0, flipped: false, known: 0, loading: false, error: null, savedDecks: [] },
   study: {
     sources: [], activeIds: [], notes: [],
     noteForm: { title: "", body: "", sourceId: "" }, editingNoteId: null,
@@ -606,7 +799,9 @@ let state = {
     syncing: false, syncMsg: null, syncOk: null, lastSyncedAt: null,
     testing: false, testMsg: null, testOk: null
   },
-  admin: { logs: [], loading: false, error: null, token: "", lastFetched: null }
+  admin: { logs: [], loading: false, error: null, token: "", lastFetched: null },
+  login: { history: [], monthOffset: 0, selectedDay: null, captainSeed: 0 },
+  soundOn: true
 };
 
 /* ---------- admin account ---------- */
@@ -626,6 +821,375 @@ function daysUntil(dateStr) {
   const now = new Date(); now.setHours(0,0,0,0);
   return Math.round((due - now) / 86400000);
 }
+/* ---------- daily login streak / voyage helpers ---------- */
+// Uses the exact same local-midnight -> ISO conversion as todayISO() so day-keys
+// derived from timestamps line up with acc.lastLoginRewardDate comparisons.
+function dayKeyFromTs(ts) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+function dayKeyFromLocalDate(year, month, day) {
+  const d = new Date(year, month, day, 0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+function addDaysToKey(dayKey, delta) {
+  const d = new Date(dayKey + "T00:00:00");
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+const VOYAGE_MILESTONES = [
+  { days: 3, title: "First Bearing", icon: "🧭" },
+  { days: 7, title: "One Week at Sea", icon: "⛵" },
+  { days: 14, title: "Fortnight Voyage", icon: "🌊" },
+  { days: 30, title: "Full Moon Crossing", icon: "🌕" },
+  { days: 60, title: "Two-Month Passage", icon: "🗺️" },
+  { days: 100, title: "Century Voyage", icon: "💯" },
+  { days: 200, title: "Deep-Sea Veteran", icon: "🐋" },
+  { days: 365, title: "Full Circumnavigation", icon: "🏆" }
+];
+function getLoginDayKeySet() {
+  const set = new Set();
+  (state.login.history || []).forEach(h => set.add(dayKeyFromTs(h.at)));
+  return set;
+}
+function computeLoginStreaks() {
+  const set = getLoginDayKeySet();
+  const todayKey = dayKeyFromTs(Date.now());
+  let current = 0;
+  let cursor = todayKey;
+  if (!set.has(cursor)) {
+    // not logged in today yet under this day-key convention — check if the streak
+    // is still alive as of yesterday, but don't count today.
+    cursor = addDaysToKey(cursor, -1);
+  }
+  while (set.has(cursor)) {
+    current++;
+    cursor = addDaysToKey(cursor, -1);
+  }
+  const sortedDays = Array.from(set).sort();
+  let longest = 0, run = 0, prevKey = null;
+  sortedDays.forEach(k => {
+    run = (prevKey && addDaysToKey(prevKey, 1) === k) ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    prevKey = k;
+  });
+  return { current, longest: Math.max(longest, current), totalDays: set.size, set, todayKey };
+}
+function nextMilestone(daysCount) {
+  return VOYAGE_MILESTONES.find(m => m.days > daysCount) || null;
+}
+
+/* ---------- sailor rank titles (based on cumulative Days at Sea) ---------- */
+const SAILOR_RANKS = [
+  { days: 0, title: "Deck Cadet", icon: "🎓" },
+  { days: 3, title: "Ordinary Seaman", icon: "⚓" },
+  { days: 7, title: "Able Seaman", icon: "🪢" },
+  { days: 14, title: "Bosun's Mate", icon: "🛠️" },
+  { days: 30, title: "Third Officer", icon: "🎖️" },
+  { days: 60, title: "Second Officer", icon: "🎖️" },
+  { days: 100, title: "Chief Mate", icon: "🥇" },
+  { days: 200, title: "Master Mariner", icon: "👑" },
+  { days: 365, title: "Fleet Commodore", icon: "🏆" }
+];
+function currentSailorRank(totalDays) {
+  let cur = SAILOR_RANKS[0];
+  for (const r of SAILOR_RANKS) if (totalDays >= r.days) cur = r;
+  return cur;
+}
+function nextSailorRank(totalDays) {
+  return SAILOR_RANKS.find(r => r.days > totalDays) || null;
+}
+
+/* ---------- captain mascot dialogue (with the occasional trivia easter egg) ---------- */
+const CAPTAIN_LINES = {
+  broken: [
+    "Man overboard, cadet! No matter — every captain's been becalmed. Set sail again today!",
+    "The sea forgives a missed watch. Climb back aboard, we've got a ship to run.",
+    "Storms happen. What matters is you're back at the helm now."
+  ],
+  starting: [
+    "Anchors aweigh! Every legendary voyage starts with day one.",
+    "Welcome aboard, cadet. Let's chart a course for good habits.",
+    "Fresh water, calm winds — a fine day to begin a streak."
+  ],
+  building: [
+    "Steady hands on the wheel — you're finding your sea legs!",
+    "The wind's in our favor. Keep this pace, sailor.",
+    "Not bad, not bad at all. Keep logging those watches."
+  ],
+  strong: [
+    "Now THAT'S sailing! You've got the makings of a fine officer.",
+    "Full sails ahead — the crew's morale has never been higher!",
+    "The academy's gonna want to hear about this streak, cadet."
+  ],
+  legendary: [
+    "Aye... they'll be telling stories of this voyage for years.",
+    "Legendary streak, Captain. Even Magellan would tip his hat.",
+    "You've practically got saltwater in your veins at this point."
+  ]
+};
+const CAPTAIN_TRIVIA = [
+  "Did ye know? A 'knot' equals one nautical mile per hour — about 1.15 mph on land.",
+  "Trivia: COLREGS Rule 2 covers the 'ordinary practice of seamen' — good judgment still matters most.",
+  "Ahoy — 'log book' comes from literally throwing a wooden log tied to rope overboard to measure speed.",
+  "Fun fact: Port is left, Starboard is right — and port wine is red, just like the port light. Handy trick!",
+  "Trivia: the Plimsoll line on a ship's hull marks the maximum safe draft for loading.",
+  "Did ye know? 'Mayday' comes from the French 'm'aider' — meaning 'help me.'",
+  "Fun fact: the ship's bell was traditionally rung to mark each half-hour of a watch."
+];
+function pickCaptainLine(streaks, seed) {
+  const broken = streaks.longest > streaks.current && streaks.current <= 1 && streaks.longest > 1;
+  let pool;
+  if (broken) pool = CAPTAIN_LINES.broken;
+  else if (streaks.current < 3) pool = CAPTAIN_LINES.starting;
+  else if (streaks.current < 14) pool = CAPTAIN_LINES.building;
+  else if (streaks.current < 60) pool = CAPTAIN_LINES.strong;
+  else pool = CAPTAIN_LINES.legendary;
+  const roll = ((seed * 9301 + 49297) % 233280) / 233280;
+  if (roll < 0.16) return { text: CAPTAIN_TRIVIA[seed % CAPTAIN_TRIVIA.length], trivia: true };
+  return { text: pool[seed % pool.length], trivia: false };
+}
+
+/* ---------- weather mood tied to streak state ---------- */
+function weatherTierFor(streaks) {
+  if (streaks.current === 0 || (streaks.longest > streaks.current && streaks.current <= 1 && streaks.longest > 1)) return "storm";
+  if (streaks.current < 3) return "cloudy";
+  if (streaks.current < 7) return "partly";
+  if (streaks.current < 30) return "sunny";
+  return "golden";
+}
+function weatherLayerHtml(tier) {
+  const rnd = (min, max) => (min + Math.random() * (max - min));
+  if (tier === "storm") {
+    let rain = "";
+    for (let i = 0; i < 22; i++) {
+      rain += `<div class="raindrop" style="left:${rnd(0,100).toFixed(1)}%; animation-delay:${rnd(0,1.4).toFixed(2)}s; animation-duration:${rnd(0.45,0.85).toFixed(2)}s;"></div>`;
+    }
+    return `<div class="weather-layer"><div class="lightning"></div>${rain}</div>`;
+  }
+  if (tier === "cloudy") {
+    let clouds = "";
+    for (let i = 0; i < 3; i++) {
+      clouds += `<div class="cloud" style="top:${rnd(8,50).toFixed(0)}%; transform:scale(${rnd(0.7,1.2).toFixed(2)}); animation-duration:${rnd(20,34).toFixed(1)}s; animation-delay:-${rnd(0,20).toFixed(1)}s;"></div>`;
+    }
+    return `<div class="weather-layer">${clouds}</div>`;
+  }
+  if (tier === "partly") {
+    let clouds = "";
+    for (let i = 0; i < 2; i++) {
+      clouds += `<div class="cloud" style="top:${rnd(10,40).toFixed(0)}%; transform:scale(${rnd(0.6,1).toFixed(2)}); animation-duration:${rnd(24,36).toFixed(1)}s; animation-delay:-${rnd(0,20).toFixed(1)}s;"></div>`;
+    }
+    return `<div class="weather-layer"><div class="sun-glow" style="opacity:0.6;"></div>${clouds}</div>`;
+  }
+  if (tier === "sunny") {
+    return `<div class="weather-layer"><div class="sun-glow"></div></div>`;
+  }
+  // golden
+  let sparkles = "";
+  for (let i = 0; i < 16; i++) {
+    sparkles += `<div class="sparkle" style="top:${rnd(0,100).toFixed(0)}%; left:${rnd(0,100).toFixed(0)}%; animation-duration:${rnd(1.4,2.6).toFixed(2)}s; animation-delay:${rnd(0,2).toFixed(2)}s;"></div>`;
+  }
+  return `<div class="weather-layer"><div class="sun-glow" style="opacity:0.7;"></div>${sparkles}</div>`;
+}
+
+/* ---------- tiny synthesized sound effects (bell / chirp / whoosh) ---------- */
+let _audioCtx = null;
+function getAudioCtx() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === "suspended") _audioCtx.resume().catch(() => {});
+    return _audioCtx;
+  } catch (e) { return null; }
+}
+function playBell() {
+  if (!state.soundOn) return;
+  const ctx = getAudioCtx(); if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    [880, 1320].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(i === 0 ? 0.25 : 0.12, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now); osc.stop(now + 1.2);
+    });
+  } catch (e) { /* non-fatal */ }
+}
+function playChirp() {
+  if (!state.soundOn) return;
+  const ctx = getAudioCtx(); if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(760, now + 0.12);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.16);
+  } catch (e) { /* non-fatal */ }
+}
+function playWaveWhoosh() {
+  if (!state.soundOn) return;
+  const ctx = getAudioCtx(); if (!ctx) return;
+  try {
+    const bufferSize = Math.floor(ctx.sampleRate * 0.6);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    const noise = ctx.createBufferSource(); noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter(); filter.type = "bandpass"; filter.frequency.value = 600; filter.Q.value = 0.8;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
+    noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    noise.start();
+  } catch (e) { /* non-fatal */ }
+}
+
+/* ---------- global toast notifications (survive full re-renders) ---------- */
+function showToast(html, opts = {}) {
+  const host = document.getElementById("toastHost");
+  if (!host) return;
+  const id = "toast_" + uid();
+  const el = document.createElement("div");
+  el.className = "bw-toast" + (opts.kind ? " " + opts.kind : "");
+  el.id = id;
+  el.innerHTML = `<div class="toast-body">${html}</div><button class="toast-x" data-action="dismiss-toast" data-val="${id}" title="Dismiss">✕</button>`;
+  host.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  setTimeout(() => dismissToast(id), opts.duration || 5000);
+}
+function dismissToast(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove("show"); el.classList.add("hide");
+  setTimeout(() => el.remove(), 350);
+}
+
+/* ---------- confetti burst (canvas, decoupled from render cycle) ---------- */
+function fireConfetti(durationMs = 2400) {
+  const canvas = document.getElementById("confettiCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const w = window.innerWidth, h = window.innerHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + "px"; canvas.style.height = h + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const colors = ["#C9A227", "#E4C158", "#1E7A5F", "#F2ECDD", "#C1272D"];
+  const particles = Array.from({ length: 140 }, () => ({
+    x: Math.random() * w, y: -20 - Math.random() * 200,
+    r: 4 + Math.random() * 5, c: colors[Math.floor(Math.random() * colors.length)],
+    vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3,
+    rot: Math.random() * 360, vr: -6 + Math.random() * 12,
+    shape: Math.random() < 0.5 ? "rect" : "circle"
+  }));
+  const start = performance.now();
+  function frame(t) {
+    const elapsed = t - start;
+    ctx.clearRect(0, 0, w, h);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save();
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.c;
+      if (p.shape === "rect") ctx.fillRect(-p.r / 2, -p.r * 0.8, p.r, p.r * 1.6);
+      else { ctx.beginPath(); ctx.arc(0, 0, p.r / 2, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    });
+    if (elapsed < durationMs) requestAnimationFrame(frame);
+    else ctx.clearRect(0, 0, w, h);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- shareable voyage card (canvas -> PNG, with Web Share fallback) ---------- */
+async function exportVoyageCard() {
+  const acc = state.auth.accounts.find(x => x.id === state.auth.activeId);
+  if (!acc) return;
+  const streaks = computeLoginStreaks();
+  const rank = currentSailorRank(streaks.totalDays);
+  const W = 1000, H = 560;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "#0B1730"); grad.addColorStop(1, "#14213D");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(201,162,39,0.6)"; ctx.lineWidth = 3; ctx.strokeRect(14, 14, W - 28, H - 28);
+
+  ctx.strokeStyle = "rgba(201,162,39,0.28)"; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 4) {
+    const y = H - 76 + Math.sin(x * 0.02) * 10;
+    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.font = "40px Arial"; ctx.fillText("⛵", W - 110, H - 88);
+
+  ctx.fillStyle = "#E4C158"; ctx.font = "700 36px Georgia, serif";
+  ctx.fillText("Bridge Watch — Study Voyage", 50, 86);
+  ctx.fillStyle = "#F2ECDD"; ctx.font = "600 24px Georgia, serif";
+  ctx.fillText(`${acc.username} · ${rank.icon} ${rank.title}`, 50, 128);
+
+  const stats = [
+    [`${streaks.current}`, "Day Streak"],
+    [`${streaks.longest}`, "Longest Streak"],
+    [`${streaks.totalDays}`, "Days at Sea"]
+  ];
+  let sx = 50;
+  stats.forEach(([num, label]) => {
+    ctx.fillStyle = "#E4C158"; ctx.font = "700 54px Georgia, serif";
+    ctx.fillText(num, sx, 232);
+    ctx.fillStyle = "#A9B3C9"; ctx.font = "400 15px Arial";
+    ctx.fillText(label, sx, 260);
+    sx += 220;
+  });
+
+  ctx.fillStyle = "#C9D6E8"; ctx.font = "italic 18px Georgia, serif";
+  wrapCanvasText(ctx, voyageFlavorText(streaks.current), 50, 320, W - 160, 24);
+  ctx.fillStyle = "#5B6473"; ctx.font = "13px Arial";
+  ctx.fillText(new Date().toLocaleDateString(), 50, H - 34);
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], `bridge-watch-voyage-${todayISO()}.png`, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "My Study Voyage", text: "Check out my Bridge Watch study streak!" });
+        return;
+      } catch (e) { /* user cancelled or unsupported — fall through to download */ }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, "image/png");
+}
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(" ");
+  let line = "", lines = 0;
+  for (let i = 0; i < words.length; i++) {
+    const test = line + words[i] + " ";
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y + lines * lineHeight);
+      line = words[i] + " "; lines++;
+      if (lines >= 2) return;
+    } else line = test;
+  }
+  if (line) ctx.fillText(line, x, y + lines * lineHeight);
+}
+
 function formatDateNice(dateStr) {
   if (!dateStr) return "—";
   const d = new Date(dateStr + "T00:00:00");
@@ -675,7 +1239,7 @@ async function acctSet(key, value) { return storageSet(acctKey(key), value); }
 async function saveAccounts() { await storageSet("bw_accounts", state.auth.accounts); }
 
 async function purgeAccountData(accountId) {
-  const keys = ["bw_quiz_history", "bw_saved_decks", "bw_study_sources", "bw_study_notes", "bw_schedule_classes", "bw_assignments", "bw_reminders", "bw_login_history"];
+  const keys = ["bw_quiz_history", "bw_saved_decks", "bw_study_sources", "bw_study_notes", "bw_schedule_classes", "bw_assignments", "bw_reminders", "bw_login_history", "bw_celebrated_milestones"];
   for (const k of keys) {
     const fullKey = k + "__acct_" + accountId;
     try {
@@ -687,9 +1251,10 @@ async function purgeAccountData(accountId) {
 
 function resetSessionState() {
   state.tab = "chat";
-  state.chat = { messages: [], loading: false, error: null };
-  state.quiz = { topic: TOPICS[0], count: 5, quiz: null, idx: 0, selected: null, score: 0, loading: false, error: null, history: [] };
-  state.flash = { topic: TOPICS[0], count: 8, deck: null, idx: 0, flipped: false, known: 0, loading: false, error: null, savedDecks: [] };
+  state.chat = { messages: [], loading: false, error: null, quickPrompts: [] };
+  pickQuickPrompts();
+  state.quiz = { topic: TOPICS[0], topicOpen: false, count: 5, quiz: null, idx: 0, selected: null, score: 0, loading: false, error: null, history: [] };
+  state.flash = { topic: TOPICS[0], topicOpen: false, count: 8, deck: null, idx: 0, flipped: false, known: 0, loading: false, error: null, savedDecks: [] };
   state.study = {
     sources: [], activeIds: [], notes: [],
     noteForm: { title: "", body: "", sourceId: "" }, editingNoteId: null,
@@ -703,6 +1268,7 @@ function resetSessionState() {
     syncing: false, syncMsg: null, syncOk: null, lastSyncedAt: null,
     testing: false, testMsg: null, testOk: null
   };
+  state.login = { history: [], monthOffset: 0, selectedDay: null, captainSeed: 0 };
 }
 
 async function loadAccountData() {
@@ -716,6 +1282,9 @@ async function loadAccountData() {
   state.reminders = savedReminders
     ? { ...state.reminders, ...savedReminders, syncing: false, testing: false, syncMsg: null, testMsg: null }
     : { ...state.reminders };
+  state.login.history = await acctGet("bw_login_history", []);
+  state.login.monthOffset = 0;
+  state.login.selectedDay = null;
 }
 
 async function logIntoAccount(id) {
@@ -748,7 +1317,26 @@ async function recordLoginEvent(acc) {
 
   const hist = await acctGet("bw_login_history", []);
   hist.unshift({ at: Date.now(), pointsAwarded });
-  await acctSet("bw_login_history", hist.slice(0, 50));
+  const trimmedHist = hist.slice(0, 400);
+  await acctSet("bw_login_history", trimmedHist);
+  state.login.history = trimmedHist;
+
+  if (pointsAwarded) {
+    const streaks = computeLoginStreaks();
+    const celebrated = await acctGet("bw_celebrated_milestones", []);
+    const newlyReached = VOYAGE_MILESTONES.filter(m => streaks.longest >= m.days && !celebrated.includes(m.days));
+    if (newlyReached.length) {
+      const top = newlyReached[newlyReached.length - 1];
+      await acctSet("bw_celebrated_milestones", celebrated.concat(newlyReached.map(m => m.days)));
+      fireConfetti(3200);
+      playWaveWhoosh();
+      setTimeout(playBell, 250);
+      showToast(`${top.icon} <b>Milestone reached — ${escapeHtml(top.title)}!</b><br>${top.days} days at sea. Fair winds, Captain ${escapeHtml(acc.username)}!`, { kind: "milestone", duration: 7000 });
+    } else {
+      playBell();
+      showToast(`⛵ Ahoy, ${escapeHtml(acc.username)}! Day <b>${streaks.current}</b> of your voyage logged. ${voyageFlavorText(streaks.current)}`, { duration: 5000 });
+    }
+  }
 
   const gasUrl = state.reminders && state.reminders.gasUrl;
   if (gasUrl) {
@@ -1173,6 +1761,7 @@ const TAB_ICONS = {
   schedule: `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`,
   assign: `<svg viewBox="0 0 24 24"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><rect x="5" y="6" width="14" height="15" rx="2"/><path d="M9 12l2 2 4-4"/></svg>`,
   reminders: `<svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>`,
+  login: `<svg viewBox="0 0 24 24"><path d="M4 15l1.5 3.5a3 3 0 0 0 2.8 2h7.4a3 3 0 0 0 2.8-2L20 15"/><path d="M6 15V6h3v9M11 15V3l6 4-6 4"/><path d="M2 15h20"/></svg>`,
   admin: `<svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z"/><path d="M9 12l2 2 4-4"/></svg>`
 };
 
@@ -1383,7 +1972,7 @@ function renderHeader() {
         </svg>
       </div><div class="brand-text">
         <h1>Bridge Watch</h1>
-        <div class="tag">BSMT · COLREGS Study Console</div>
+        <div class="tag">BSMT Nautical Study Console</div>
       </div>
     </div>
     <div class="watch-block">
@@ -1417,7 +2006,7 @@ function renderHeader() {
 function renderNav() {
   const tabs = [
     ["chat", "Officer"], ["quiz", "Quiz"], ["flash", "Cards"], ["study", "Study"],
-    ["schedule", "Classes"], ["assign", "Tasks"], ["reminders", "Alerts"]
+    ["schedule", "Classes"], ["assign", "Tasks"], ["reminders", "Alerts"], ["login", "Log"]
   ];
   const curAcc = state.auth.accounts.find(x => x.id === state.auth.activeId);
   if (isAdminAccount(curAcc)) tabs.push(["admin", "Admin"]);
@@ -1436,16 +2025,11 @@ function badgeHtml(usedSearch) {
 }
 function renderChat() {
   const c = state.chat;
-  const quickPrompts = [
-    "Explain Rule 15 (crossing situation)",
-    "IALA Region A vs B buoyage differences",
-    "How do I compute compass error?",
-    "Sound signals in restricted visibility"
-  ];
+  if (!c.quickPrompts || !c.quickPrompts.length) pickQuickPrompts();
   let html = `<div class="panel-content">`;
   if (c.messages.length === 0) {
-    html += `<div class="chip-row">${quickPrompts.map((p, i) =>
-      `<button class="chip" data-action="quick-prompt" data-idx="${i}">${escapeHtml(p)}</button>`
+    html += `<div class="chip-row">${c.quickPrompts.map(p =>
+      `<button class="chip" data-action="quick-prompt" data-val="${escapeHtml(p)}">${escapeHtml(p)}</button>`
     ).join("")}</div>`;
   }
   html += `<div class="chat-log" id="chatLog">`;
@@ -1495,10 +2079,18 @@ function renderQuiz() {
   }
   if (!q.quiz) {
     let html = `<div class="panel-content">
-      <label class="field-label">Topic</label>
-      <div class="chip-row">${TOPICS.map(t =>
-        `<button class="chip ${t === q.topic ? "selected" : ""}" data-action="set-quiz-topic" data-val="${escapeHtml(t)}">${escapeHtml(t)}</button>`
-      ).join("")}</div>
+      <div class="topic-picker">
+        <button class="topic-picker-toggle" data-action="toggle-quiz-topic">
+          <span class="tp-text">
+            <span class="tp-label">Topic</span>
+            <span class="tp-value">${escapeHtml(q.topic)}</span>
+          </span>
+          <span class="tp-chevron ${q.topicOpen ? "open" : ""}">▾</span>
+        </button>
+        ${q.topicOpen ? `<div class="chip-row">${TOPICS.map(t =>
+          `<button class="chip ${t === q.topic ? "selected" : ""}" data-action="set-quiz-topic" data-val="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+        ).join("")}</div>` : ""}
+      </div>
       <div class="controls-row">
         <div>
           <label class="field-label">Number of questions</label>
@@ -1549,10 +2141,18 @@ function renderFlash() {
   }
   if (!f.deck) {
     let html = `<div class="panel-content">
-      <label class="field-label">Topic</label>
-      <div class="chip-row">${TOPICS.map(t =>
-        `<button class="chip ${t === f.topic ? "selected" : ""}" data-action="set-flash-topic" data-val="${escapeHtml(t)}">${escapeHtml(t)}</button>`
-      ).join("")}</div>
+      <div class="topic-picker">
+        <button class="topic-picker-toggle" data-action="toggle-flash-topic">
+          <span class="tp-text">
+            <span class="tp-label">Topic</span>
+            <span class="tp-value">${escapeHtml(f.topic)}</span>
+          </span>
+          <span class="tp-chevron ${f.topicOpen ? "open" : ""}">▾</span>
+        </button>
+        ${f.topicOpen ? `<div class="chip-row">${TOPICS.map(t =>
+          `<button class="chip ${t === f.topic ? "selected" : ""}" data-action="set-flash-topic" data-val="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+        ).join("")}</div>` : ""}
+      </div>
       <div class="controls-row">
         <div>
           <label class="field-label">Number of cards</label>
@@ -1925,6 +2525,192 @@ function renderReminders() {
   return html;
 }
 
+/* ---------- render: daily login / study voyage streak ---------- */
+function voyageFlavorText(current) {
+  if (current <= 0) return "Anchors up! Log in to set sail — every voyage starts with day one. ⚓";
+  if (current < 3) return "Just cast off — keep the wind in your sails! 🌬️";
+  if (current < 7) return "Steady as she goes — a full week at sea is within sight.";
+  if (current < 14) return "Full speed ahead! You're cruising the high seas. ⛵💨";
+  if (current < 30) return "Smooth sailing, cadet — the horizon looks great from here.";
+  if (current < 100) return "Seasoned navigator! Storms don't stand a chance against this streak. 🌊";
+  return "Legendary voyager — you practically own these waters now. 🏆";
+}
+function renderLoginStreak() {
+  const acc = state.auth.accounts.find(x => x.id === state.auth.activeId);
+  if (!acc) return `<div class="panel-content"><div class="subtle">No account loaded.</div></div>`;
+
+  const streaks = computeLoginStreaks();
+  const joinDayKey = dayKeyFromTs(acc.createdAt);
+  const voyageDay = Math.round((new Date(streaks.todayKey) - new Date(joinDayKey)) / 86400000) + 1;
+  const nm = nextMilestone(streaks.longest);
+
+  /* ---- ship route strip: last N days of the voyage, sailing toward "today" ---- */
+  const WINDOW = 14;
+  const daysToShow = Math.max(1, Math.min(voyageDay, WINDOW));
+  const points = [];
+  for (let i = daysToShow - 1; i >= 0; i--) points.push(addDaysToKey(streaks.todayKey, -i));
+  const W = 700, H = 130, marginX = 36;
+  const spacing = points.length > 1 ? (W - marginX * 2) / (points.length - 1) : 0;
+  const baseY = 68;
+  const routeXY = points.map((key, i) => ({
+    key, x: marginX + i * spacing, y: baseY + Math.sin(i * 0.85) * 20
+  }));
+  const routePath = routeXY.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  let mapDots = "";
+  routeXY.forEach((p, i) => {
+    const isLast = i === routeXY.length - 1;
+    const isFirstOfVoyage = p.key === joinDayKey;
+    const isLogged = streaks.set.has(p.key);
+    const d = new Date(p.key + "T00:00:00");
+    const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    if (isLast) {
+      mapDots += `<g class="voyage-ship" style="transform-origin:${p.x}px ${p.y}px;">
+        <circle cx="${p.x}" cy="${p.y}" r="15" fill="var(--accent)" opacity="0.16"/>
+        <text x="${p.x}" y="${p.y + 7}" text-anchor="middle" font-size="22">⛵</text>
+      </g>
+      <text x="${p.x}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="Inter">Today</text>`;
+    } else {
+      mapDots += `<circle cx="${p.x}" cy="${p.y}" r="6" fill="${isLogged ? "var(--accent)" : "none"}" stroke="${isLogged ? "var(--accent)" : "var(--fog)"}" stroke-width="1.6" stroke-dasharray="${isLogged ? "0" : "2,2"}" opacity="${isLogged ? "1" : "0.55"}"><title>${label}${isLogged ? " — logged in" : " — no login"}</title></circle>`;
+      if (isFirstOfVoyage) {
+        mapDots += `<text x="${p.x}" y="${p.y - 14}" text-anchor="middle" font-size="15">⚓</text>
+        <text x="${p.x}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="Inter">Day 1</text>`;
+      }
+    }
+  });
+
+  /* ---- month calendar ---- */
+  const now = new Date();
+  const base = new Date(now.getFullYear(), now.getMonth() + state.login.monthOffset, 1);
+  const year = base.getFullYear(), month = base.getMonth();
+  const monthLabel = base.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const joinDateObj = new Date(acc.createdAt); joinDateObj.setHours(0, 0, 0, 0);
+  const joinMonthFirst = new Date(joinDateObj.getFullYear(), joinDateObj.getMonth(), 1);
+  const curMonthFirst = new Date(now.getFullYear(), now.getMonth(), 1);
+  const canGoPrev = base > joinMonthFirst;
+  const canGoNext = base < curMonthFirst;
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let cellsHtml = "";
+  for (let i = 0; i < firstWeekday; i++) cellsHtml += `<div class="cal-cell empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = dayKeyFromLocalDate(year, month, d);
+    const isFuture = key > streaks.todayKey;
+    const isToday = key === streaks.todayKey;
+    const isJoin = key === joinDayKey;
+    const isLogged = streaks.set.has(key);
+    const isSelected = state.login.selectedDay === key;
+    let cls = "cal-cell";
+    if (isFuture) cls += " future";
+    if (isToday) cls += " today";
+    if (isJoin) cls += " join";
+    if (isLogged) cls += " logged";
+    if (isSelected) cls += " selected";
+    const mark = isLogged ? "⛵" : (isJoin ? "⚓" : "");
+    const titleBits = [key, isJoin ? "Day 1 — embarkation" : "", isLogged ? "logged in" : (isFuture ? "uncharted" : "no login")].filter(Boolean).join(" · ");
+    cellsHtml += `<button class="${cls}" data-action="login-cal-select" data-val="${key}" ${isFuture ? "disabled" : ""} title="${escapeHtml(titleBits)}">
+      <span class="cal-daynum">${d}</span><span class="cal-mark">${mark}</span>
+    </button>`;
+  }
+  const dowHtml = ["S", "M", "T", "W", "T", "F", "S"].map(l => `<div class="cal-dow">${l}</div>`).join("");
+
+  let detailHtml = "";
+  if (state.login.selectedDay) {
+    const key = state.login.selectedDay;
+    const d = new Date(key + "T00:00:00");
+    const logged = streaks.set.has(key);
+    const dNum = Math.round((new Date(key) - new Date(joinDayKey)) / 86400000) + 1;
+    detailHtml = `<div class="cal-detail">
+      <b>${d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</b>
+      ${dNum >= 1 ? `<span class="subtle"> · Voyage Day ${dNum}</span>` : ""}
+      <div style="margin-top:4px;">${logged ? "⛵ Logged in and studying this day — well sailed!" : "💤 No login recorded — the ship stayed in port that day."}</div>
+    </div>`;
+  }
+
+  const milestonesHtml = VOYAGE_MILESTONES.map(m => {
+    const reached = streaks.longest >= m.days;
+    return `<div class="milestone-chip ${reached ? "reached" : "locked"}" title="${m.days} consecutive days">
+      <span class="mc-icon">${m.icon}</span>
+      <span class="mc-title">${escapeHtml(m.title)}</span>
+      <span class="mc-days mono">${m.days}d</span>
+    </div>`;
+  }).join("");
+
+  const progressHtml = nm
+    ? `<div class="voyage-progress">
+        <div class="subtle" style="margin-bottom:6px;">${nm.days - streaks.current} day${nm.days - streaks.current === 1 ? "" : "s"} to <b>${escapeHtml(nm.title)}</b> ${nm.icon}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100, (streaks.current / nm.days) * 100)}%"></div></div>
+      </div>`
+    : `<div class="voyage-progress"><div class="subtle">🏆 Every milestone conquered, Captain. Legendary voyage!</div></div>`;
+
+  const rank = currentSailorRank(streaks.totalDays);
+  const nextRank = nextSailorRank(streaks.totalDays);
+  const rankChipHtml = `<div class="rank-chip" title="${nextRank ? `${nextRank.days - streaks.totalDays} days to ${nextRank.title}` : "Top rank reached"}">${rank.icon} ${escapeHtml(rank.title)}</div>`;
+
+  const streakBroken = streaks.longest > streaks.current && streaks.current <= 1 && streaks.longest > 1;
+  const alertHtml = streakBroken
+    ? `<div class="streak-alert broken">🌊 <b>Man overboard!</b> Your best run was ${streaks.longest} days — you're rebuilding at ${streaks.current}. Full speed back up, Captain!</div>`
+    : `<div class="streak-alert safe">🛟 <b>Streak Saver:</b> Come back and log in tomorrow to keep Day ${streaks.current + 1} alive!</div>`;
+
+  const line = pickCaptainLine(streaks, state.login.captainSeed + streaks.current + streaks.totalDays);
+  const captainHtml = `<div class="captain-row">
+    <div class="captain-avatar" data-action="captain-speak" title="Click the Captain for a word">🧑‍✈️</div>
+    <div class="speech-bubble ${line.trivia ? "trivia" : ""}" data-action="captain-speak" title="Click for another line">
+      "${escapeHtml(line.text)}"
+      <span class="sb-hint">${line.trivia ? "⚓ Captain's trivia" : "— tap for another word from the Captain"}</span>
+    </div>
+  </div>`;
+
+  const tier = weatherTierFor(streaks);
+  const weatherHtml = weatherLayerHtml(tier);
+
+  return `<div class="panel-content">
+    <div class="section-title" style="justify-content:space-between;">
+      <span>⛵ Daily Login — Study Voyage</span>
+      <button class="icon-btn" data-action="toggle-sound" title="${state.soundOn ? "Mute sound effects" : "Unmute sound effects"}">${state.soundOn ? "🔔" : "🔕"}</button>
+    </div>
+    ${rankChipHtml}
+    <div class="voyage-caption">${escapeHtml(voyageFlavorText(streaks.current))}</div>
+
+    ${captainHtml}
+    ${alertHtml}
+
+    <div class="voyage-stats">
+      <div class="voyage-stat"><div class="vs-num">${streaks.current}🔥</div><div class="vs-label">Day Streak</div></div>
+      <div class="voyage-stat"><div class="vs-num">${streaks.longest}</div><div class="vs-label">Longest Streak</div></div>
+      <div class="voyage-stat"><div class="vs-num">${streaks.totalDays}</div><div class="vs-label">Days at Sea</div></div>
+      <div class="voyage-stat"><div class="vs-num">${voyageDay}</div><div class="vs-label">Voyage Day</div></div>
+    </div>
+
+    ${progressHtml}
+
+    <div class="voyage-map-wrap weather-${tier}">
+      ${weatherHtml}
+      <svg class="voyage-map" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        <path d="${routePath}" fill="none" stroke="var(--border)" stroke-width="2" stroke-dasharray="1,6" stroke-linecap="round"/>
+        ${mapDots}
+      </svg>
+    </div>
+
+    <div class="voyage-actions">
+      <button class="ghost" data-action="export-voyage-card">📤 Share your voyage</button>
+    </div>
+
+    <div class="section-title" style="margin-top:8px;">🚩 Milestones</div>
+    <div class="milestone-row">${milestonesHtml}</div>
+
+    <hr class="divider">
+    <div class="section-title">📅 Voyage Log — ${monthLabel}</div>
+    <div class="cal-nav-row">
+      <button class="icon-btn" data-action="login-cal-nav" data-val="-1" ${canGoPrev ? "" : "disabled"} title="Previous month">‹</button>
+      <div class="cal-month-label">${monthLabel}</div>
+      <button class="icon-btn" data-action="login-cal-nav" data-val="1" ${canGoNext ? "" : "disabled"} title="Next month">›</button>
+      ${state.login.monthOffset !== 0 ? `<button class="ghost" data-action="login-cal-today" style="margin-left:auto;">Back to today</button>` : ""}
+    </div>
+    <div class="cal-grid">${dowHtml}${cellsHtml}</div>
+    ${detailHtml}
+  </div>`;
+}
+
 /* ---------- render: admin (login/usage monitoring) ---------- */
 function renderAdmin() {
   const a = state.admin;
@@ -1985,6 +2771,7 @@ function render() {
   else if (state.tab === "study") panelHtml = renderStudy();
   else if (state.tab === "schedule") panelHtml = renderSchedule();
   else if (state.tab === "assign") panelHtml = renderAssign();
+  else if (state.tab === "login") panelHtml = renderLoginStreak();
   else if (state.tab === "admin") panelHtml = renderAdmin();
   else panelHtml = renderReminders();
 
@@ -2499,12 +3286,6 @@ document.addEventListener("click", (e) => {
   if (!el) return;
   const action = el.dataset.action;
   const val = el.dataset.val;
-  const quickPrompts = [
-    "Explain Rule 15 (crossing situation)",
-    "IALA Region A vs B buoyage differences",
-    "How do I compute compass error?",
-    "Sound signals in restricted visibility"
-  ];
   switch (action) {
     /* -- auth / accounts -- */
     case "auth-select-account": authSelectAccount(val); break;
@@ -2518,7 +3299,11 @@ document.addEventListener("click", (e) => {
     case "change-password": changePassword(); break;
     case "delete-current-account": deleteCurrentAccountFlow(); break;
 
-    case "set-tab": state.tab = val; render(); break;
+    case "set-tab":
+      if (val === "chat" && state.tab !== "chat") pickQuickPrompts();
+      state.tab = val;
+      render();
+      break;
     case "set-theme":
       state.themeOverride = val === "auto" ? null : val;
       storageSet("bw_theme_pref", state.themeOverride);
@@ -2530,12 +3315,14 @@ document.addEventListener("click", (e) => {
       if (last) sendChat(last.content);
       break;
     }
-    case "quick-prompt": sendChat(quickPrompts[Number(el.dataset.idx)]); break;
-    case "set-quiz-topic": state.quiz.topic = val; render(); break;
+    case "quick-prompt": sendChat(val); break;
+    case "toggle-quiz-topic": state.quiz.topicOpen = !state.quiz.topicOpen; render(); break;
+    case "set-quiz-topic": state.quiz.topic = val; state.quiz.topicOpen = false; render(); break;
     case "generate-quiz": generateQuiz(); break;
     case "choose-option": chooseOption(Number(val)); break;
     case "next-question": nextQuestion(); break;
-    case "set-flash-topic": state.flash.topic = val; render(); break;
+    case "toggle-flash-topic": state.flash.topicOpen = !state.flash.topicOpen; render(); break;
+    case "set-flash-topic": state.flash.topic = val; state.flash.topicOpen = false; render(); break;
     case "generate-flash": generateFlash(); break;
     case "load-saved-deck": {
       const d = state.flash.savedDecks[Number(val)];
@@ -2588,6 +3375,21 @@ document.addEventListener("click", (e) => {
     case "add-custom-reminder": addCustomReminder(); break;
     case "delete-custom-reminder": deleteCustomReminder(val); break;
 
+    /* -- daily login / voyage streak -- */
+    case "login-cal-nav": state.login.monthOffset += Number(val); state.login.selectedDay = null; render(); break;
+    case "login-cal-today": state.login.monthOffset = 0; state.login.selectedDay = dayKeyFromTs(Date.now()); render(); break;
+    case "login-cal-select": state.login.selectedDay = state.login.selectedDay === val ? null : val; render(); break;
+    case "captain-speak": state.login.captainSeed++; playChirp(); render(); break;
+    case "toggle-sound": {
+      state.soundOn = !state.soundOn;
+      storageSet("bw_sound_pref", state.soundOn);
+      if (state.soundOn) playChirp();
+      render();
+      break;
+    }
+    case "export-voyage-card": exportVoyageCard(); break;
+    case "dismiss-toast": dismissToast(val); break;
+
     /* -- admin -- */
     case "refresh-admin-logs": refreshAdminLogs(); break;
   }
@@ -2638,8 +3440,10 @@ document.addEventListener("keydown", (e) => {
 /* ---------- boot ---------- */
 (async function init() {
   state.themeOverride = await storageGet("bw_theme_pref", null);
+  state.soundOn = await storageGet("bw_sound_pref", true);
   state.auth.accounts = await storageGet("bw_accounts", []);
   state.admin.token = await storageGet("bw_admin_token", "");
+  pickQuickPrompts();
   routeAuthScreen();
   render();
 })();
