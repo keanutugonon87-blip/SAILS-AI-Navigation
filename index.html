@@ -762,10 +762,11 @@ let state = {
     accounts: [],
     activeId: null,
     session: false,
-    mode: "select",        // select | login | create | delete
+    mode: "select",        // select | login | create | delete | pending | approved | rejected
     selectedId: null,
     error: null,
     busy: false,
+    checking: false,
     createForm: { username: "", password: "", confirm: "" },
     changePwd: { busy: false, msg: null, ok: null },
     deleteSelf: { busy: false, msg: null }
@@ -799,7 +800,7 @@ let state = {
     syncing: false, syncMsg: null, syncOk: null, lastSyncedAt: null,
     testing: false, testMsg: null, testOk: null
   },
-  admin: { logs: [], loading: false, error: null, token: "", lastFetched: null },
+  admin: { logs: [], loading: false, error: null, token: "", lastFetched: null, pendingRequests: [], pendingLoading: false, pendingError: null },
   login: { history: [], monthOffset: 0, selectedDay: null, captainSeed: 0 },
   soundOn: true
 };
@@ -808,6 +809,20 @@ let state = {
 const ADMIN_EMAIL = "keanutugonon87@gmail.com";
 function isAdminAccount(acc) {
   return !!acc && String(acc.username || "").trim().toLowerCase() === ADMIN_EMAIL;
+}
+
+/* ---------- account approval backend ----------
+   Paste your deployed Apps Script Web App URL here (the same one you'd
+   otherwise paste into the Alerts tab). New (non-admin) accounts are held
+   as "pending" and use THIS constant — not the per-account Alerts URL,
+   which they don't have yet — to submit their request and poll for
+   approval. Once the admin approves them in the Admin tab, this exact URL
+   is revealed to them with instructions to paste it into Alerts. See the
+   companion Code.gs additions (handleApprovalGet/handleApprovalPost) for
+   the backend half of this. */
+const SIGNUP_GAS_URL = "PASTE_YOUR_DEPLOYED_APPS_SCRIPT_URL_HERE";
+function signupBackendConfigured() {
+  return !!SIGNUP_GAS_URL && SIGNUP_GAS_URL.indexOf("PASTE_YOUR") === -1;
 }
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1353,12 +1368,13 @@ async function recordLoginEvent(acc) {
 }
 
 function signOut() {
+  stopApprovalPolling();
   state.auth.session = false;
   state.auth.activeId = null;
   state.auth.mode = "select";
   state.auth.selectedId = null;
   state.auth.error = null;
-  state.admin = { logs: [], loading: false, error: null, token: state.admin.token, lastFetched: null };
+  state.admin = { logs: [], loading: false, error: null, token: state.admin.token, lastFetched: null, pendingRequests: [], pendingLoading: false, pendingError: null };
   resetSessionState();
   routeAuthScreen();
   render();
@@ -1422,15 +1438,123 @@ async function authCreateAccount() {
   try {
     const salt = randomSaltHex();
     const hash = await hashPassword(password, salt);
-    const account = { id: uid(), username, salt, hash, createdAt: Date.now(), failedAttempts: 0, lockUntil: 0 };
+    const isAdmin = username.trim().toLowerCase() === ADMIN_EMAIL;
+    const account = {
+      id: uid(), username, salt, hash, createdAt: Date.now(), failedAttempts: 0, lockUntil: 0,
+      status: isAdmin ? "approved" : "pending" // non-admin accounts need admin sign-off before entering the app
+    };
     a.accounts.push(account);
     await saveAccounts();
-    await logIntoAccount(account.id);
+    a.busy = false;
+    if (isAdmin) {
+      await logIntoAccount(account.id);
+    } else {
+      a.selectedId = account.id;
+      await submitAccountRequest(account);
+    }
   } catch (e) {
     a.error = "Couldn't create the account. Try again.";
     a.busy = false;
     render();
   }
+}
+
+/* ---------- account approval workflow ----------
+   Non-admin accounts are created locally as "pending" and can't enter the
+   app until the admin approves them from the Admin tab. Once approved,
+   the deployed Apps Script Web App URL (SIGNUP_GAS_URL) is revealed with
+   instructions to paste it into Alerts, unlocking AI chat, quizzes, and
+   reminders. See handleApprovalGet/handleApprovalPost in the companion
+   Code.gs additions for the backend half. */
+let approvalPollTimer = null;
+
+async function submitAccountRequest(account) {
+  const a = state.auth;
+  a.mode = "pending";
+  a.error = null;
+  a.checking = false;
+  render();
+  await pingApprovalBackend("requestAccount", { id: account.id, username: account.username, requestedAt: account.createdAt });
+  await checkApprovalStatus({ silent: true });
+  startApprovalPolling();
+}
+
+async function pingApprovalBackend(action, extra) {
+  if (!signupBackendConfigured()) return null;
+  try {
+    const res = await fetch(SIGNUP_GAS_URL, {
+      method: "POST",
+      mode: "cors",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight, per project convention
+      body: JSON.stringify({ action, ...extra })
+    });
+    if (!res.ok) return null;
+    return await res.json().catch(() => null);
+  } catch (e) {
+    return null;
+  }
+}
+
+function startApprovalPolling() {
+  stopApprovalPolling();
+  approvalPollTimer = setInterval(() => {
+    if (state.auth.mode === "pending") checkApprovalStatus({ silent: true });
+    else stopApprovalPolling();
+  }, 15000);
+}
+function stopApprovalPolling() {
+  if (approvalPollTimer) { clearInterval(approvalPollTimer); approvalPollTimer = null; }
+}
+
+async function checkApprovalStatus(opts) {
+  const a = state.auth;
+  const silent = !!(opts && opts.silent);
+  const acc = a.accounts.find(x => x.id === a.selectedId);
+  if (!acc) return;
+  if (!silent) { a.checking = true; a.error = null; render(); }
+  if (!signupBackendConfigured()) {
+    a.checking = false;
+    if (!silent) a.error = "Account approval isn't set up yet — the admin needs to paste the deployed Apps Script URL into SIGNUP_GAS_URL in the code. Please check back later.";
+    render();
+    return;
+  }
+  try {
+    const qs = "?action=checkApproval&id=" + encodeURIComponent(acc.id);
+    const res = await fetch(SIGNUP_GAS_URL + qs, { method: "GET", mode: "cors", redirect: "follow" });
+    const json = await res.json().catch(() => null);
+    const status = (json && json.status) || acc.status || "pending";
+    acc.status = status;
+    await saveAccounts();
+    if (status === "approved") { stopApprovalPolling(); a.mode = "approved"; }
+    else if (status === "rejected") { stopApprovalPolling(); a.mode = "rejected"; }
+    else { a.mode = "pending"; }
+  } catch (e) {
+    if (!silent) a.error = "Couldn't reach the admin backend — check your connection and try again.";
+  } finally {
+    a.checking = false;
+    render();
+  }
+}
+
+async function enterAfterApproval() {
+  const a = state.auth;
+  const acc = a.accounts.find(x => x.id === a.selectedId);
+  if (!acc) { routeAuthScreen(); render(); return; }
+  await logIntoAccount(acc.id);
+  state.reminders.gasUrl = SIGNUP_GAS_URL;
+  await acctSet("bw_reminders", state.reminders);
+  render();
+}
+
+async function requestNewApprovalAfterRejection() {
+  const a = state.auth;
+  const acc = a.accounts.find(x => x.id === a.selectedId);
+  if (!acc) return;
+  acc.status = "pending";
+  acc.createdAt = Date.now();
+  await saveAccounts();
+  await submitAccountRequest(acc);
 }
 
 async function authLoginSubmit() {
@@ -1449,6 +1573,17 @@ async function authLoginSubmit() {
       acc.failedAttempts = 0;
       acc.lockUntil = 0;
       await saveAccounts();
+      a.busy = false;
+      if (acc.status === "pending") {
+        await checkApprovalStatus({ silent: false });
+        startApprovalPolling();
+        return;
+      }
+      if (acc.status === "rejected") {
+        a.mode = "rejected";
+        render();
+        return;
+      }
       await logIntoAccount(acc.id);
       return;
     } else {
@@ -1876,7 +2011,7 @@ function renderAuthScreen() {
     inner = `
       <div class="auth-card panel">
         <div class="display" style="font-size:1.2rem; margin-bottom:4px;">New cadet account</div>
-        <div class="subtle" style="margin-bottom:18px;">${MAX_ACCOUNTS === 1 ? "This device is set up for a single account — your study data stays local to it." : `Up to ${MAX_ACCOUNTS} accounts can share this device. Each account's study data stays separate.`}</div>
+        <div class="subtle" style="margin-bottom:18px;">${MAX_ACCOUNTS === 1 ? "This device is set up for a single account — your study data stays local to it." : `Up to ${MAX_ACCOUNTS} accounts can share this device. Each account's study data stays separate.`} New accounts are reviewed by the admin before they can come aboard.</div>
         ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
         <div class="field" style="margin-bottom:12px;"><label class="field-label">Username</label><input type="text" id="auth_new_user" maxlength="24" placeholder="e.g. Seebreeze" value="${escapeHtml(a.createForm.username)}"></div>
         <div class="field" style="margin-bottom:12px;"><label class="field-label">Password</label><input type="password" id="auth_new_pass" placeholder="At least 4 characters"></div>
@@ -1916,6 +2051,48 @@ function renderAuthScreen() {
         <div style="display:flex; gap:10px;">
           <button class="primary" style="background:linear-gradient(180deg, var(--port-red), #a11f24); color:#fff;" data-action="auth-delete-confirm" ${a.busy ? "disabled" : ""}>${a.busy ? "Deleting…" : "Delete permanently"}</button>
           <button class="ghost" data-action="auth-back">Cancel</button>
+        </div>
+      </div>`;
+  } else if (a.mode === "pending") {
+    const acc = a.accounts.find(x => x.id === a.selectedId);
+    inner = `
+      <div class="auth-card panel">
+        <div class="display" style="font-size:1.2rem; margin-bottom:4px;">⏳ Awaiting admin approval</div>
+        <div class="subtle" style="margin-bottom:16px;">Your account request for "<b>${escapeHtml((acc && acc.username) || "")}</b>" has been sent to the admin. You'll be let in once it's approved — this checks automatically every 15 seconds.</div>
+        ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
+        <div class="sync-status" style="margin-bottom:16px;">Requested ${acc ? new Date(acc.createdAt).toLocaleString() : "—"}</div>
+        <div style="display:flex; gap:10px;">
+          <button class="primary" data-action="auth-check-approval" ${a.checking ? "disabled" : ""}>${a.checking ? "Checking…" : "Check now"}</button>
+          <button class="ghost" data-action="auth-show-delete" data-val="${acc ? acc.id : ""}">Cancel request</button>
+        </div>
+      </div>`;
+  } else if (a.mode === "approved") {
+    const acc = a.accounts.find(x => x.id === a.selectedId);
+    inner = `
+      <div class="auth-card panel" style="max-width:480px;">
+        <div class="display" style="font-size:1.2rem; margin-bottom:4px; color: var(--stbd-green, var(--brass));">✅ Approved — welcome aboard, ${escapeHtml((acc && acc.username) || "")}!</div>
+        <div class="subtle" style="margin-bottom:16px;">One last step: paste this Apps Script Web App URL into the <b>Alerts</b> tab so AI features and reminders work. It's already been saved for you below — the Alerts tab is just there to confirm or update it later.</div>
+        <div class="field" style="margin-bottom:14px;">
+          <label class="field-label">Apps Script Web App URL</label>
+          <input type="text" readonly value="${escapeHtml(SIGNUP_GAS_URL)}" class="mono" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--brass); background: var(--navy-950, #0b1220); color: var(--parchment); font-size:0.75rem;" onclick="this.select()">
+        </div>
+        <div class="subtle" style="margin-bottom:18px; font-size:0.8rem; line-height:1.5;">
+          1. Tap the box above to select and copy the URL.<br>
+          2. Once inside, open the <b>Alerts</b> tab.<br>
+          3. Confirm it's pasted into "Apps Script Web App URL", then tap "Sync data to Apps Script".
+        </div>
+        <button class="primary" style="width:100%;" data-action="auth-enter-app">Continue to Bridge Watch →</button>
+      </div>`;
+  } else if (a.mode === "rejected") {
+    const acc = a.accounts.find(x => x.id === a.selectedId);
+    inner = `
+      <div class="auth-card panel">
+        <div class="display" style="font-size:1.2rem; margin-bottom:4px; color: var(--port-red);">Request declined</div>
+        <div class="subtle" style="margin-bottom:18px;">The admin declined the account request for "<b>${escapeHtml((acc && acc.username) || "")}</b>". If you think this is a mistake, reach out to the admin — or submit a new request below.</div>
+        ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
+        <div style="display:flex; gap:10px;">
+          <button class="primary" data-action="auth-resubmit-request" ${a.busy ? "disabled" : ""}>Submit new request</button>
+          <button class="ghost" data-action="auth-show-delete" data-val="${acc ? acc.id : ""}">Delete account</button>
         </div>
       </div>`;
   } else {
@@ -2735,6 +2912,28 @@ function renderAdmin() {
   }
 
   html += `<hr class="divider">
+    <div class="section-title">🕒 Pending account requests</div>
+    <div class="subtle" style="margin-bottom:10px;">New (non-admin) accounts wait here until you approve or decline them. Requires <code>SIGNUP_GAS_URL</code> to be set in the code, plus the admin token below if you set an <code>ADMIN_TOKEN</code> script property.</div>
+    <div style="margin-bottom:14px;"><button class="ghost" data-action="admin-refresh-pending" ${a.pendingLoading ? "disabled" : ""}>${a.pendingLoading ? "Loading…" : "Refresh pending requests"}</button></div>`;
+  if (a.pendingError) html += `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.pendingError)}</span></div>`;
+  if (!a.pendingRequests || !a.pendingRequests.length) {
+    html += `<div class="subtle" style="margin-bottom:10px;">No pending requests loaded — tap refresh above.</div>`;
+  } else {
+    html += `<div class="source-grid" style="margin-bottom:6px;">`;
+    a.pendingRequests.forEach(req => {
+      html += `<div class="source-card">
+        <div class="s-name">${escapeHtml(req.username || "unknown")}</div>
+        <div class="s-meta">Requested ${req.requestedAt ? new Date(req.requestedAt).toLocaleString() : "—"}</div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="primary" style="padding:6px 12px; font-size:0.8rem;" data-action="admin-approve-request" data-val="${escapeHtml(req.id)}" ${a.pendingLoading ? "disabled" : ""}>Approve</button>
+          <button class="ghost" style="padding:6px 12px; font-size:0.8rem; color: var(--port-red); border-color: rgba(193,39,45,0.35);" data-action="admin-reject-request" data-val="${escapeHtml(req.id)}" ${a.pendingLoading ? "disabled" : ""}>Decline</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<hr class="divider">
     <div class="section-title">🌐 Global activity log</div>
     <div class="subtle" style="margin-bottom:10px;">Reads the login events your Apps Script backend has collected from every device that syncs to it. Requires the Web App URL saved in Alerts. If you set an <code>ADMIN_TOKEN</code> script property in Code.gs, enter the same value below to authorize.</div>
     <div class="controls-row" style="margin-bottom:14px;">
@@ -3280,6 +3479,49 @@ async function refreshAdminLogs() {
   }
 }
 
+async function fetchPendingRequests() {
+  const st = state.admin;
+  const tokenEl = document.getElementById("admin_token");
+  st.token = tokenEl ? tokenEl.value : st.token;
+  await storageSet("bw_admin_token", st.token);
+  st.pendingLoading = true; st.pendingError = null; render();
+  try {
+    if (!signupBackendConfigured()) throw new Error("Set SIGNUP_GAS_URL in the code first.");
+    const qs = "?action=listPendingAccounts" + (st.token ? "&token=" + encodeURIComponent(st.token) : "");
+    const res = await fetch(SIGNUP_GAS_URL + qs, { method: "GET", mode: "cors", redirect: "follow" });
+    if (!res.ok) throw new Error("Backend returned status " + res.status + ".");
+    const json = await res.json();
+    if (!json || json.ok === false) throw new Error((json && json.error) || "Backend reported an error.");
+    st.pendingRequests = json.requests || [];
+  } catch (e) {
+    st.pendingError = e.message || "Couldn't load pending requests.";
+  } finally {
+    st.pendingLoading = false; render();
+  }
+}
+
+async function decideRequest(id, decision) {
+  const st = state.admin;
+  st.pendingLoading = true; st.pendingError = null; render();
+  try {
+    if (!signupBackendConfigured()) throw new Error("Set SIGNUP_GAS_URL in the code first.");
+    const res = await fetch(SIGNUP_GAS_URL, {
+      method: "POST",
+      mode: "cors",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: decision === "approve" ? "approveAccount" : "rejectAccount", id, token: st.token })
+    });
+    const json = await res.json().catch(() => null);
+    if (!json || json.ok === false) throw new Error((json && json.error) || "Backend reported an error.");
+    st.pendingRequests = st.pendingRequests.filter(r => r.id !== id);
+  } catch (e) {
+    st.pendingError = e.message || "Couldn't update the request.";
+  } finally {
+    st.pendingLoading = false; render();
+  }
+}
+
 /* ---------- event delegation ---------- */
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-action]");
@@ -3295,6 +3537,9 @@ document.addEventListener("click", (e) => {
     case "auth-create-account": authCreateAccount(); break;
     case "auth-login-submit": authLoginSubmit(); break;
     case "auth-delete-confirm": authDeleteConfirm(); break;
+    case "auth-check-approval": checkApprovalStatus({ silent: false }); break;
+    case "auth-enter-app": enterAfterApproval(); break;
+    case "auth-resubmit-request": requestNewApprovalAfterRejection(); break;
     case "sign-out": signOut(); break;
     case "change-password": changePassword(); break;
     case "delete-current-account": deleteCurrentAccountFlow(); break;
@@ -3392,6 +3637,9 @@ document.addEventListener("click", (e) => {
 
     /* -- admin -- */
     case "refresh-admin-logs": refreshAdminLogs(); break;
+    case "admin-refresh-pending": fetchPendingRequests(); break;
+    case "admin-approve-request": decideRequest(val, "approve"); break;
+    case "admin-reject-request": decideRequest(val, "reject"); break;
   }
 });
 
