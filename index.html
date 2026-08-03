@@ -2712,9 +2712,9 @@ function renderImportSchedule() {
     <div class="dropzone" data-action="pick-import-file">
       ${imp.importFile
         ? `<div>📎 ${escapeHtml(imp.importFile.name)} <button class="icon-btn" data-action="remove-import-file" title="Remove" style="margin-left:6px;">✕</button></div>`
-        : `<div>Or drop/click to attach a photo or PDF of your schedule</div>`}
+        : `<div>Or drop/click to attach a photo or screenshot of your schedule</div>`}
     </div>
-    <input type="file" id="scheduleImportFileInput" accept=".pdf,image/*" style="display:none;">`;
+    <input type="file" id="scheduleImportFileInput" accept="image/*" style="display:none;">`;
   if (imp.importError) html += `<div class="error-box" style="margin-bottom:12px;"><span>${escapeHtml(imp.importError)}</span></div>`;
   html += `<div style="display:flex; gap:10px;">
       <button class="primary" data-action="parse-import-schedule" ${(imp.importText.trim() || imp.importFile) ? "" : "disabled"}>Read schedule</button>
@@ -3568,10 +3568,15 @@ async function handleImportScheduleFile(fileList) {
   const file = fileList && fileList[0];
   if (!file) return;
   if (file.size > 9 * 1024 * 1024) { sc.importError = `"${file.name}" is over 9MB — attach a smaller file.`; render(); return; }
+  const mime = file.type || "application/octet-stream";
+  if (!mime.startsWith("image/")) {
+    sc.importError = "PDFs aren't supported for import right now — the AI backend can't read them. Please attach a photo/screenshot instead, or paste the text above.";
+    render();
+    return;
+  }
   try {
     const dataUrl = await fileToDataUrl(file);
-    const mime = file.type || "application/octet-stream";
-    sc.importFile = { name: file.name, mime, dataUrl, kind: mime === "application/pdf" ? "pdf" : "image" };
+    sc.importFile = { name: file.name, mime, dataUrl, kind: "image" };
     sc.importError = null;
   } catch (e) {
     sc.importError = "Couldn't read that file. Try again.";
@@ -3607,12 +3612,16 @@ If you can't find any classes, return {"classes":[]}.`;
   try {
     const content = [];
     if (sc.importFile) {
-      if (sc.importFile.kind === "pdf") content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64FromDataUrl(sc.importFile.dataUrl) } });
-      else content.push({ type: "image", source: { type: "base64", media_type: sc.importFile.mime, data: base64FromDataUrl(sc.importFile.dataUrl) } });
+      content.push({ type: "image", source: { type: "base64", media_type: sc.importFile.mime, data: base64FromDataUrl(sc.importFile.dataUrl) } });
     }
-    content.push({ type: "text", text: sc.importText.trim() ? `Schedule text:\n${sc.importText.trim()}` : "Extract the schedule from the attached file." });
+    content.push({ type: "text", text: sc.importText.trim() ? `Schedule text:\n${sc.importText.trim()}` : "Extract the schedule from the attached image." });
     const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false });
-    const parsed = extractJSON(result.text);
+    let parsed;
+    try {
+      parsed = extractJSON(result.text);
+    } catch (parseErr) {
+      throw new Error("The AI couldn't read a schedule from that — try a clearer photo or pasting the text instead.");
+    }
     const classes = Array.isArray(parsed.classes) ? parsed.classes : [];
     if (!classes.length) {
       sc.importError = "Couldn't find any classes in that — try pasting clearer text or a sharper photo.";
