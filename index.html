@@ -762,7 +762,7 @@ let state = {
     accounts: [],
     activeId: null,
     session: false,
-    mode: "select",        // select | login | create | delete | pending | approved | rejected
+    mode: "select",        // select | login | create | delete | pending | approved | rejected | welcome | login-existing
     selectedId: null,
     error: null,
     busy: false,
@@ -782,7 +782,7 @@ let state = {
   },
   schedule: {
     classes: [],
-    form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "" },
+    form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" },
     editingId: null
   },
   assign: {
@@ -830,6 +830,24 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /* ---------- misc helpers (new features) ---------- */
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function todayISO() { const d = new Date(); d.setHours(0,0,0,0); return d.toISOString().slice(0,10); }
+
+/** Converts a 24-hour "HH:MM" string (what <input type="time"> stores) into
+ *  12-hour civil clock display, e.g. "14:30" -> "2:30 PM". Used everywhere
+ *  a saved time is shown as text, so the app reads in ordinary AM/PM time
+ *  rather than 24-hour "military" time — the time inputs themselves still
+ *  store 24-hour values under the hood, this only affects how they're shown. */
+function formatTime12(t) {
+  if (!t) return "—";
+  const parts = String(t).split(":");
+  if (parts.length < 2) return t;
+  let h = parseInt(parts[0], 10);
+  const m = parts[1].padStart(2, "0");
+  if (isNaN(h)) return t;
+  const suffix = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${h}:${m} ${suffix}`;
+}
 function daysUntil(dateStr) {
   if (!dateStr) return null;
   const due = new Date(dateStr + "T00:00:00");
@@ -1250,8 +1268,91 @@ function computeLockoutMs(failedAttempts) {
 function accountInitial(name) { return (name || "?").trim().charAt(0).toUpperCase() || "?"; }
 function acctKey(base) { return base + "__acct_" + state.auth.activeId; }
 async function acctGet(key, fallback) { return storageGet(acctKey(key), fallback); }
-async function acctSet(key, value) { return storageSet(acctKey(key), value); }
+async function acctSet(key, value) {
+  const r = await storageSet(acctKey(key), value);
+  queueAccountDataSync();
+  return r;
+}
 async function saveAccounts() { await storageSet("bw_accounts", state.auth.accounts); }
+
+/* ---------- cross-device sync ----------
+   The Accounts sheet on the backend (see Code.gs's Account Directory &
+   Cross-Device Sync add-on) is the source of truth once an account is
+   approved: every local save queues a debounced push, and every login
+   pulls the latest copy down before loading local state, so the same
+   account behaves consistently no matter which device it's used on.
+   This is deliberately "server wins on login" — not a real merge — so
+   if the same account is edited offline on two devices between syncs,
+   whichever one logs in / syncs last overwrites the other. Fine for a
+   single student using their own account across their own devices. */
+const SYNCED_DATA_KEYS = {
+  schedule_classes: "bw_schedule_classes",
+  assignments: "bw_assignments",
+  reminders: "bw_reminders",
+  quiz_history: "bw_quiz_history",
+  saved_decks: "bw_saved_decks",
+  study_sources: "bw_study_sources",
+  study_notes: "bw_study_notes",
+  login_history: "bw_login_history",
+  celebrated_milestones: "bw_celebrated_milestones"
+};
+let accountSyncTimer = null;
+
+function queueAccountDataSync() {
+  if (!signupBackendConfigured()) return;
+  const a = state.auth;
+  if (!a.session || !a.activeId) return;
+  const acc = a.accounts.find(x => x.id === a.activeId);
+  if (!acc || acc.status !== "approved") return;
+  clearTimeout(accountSyncTimer);
+  accountSyncTimer = setTimeout(pushAccountDataSync, 4000);
+}
+
+async function pushAccountDataSync() {
+  const a = state.auth;
+  const acc = a.accounts.find(x => x.id === a.activeId);
+  if (!acc || !signupBackendConfigured()) return;
+  const bundle = {};
+  for (const bundleKey in SYNCED_DATA_KEYS) {
+    bundle[bundleKey] = await storageGet(acctKey(SYNCED_DATA_KEYS[bundleKey]), bundleKey === "reminders" ? null : []);
+  }
+  // Keep the payload well clear of the backend sheet's per-cell size limit —
+  // trim the heaviest, least-essential arrays first if it's still too big.
+  let json = JSON.stringify(bundle);
+  if (json.length > 45000 && bundle.quiz_history.length > 20) { bundle.quiz_history = bundle.quiz_history.slice(0, 20); json = JSON.stringify(bundle); }
+  if (json.length > 45000 && bundle.login_history && bundle.login_history.length > 100) { bundle.login_history = bundle.login_history.slice(0, 100); json = JSON.stringify(bundle); }
+  if (json.length > 45000 && bundle.study_notes && bundle.study_notes.length > 30) { bundle.study_notes = bundle.study_notes.slice(0, 30); json = JSON.stringify(bundle); }
+  try {
+    await fetch(SIGNUP_GAS_URL, {
+      method: "POST", mode: "cors", redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "accountDataSync", id: acc.id, data: bundle })
+    });
+  } catch (e) { /* non-fatal — the next successful save queues another attempt */ }
+}
+
+/** Writes a server-provided data bundle into this device's local cache
+ *  for the given account, without re-queuing a sync push for each field. */
+async function applyServerDataBundle(accountId, bundle) {
+  if (!bundle) return;
+  const prevActive = state.auth.activeId;
+  state.auth.activeId = accountId; // acctKey() reads this
+  for (const bundleKey in SYNCED_DATA_KEYS) {
+    if (bundle[bundleKey] !== undefined) {
+      await storageSet(acctKey(SYNCED_DATA_KEYS[bundleKey]), bundle[bundleKey]);
+    }
+  }
+  state.auth.activeId = prevActive;
+}
+
+async function pullLatestAccountData(acc) {
+  if (!acc || !signupBackendConfigured()) return;
+  try {
+    const res = await fetch(SIGNUP_GAS_URL + "?action=accountDataPull&id=" + encodeURIComponent(acc.id), { method: "GET", mode: "cors", redirect: "follow" });
+    const json = await res.json().catch(() => null);
+    if (json && json.ok && json.data) await applyServerDataBundle(acc.id, json.data);
+  } catch (e) { /* offline or unreachable — fall back to this device's local cache */ }
+}
 
 async function purgeAccountData(accountId) {
   const keys = ["bw_quiz_history", "bw_saved_decks", "bw_study_sources", "bw_study_notes", "bw_schedule_classes", "bw_assignments", "bw_reminders", "bw_login_history", "bw_celebrated_milestones"];
@@ -1276,7 +1377,7 @@ function resetSessionState() {
     chat: { messages: [], loading: false, error: null },
     uploading: false, uploadError: null, summarizingId: null
   };
-  state.schedule = { classes: [], form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "" }, editingId: null };
+  state.schedule = { classes: [], form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }, editingId: null };
   state.assign = { items: [], form: { title: "", classId: "", dueDate: "", notes: "" }, editingId: null, filter: "active" };
   state.reminders = {
     email: "", dailyEnabled: true, dailyTime: "07:00", gasUrl: "", custom: [],
@@ -1307,8 +1408,9 @@ async function logIntoAccount(id) {
   state.auth.session = true;
   state.auth.mode = "app";
   state.auth.error = null;
-  await loadAccountData();
   const acc = state.auth.accounts.find(x => x.id === id);
+  if (acc && acc.status === "approved") await pullLatestAccountData(acc);
+  await loadAccountData();
   if (acc) await recordLoginEvent(acc);
   render();
 }
@@ -1365,6 +1467,16 @@ async function recordLoginEvent(acc) {
       });
     } catch (e) { /* non-fatal — local point/history already saved */ }
   }
+
+  if (signupBackendConfigured() && acc.status === "approved") {
+    try {
+      await fetch(SIGNUP_GAS_URL, {
+        method: "POST", mode: "cors", redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "accountDataSync", id: acc.id, points: acc.points, loginCount: acc.loginCount, lastLoginRewardDate: acc.lastLoginRewardDate, lastLoginAt: acc.lastLoginAt })
+      });
+    } catch (e) { /* non-fatal — local counters already saved, next sync will retry */ }
+  }
 }
 
 function signOut() {
@@ -1386,6 +1498,77 @@ function authShowCreate() {
   state.auth.createForm = { username: "", password: "", confirm: "" };
   render();
 }
+
+function authShowLoginExisting() {
+  state.auth.mode = "login-existing";
+  state.auth.error = null;
+  render();
+}
+
+/** Signs an already-approved (or pending/rejected) account into THIS
+ *  device for the first time, pulling its credentials and synced data
+ *  down from the backend rather than requiring it to be created locally. */
+async function authLoginExistingSubmit() {
+  const a = state.auth;
+  const username = (document.getElementById("auth_existing_user")?.value || "").trim();
+  const password = document.getElementById("auth_existing_pass")?.value || "";
+  a.error = null;
+  if (!username || !password) { a.error = "Enter your username and password."; render(); return; }
+  if (!signupBackendConfigured()) { a.error = "Cross-device sign-in isn't set up yet — ask the admin to finish configuring SIGNUP_GAS_URL."; render(); return; }
+  a.busy = true; render();
+  try {
+    const saltRes = await fetch(SIGNUP_GAS_URL + "?action=getSalt&username=" + encodeURIComponent(username), { method: "GET", mode: "cors", redirect: "follow" });
+    const saltJson = await saltRes.json().catch(() => null);
+    if (!saltJson || !saltJson.ok || !saltJson.salt) {
+      a.error = "No account found with that username.";
+      a.busy = false; render(); return;
+    }
+    const hash = await hashPassword(password, saltJson.salt);
+    const loginRes = await fetch(SIGNUP_GAS_URL, {
+      method: "POST", mode: "cors", redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "accountLogin", username, hash })
+    });
+    const loginJson = await loginRes.json().catch(() => null);
+    if (!loginJson || !loginJson.ok) {
+      a.error = (loginJson && loginJson.error) || "Incorrect username or password.";
+      a.busy = false; render(); return;
+    }
+    const srv = loginJson.account;
+    const account = {
+      id: srv.id, username: srv.username, salt: saltJson.salt, hash,
+      createdAt: srv.createdAt || Date.now(), failedAttempts: 0, lockUntil: 0,
+      status: srv.status, points: srv.points || 0, loginCount: srv.loginCount || 0,
+      lastLoginRewardDate: srv.lastLoginRewardDate || "", lastLoginAt: srv.lastLoginAt || 0
+    };
+    a.accounts = [account]; // this device now caches this one account (MAX_ACCOUNTS = 1 is a per-device slot, not a per-account device lock)
+    await saveAccounts();
+    a.selectedId = account.id;
+    a.busy = false;
+    await applyServerDataBundle(account.id, loginJson.data || {});
+    if (account.status === "pending") { a.mode = "pending"; render(); return; }
+    if (account.status === "rejected") { a.mode = "rejected"; render(); return; }
+    await logIntoAccount(account.id);
+  } catch (e) {
+    a.error = "Couldn't reach the backend. Check your connection and try again.";
+    a.busy = false; render();
+  }
+}
+
+/** Un-caches the current account from this device only — the account
+ *  itself and its synced data are untouched on the backend, so it can
+ *  still be signed back into here or on any other device. */
+async function authSwitchAccount() {
+  const a = state.auth;
+  const acc = a.accounts.find(x => x.id === a.selectedId);
+  if (acc) await purgeAccountData(acc.id);
+  a.accounts = [];
+  await saveAccounts();
+  a.selectedId = null;
+  routeAuthScreen();
+  render();
+}
+
 /* With MAX_ACCOUNTS = 1, the device is meant to hold a single account —
    this picks straight into login (or create, if none exists yet) instead
    of showing the "Who's on watch?" list, so there's no switcher to see
@@ -1398,8 +1581,7 @@ function routeAuthScreen() {
     a.mode = "login";
     a.selectedId = a.accounts[0].id;
   } else if (a.accounts.length === 0) {
-    a.mode = "create";
-    a.createForm = { username: "", password: "", confirm: "" };
+    a.mode = "welcome";
   } else {
     a.mode = "select";
     a.selectedId = null;
@@ -1428,7 +1610,7 @@ async function authCreateAccount() {
   const password = document.getElementById("auth_new_pass")?.value || "";
   const confirm = document.getElementById("auth_new_confirm")?.value || "";
   a.error = null;
-  if (a.accounts.length >= MAX_ACCOUNTS) { a.error = MAX_ACCOUNTS === 1 ? "This device is locked to one account — delete it first if you want to create a different one." : `This device already has the maximum of ${MAX_ACCOUNTS} accounts.`; render(); return; }
+  if (a.accounts.length >= MAX_ACCOUNTS) { a.error = MAX_ACCOUNTS === 1 ? "This device already has an account signed in — sign out (or tap \"Not you?\" on the login screen) if you want to use a different one here." : `This device already has the maximum of ${MAX_ACCOUNTS} accounts.`; render(); return; }
   if (!username) { a.error = "Enter a username."; render(); return; }
   if (a.accounts.some(x => x.username.toLowerCase() === username.toLowerCase())) { a.error = "That username is already taken on this device."; render(); return; }
   if (password.length < 4) { a.error = "Password must be at least 4 characters."; render(); return; }
@@ -1474,7 +1656,17 @@ async function submitAccountRequest(account) {
   a.error = null;
   a.checking = false;
   render();
-  await pingApprovalBackend("requestAccount", { id: account.id, username: account.username, requestedAt: account.createdAt });
+  const result = await pingApprovalBackend("requestAccount", { id: account.id, username: account.username, salt: account.salt, hash: account.hash, requestedAt: account.createdAt });
+  if (result && result.ok === false) {
+    // e.g. that username is already registered on another device — undo the local pending account and let them try signing in instead
+    a.accounts = a.accounts.filter(x => x.id !== account.id);
+    await saveAccounts();
+    a.mode = "create";
+    a.error = result.error || "Couldn't register this account.";
+    a.createForm = { username: account.username, password: "", confirm: "" };
+    render();
+    return;
+  }
   await checkApprovalStatus({ silent: true });
   startApprovalPolling();
 }
@@ -2007,17 +2199,41 @@ function renderAuthScreen() {
   const root = document.getElementById("root");
   let inner = "";
 
-  if (a.mode === "create") {
+  if (a.mode === "welcome") {
+    inner = `
+      <div class="auth-card panel">
+        <div class="display" style="font-size:1.25rem; margin-bottom:4px;">Welcome to Bridge Watch</div>
+        <div class="subtle" style="margin-bottom:20px;">One account works across all your devices — sign in with the same username and password anywhere to pick up right where you left off.</div>
+        ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <button class="primary" data-action="auth-show-create">Create new account</button>
+          <button class="ghost" data-action="auth-show-login-existing">Sign in with existing account</button>
+        </div>
+      </div>`;
+  } else if (a.mode === "create") {
     inner = `
       <div class="auth-card panel">
         <div class="display" style="font-size:1.2rem; margin-bottom:4px;">New cadet account</div>
-        <div class="subtle" style="margin-bottom:18px;">${MAX_ACCOUNTS === 1 ? "This device is set up for a single account — your study data stays local to it." : `Up to ${MAX_ACCOUNTS} accounts can share this device. Each account's study data stays separate.`} New accounts are reviewed by the admin before they can come aboard.</div>
+        <div class="subtle" style="margin-bottom:18px;">Your account will work from any device — just sign in with the same username and password next time. New accounts are reviewed by the admin before they can come aboard.</div>
         ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
         <div class="field" style="margin-bottom:12px;"><label class="field-label">Username</label><input type="text" id="auth_new_user" maxlength="24" placeholder="e.g. Seebreeze" value="${escapeHtml(a.createForm.username)}"></div>
         <div class="field" style="margin-bottom:12px;"><label class="field-label">Password</label><input type="password" id="auth_new_pass" placeholder="At least 4 characters"></div>
         <div class="field" style="margin-bottom:18px;"><label class="field-label">Confirm password</label><input type="password" id="auth_new_confirm" placeholder="Retype password"></div>
         <div style="display:flex; gap:10px;">
           <button class="primary" data-action="auth-create-account" ${a.busy ? "disabled" : ""}>${a.busy ? "Creating…" : "Create account"}</button>
+          <button class="ghost" data-action="auth-back">Back</button>
+        </div>
+      </div>`;
+  } else if (a.mode === "login-existing") {
+    inner = `
+      <div class="auth-card panel">
+        <div class="display" style="font-size:1.2rem; margin-bottom:4px;">Sign in</div>
+        <div class="subtle" style="margin-bottom:18px;">Already have a Bridge Watch account from another device? Sign in here to sync it to this one.</div>
+        ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
+        <div class="field" style="margin-bottom:12px;"><label class="field-label">Username</label><input type="text" id="auth_existing_user" maxlength="24" placeholder="e.g. Seebreeze"></div>
+        <div class="field" style="margin-bottom:18px;"><label class="field-label">Password</label><input type="password" id="auth_existing_pass" placeholder="Password"></div>
+        <div style="display:flex; gap:10px;">
+          <button class="primary" data-action="auth-login-existing-submit" ${a.busy ? "disabled" : ""}>${a.busy ? "Signing in…" : "Sign in"}</button>
           <button class="ghost" data-action="auth-back">Back</button>
         </div>
       </div>`;
@@ -2037,7 +2253,7 @@ function renderAuthScreen() {
         <div class="field" style="margin-bottom:18px;"><label class="field-label">Password</label><input type="password" id="auth_login_pass" placeholder="Password" ${locked ? "disabled" : ""}></div>
         <div style="display:flex; gap:10px;">
           <button class="primary" data-action="auth-login-submit" ${a.busy || locked ? "disabled" : ""}>${a.busy ? "Checking…" : "Log in"}</button>
-          <button class="ghost" data-action="auth-back">Back</button>
+          <button class="ghost" data-action="auth-switch-account">Not you?</button>
         </div>
       </div>`;
   } else if (a.mode === "delete") {
@@ -2099,7 +2315,7 @@ function renderAuthScreen() {
     inner = `
       <div class="auth-card panel">
         <div class="display" style="font-size:1.25rem; margin-bottom:4px;">Who's on watch?</div>
-        <div class="subtle" style="margin-bottom:18px;">${MAX_ACCOUNTS === 1 ? "This device is locked to one account." : `${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device`}</div>
+        <div class="subtle" style="margin-bottom:18px;">${MAX_ACCOUNTS === 1 ? "This device caches one account at a time." : `${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device`}</div>
         ${a.error ? `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.error)}</span></div>` : ""}
         <div class="account-list">
         ${a.accounts.length ? a.accounts.map(acc => `
@@ -2126,7 +2342,7 @@ function renderAuthScreen() {
 function renderHeader() {
   const watch = getWatch(state.now);
   const isDark = state.themeOverride ? state.themeOverride === "dark" : watch.dark;
-  const timeStr = state.now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const timeStr = state.now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
   return `
   <header class="binnacle">
     <div class="brand">
@@ -2478,6 +2694,7 @@ function renderSchedule() {
       <div class="field"><label class="field-label">Start time</label><input type="time" id="sch_start" value="${f.start}"></div>
       <div class="field"><label class="field-label">End time</label><input type="time" id="sch_end" value="${f.end}"></div>
     </div>
+    <div class="field" style="margin-top:4px;"><label class="field-label">Notes</label><textarea id="sch_notes" rows="2" placeholder="e.g. bring calculator, midterm week 8, group project due...">${escapeHtml(f.notes || "")}</textarea></div>
     <label class="field-label">Major / Minor</label>
     <div class="chip-row">
       <button class="chip ${f.type === "major" ? "selected" : ""}" data-action="set-class-type" data-val="major">Major</button>
@@ -2508,8 +2725,9 @@ function renderSchedule() {
       html += `<div class="class-card ${c.type === "minor" ? "minor" : ""}">
         <div>
           <div class="c-name">${escapeHtml(c.name)} <span class="chip" style="pointer-events:none; padding:2px 9px; font-size:0.65rem;">${c.type === "major" ? "Major" : "Minor"}</span></div>
-          <div class="c-meta">${escapeHtml(c.professor || "No professor set")} · ${c.units || "—"} units · ${escapeHtml(c.room || "No room set")} · ${c.start}–${c.end}</div>
+          <div class="c-meta">${escapeHtml(c.professor || "No professor set")} · ${c.units || "—"} units · ${escapeHtml(c.room || "No room set")} · ${formatTime12(c.start)}–${formatTime12(c.end)}</div>
           <div class="c-days">${DAY_NAMES.map(d => `<span class="day-dot ${c.days.includes(d) ? "on" : ""}">${d[0]}</span>`).join("")}</div>
+          ${c.notes ? `<div class="c-notes subtle" style="margin-top:6px; font-size:0.8rem; white-space:pre-wrap;">📝 ${escapeHtml(c.notes)}</div>` : ""}
         </div>
         <div class="assign-actions">
           <button class="icon-btn" data-action="edit-class" data-val="${c.id}" title="Edit">✎</button>
@@ -2603,7 +2821,7 @@ function renderAccountSection() {
         <span class="avatar-circle">${escapeHtml(accountInitial(acc && acc.username))}</span>
         <div>
           <div style="font-weight:700;">${escapeHtml((acc && acc.username) || "")}</div>
-          <div class="subtle">On this device since ${acc ? new Date(acc.createdAt).toLocaleDateString() : "—"} · ${MAX_ACCOUNTS === 1 ? "this device is locked to one account" : `${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device`}</div>
+          <div class="subtle">On this device since ${acc ? new Date(acc.createdAt).toLocaleDateString() : "—"} · ${MAX_ACCOUNTS === 1 ? "syncs automatically across your devices" : `${a.accounts.length}/${MAX_ACCOUNTS} accounts on this device`}</div>
         </div>
       </div>
       <button class="ghost" data-action="sign-out" style="margin-bottom:18px;">Sign out / switch account</button>
@@ -3005,7 +3223,7 @@ setInterval(() => {
   const nameEl = document.getElementById("watchName");
   const timeEl = document.getElementById("watchTime");
   if (nameEl) nameEl.textContent = watch.name;
-  if (timeEl) timeEl.textContent = state.now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (timeEl) timeEl.textContent = state.now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
   const currentTheme = document.documentElement.getAttribute("data-theme");
   if ((isDark ? "dark" : "light") !== currentTheme) render();
 }, 30000);
@@ -3252,6 +3470,7 @@ async function saveClass() {
   f.professor = (document.getElementById("sch_prof")?.value || "").trim();
   f.units = (document.getElementById("sch_units")?.value || "").trim();
   f.room = (document.getElementById("sch_room")?.value || "").trim();
+  f.notes = (document.getElementById("sch_notes")?.value || "").trim();
   f.start = document.getElementById("sch_start")?.value || f.start;
   f.end = document.getElementById("sch_end")?.value || f.end;
   if (!f.name) return;
@@ -3262,7 +3481,7 @@ async function saveClass() {
   } else {
     sc.classes.push({ id: uid(), ...JSON.parse(JSON.stringify(f)) });
   }
-  sc.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "" };
+  sc.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" };
   await acctSet("bw_schedule_classes", sc.classes);
   render();
 }
@@ -3271,7 +3490,7 @@ function editClass(id) {
   const c = sc.classes.find(x => x.id === id);
   if (!c) return;
   sc.editingId = id;
-  sc.form = { name: c.name, professor: c.professor, units: c.units, type: c.type, days: [...c.days], start: c.start, end: c.end, room: c.room };
+  sc.form = { name: c.name, professor: c.professor, units: c.units, type: c.type, days: [...c.days], start: c.start, end: c.end, room: c.room, notes: c.notes || "" };
   render();
 }
 async function deleteClass(id) {
@@ -3532,6 +3751,9 @@ document.addEventListener("click", (e) => {
     /* -- auth / accounts -- */
     case "auth-select-account": authSelectAccount(val); break;
     case "auth-show-create": authShowCreate(); break;
+    case "auth-show-login-existing": authShowLoginExisting(); break;
+    case "auth-login-existing-submit": authLoginExistingSubmit(); break;
+    case "auth-switch-account": authSwitchAccount(); break;
     case "auth-show-delete": authShowDelete(val); break;
     case "auth-back": authBack(); break;
     case "auth-create-account": authCreateAccount(); break;
@@ -3602,7 +3824,7 @@ document.addEventListener("click", (e) => {
     case "save-class": saveClass(); break;
     case "edit-class": editClass(val); break;
     case "delete-class": deleteClass(val); break;
-    case "cancel-edit-class": state.schedule.editingId = null; state.schedule.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "" }; render(); break;
+    case "cancel-edit-class": state.schedule.editingId = null; state.schedule.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }; render(); break;
 
     /* -- assignments -- */
     case "save-assign": saveAssign(); break;
