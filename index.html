@@ -811,18 +811,17 @@ function isAdminAccount(acc) {
   return !!acc && String(acc.username || "").trim().toLowerCase() === ADMIN_EMAIL;
 }
 
-/* ---------- account approval backend ----------
-   Paste your deployed Apps Script Web App URL here (the same one you'd
-   otherwise paste into the Alerts tab). New (non-admin) accounts are held
-   as "pending" and use THIS constant — not the per-account Alerts URL,
-   which they don't have yet — to submit their request and poll for
-   approval. Once the admin approves them in the Admin tab, this exact URL
-   is revealed to them with instructions to paste it into Alerts. See the
-   companion Code.gs additions (handleApprovalGet/handleApprovalPost) for
-   the backend half of this. */
-const SIGNUP_GAS_URL = "https://script.google.com/macros/s/AKfycbxwhZK3gRL4os6MzvbLx0yB0wY7-P_xuhRADOOgfxV_40ohe_qnX2wx3XKK8oyCKd2dVg/exec";
+/* ---------- account directory & cross-device sync backend ----------
+   Accounts (credentials, approval status, and every account's synced
+   study data) live in a Supabase table, reachable only through this
+   Edge Function — the table itself has RLS enabled with no public
+   policies, so it's unreachable except through here. This is a
+   separate backend from the Apps Script URL configured in the Alerts
+   tab, which still only handles the AI chat proxy and email
+   reminders — the two are independent and don't need to match. */
+const SUPABASE_ACCOUNTS_URL = "https://ndhrtzbfdbeibvgjnbml.supabase.co/functions/v1/bridge-watch-accounts";
 function signupBackendConfigured() {
-  return !!SIGNUP_GAS_URL && SIGNUP_GAS_URL.indexOf("PASTE_YOUR") === -1;
+  return !!SUPABASE_ACCOUNTS_URL;
 }
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1323,7 +1322,7 @@ async function pushAccountDataSync() {
   if (json.length > 45000 && bundle.login_history && bundle.login_history.length > 100) { bundle.login_history = bundle.login_history.slice(0, 100); json = JSON.stringify(bundle); }
   if (json.length > 45000 && bundle.study_notes && bundle.study_notes.length > 30) { bundle.study_notes = bundle.study_notes.slice(0, 30); json = JSON.stringify(bundle); }
   try {
-    await fetch(SIGNUP_GAS_URL, {
+    await fetch(SUPABASE_ACCOUNTS_URL, {
       method: "POST", mode: "cors", redirect: "follow",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action: "accountDataSync", id: acc.id, data: bundle })
@@ -1348,7 +1347,7 @@ async function applyServerDataBundle(accountId, bundle) {
 async function pullLatestAccountData(acc) {
   if (!acc || !signupBackendConfigured()) return;
   try {
-    const res = await fetch(SIGNUP_GAS_URL + "?action=accountDataPull&id=" + encodeURIComponent(acc.id), { method: "GET", mode: "cors", redirect: "follow" });
+    const res = await fetch(SUPABASE_ACCOUNTS_URL + "?action=accountDataPull&id=" + encodeURIComponent(acc.id), { method: "GET", mode: "cors", redirect: "follow" });
     const json = await res.json().catch(() => null);
     if (json && json.ok && json.data) await applyServerDataBundle(acc.id, json.data);
   } catch (e) { /* offline or unreachable — fall back to this device's local cache */ }
@@ -1470,7 +1469,7 @@ async function recordLoginEvent(acc) {
 
   if (signupBackendConfigured() && acc.status === "approved") {
     try {
-      await fetch(SIGNUP_GAS_URL, {
+      await fetch(SUPABASE_ACCOUNTS_URL, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "accountDataSync", id: acc.id, points: acc.points, loginCount: acc.loginCount, lastLoginRewardDate: acc.lastLoginRewardDate, lastLoginAt: acc.lastLoginAt })
@@ -1514,17 +1513,17 @@ async function authLoginExistingSubmit() {
   const password = document.getElementById("auth_existing_pass")?.value || "";
   a.error = null;
   if (!username || !password) { a.error = "Enter your username and password."; render(); return; }
-  if (!signupBackendConfigured()) { a.error = "Cross-device sign-in isn't set up yet — ask the admin to finish configuring SIGNUP_GAS_URL."; render(); return; }
+  if (!signupBackendConfigured()) { a.error = "Cross-device sign-in isn't set up yet — the accounts backend isn't configured."; render(); return; }
   a.busy = true; render();
   try {
-    const saltRes = await fetch(SIGNUP_GAS_URL + "?action=getSalt&username=" + encodeURIComponent(username), { method: "GET", mode: "cors", redirect: "follow" });
+    const saltRes = await fetch(SUPABASE_ACCOUNTS_URL + "?action=getSalt&username=" + encodeURIComponent(username), { method: "GET", mode: "cors", redirect: "follow" });
     const saltJson = await saltRes.json().catch(() => null);
     if (!saltJson || !saltJson.ok || !saltJson.salt) {
       a.error = "No account found with that username.";
       a.busy = false; render(); return;
     }
     const hash = await hashPassword(password, saltJson.salt);
-    const loginRes = await fetch(SIGNUP_GAS_URL, {
+    const loginRes = await fetch(SUPABASE_ACCOUNTS_URL, {
       method: "POST", mode: "cors", redirect: "follow",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action: "accountLogin", username, hash })
@@ -1642,12 +1641,12 @@ async function authCreateAccount() {
 }
 
 /* ---------- account approval workflow ----------
-   Non-admin accounts are created locally as "pending" and can't enter the
-   app until the admin approves them from the Admin tab. Once approved,
-   the deployed Apps Script Web App URL (SIGNUP_GAS_URL) is revealed with
-   instructions to paste it into Alerts, unlocking AI chat, quizzes, and
-   reminders. See handleApprovalGet/handleApprovalPost in the companion
-   Code.gs additions for the backend half. */
+   Non-admin accounts are created as "pending" and can't enter the app
+   until the admin approves them from the Admin tab. Once approved, the
+   account starts syncing normally — no extra setup needed on the account
+   side. (AI chat, quizzes, and email reminders are unlocked separately by
+   the Apps Script URL configured in the Alerts tab.) See the Supabase
+   Edge Function `bridge-watch-accounts` for the account-side backend. */
 let approvalPollTimer = null;
 
 async function submitAccountRequest(account) {
@@ -1674,7 +1673,7 @@ async function submitAccountRequest(account) {
 async function pingApprovalBackend(action, extra) {
   if (!signupBackendConfigured()) return null;
   try {
-    const res = await fetch(SIGNUP_GAS_URL, {
+    const res = await fetch(SUPABASE_ACCOUNTS_URL, {
       method: "POST",
       mode: "cors",
       redirect: "follow",
@@ -1707,13 +1706,13 @@ async function checkApprovalStatus(opts) {
   if (!silent) { a.checking = true; a.error = null; render(); }
   if (!signupBackendConfigured()) {
     a.checking = false;
-    if (!silent) a.error = "Account approval isn't set up yet — the admin needs to paste the deployed Apps Script URL into SIGNUP_GAS_URL in the code. Please check back later.";
+    if (!silent) a.error = "Account approval isn't reachable right now — check your connection and try again shortly.";
     render();
     return;
   }
   try {
     const qs = "?action=checkApproval&id=" + encodeURIComponent(acc.id);
-    const res = await fetch(SIGNUP_GAS_URL + qs, { method: "GET", mode: "cors", redirect: "follow" });
+    const res = await fetch(SUPABASE_ACCOUNTS_URL + qs, { method: "GET", mode: "cors", redirect: "follow" });
     const json = await res.json().catch(() => null);
     const status = (json && json.status) || acc.status || "pending";
     acc.status = status;
@@ -1734,8 +1733,6 @@ async function enterAfterApproval() {
   const acc = a.accounts.find(x => x.id === a.selectedId);
   if (!acc) { routeAuthScreen(); render(); return; }
   await logIntoAccount(acc.id);
-  state.reminders.gasUrl = SIGNUP_GAS_URL;
-  await acctSet("bw_reminders", state.reminders);
   render();
 }
 
@@ -2287,16 +2284,7 @@ function renderAuthScreen() {
     inner = `
       <div class="auth-card panel" style="max-width:480px;">
         <div class="display" style="font-size:1.2rem; margin-bottom:4px; color: var(--stbd-green, var(--brass));">✅ Approved — welcome aboard, ${escapeHtml((acc && acc.username) || "")}!</div>
-        <div class="subtle" style="margin-bottom:16px;">One last step: paste this Apps Script Web App URL into the <b>Alerts</b> tab so AI features and reminders work. It's already been saved for you below — the Alerts tab is just there to confirm or update it later.</div>
-        <div class="field" style="margin-bottom:14px;">
-          <label class="field-label">Apps Script Web App URL</label>
-          <input type="text" readonly value="${escapeHtml(SIGNUP_GAS_URL)}" class="mono" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--brass); background: var(--navy-950, #0b1220); color: var(--parchment); font-size:0.75rem;" onclick="this.select()">
-        </div>
-        <div class="subtle" style="margin-bottom:18px; font-size:0.8rem; line-height:1.5;">
-          1. Tap the box above to select and copy the URL.<br>
-          2. Once inside, open the <b>Alerts</b> tab.<br>
-          3. Confirm it's pasted into "Apps Script Web App URL", then tap "Sync data to Apps Script".
-        </div>
+        <div class="subtle" style="margin-bottom:18px;">Your account is set up and will sync automatically across any device you sign into it from. If AI chat, quizzes, and email reminders aren't working yet, open the <b>Alerts</b> tab and confirm your Apps Script Web App URL is set there — that's a separate one-time setup, unrelated to your account.</div>
         <button class="primary" style="width:100%;" data-action="auth-enter-app">Continue to Bridge Watch →</button>
       </div>`;
   } else if (a.mode === "rejected") {
@@ -3131,7 +3119,7 @@ function renderAdmin() {
 
   html += `<hr class="divider">
     <div class="section-title">🕒 Pending account requests</div>
-    <div class="subtle" style="margin-bottom:10px;">New (non-admin) accounts wait here until you approve or decline them. Requires <code>SIGNUP_GAS_URL</code> to be set in the code, plus the admin token below if you set an <code>ADMIN_TOKEN</code> script property.</div>
+    <div class="subtle" style="margin-bottom:10px;">New (non-admin) accounts wait here until you approve or decline them. If you set an <code>ADMIN_TOKEN</code> secret on the Supabase Edge Function, enter the same value below to authorize.</div>
     <div style="margin-bottom:14px;"><button class="ghost" data-action="admin-refresh-pending" ${a.pendingLoading ? "disabled" : ""}>${a.pendingLoading ? "Loading…" : "Refresh pending requests"}</button></div>`;
   if (a.pendingError) html += `<div class="error-box" style="margin-bottom:14px;"><span>${escapeHtml(a.pendingError)}</span></div>`;
   if (!a.pendingRequests || !a.pendingRequests.length) {
@@ -3705,9 +3693,9 @@ async function fetchPendingRequests() {
   await storageSet("bw_admin_token", st.token);
   st.pendingLoading = true; st.pendingError = null; render();
   try {
-    if (!signupBackendConfigured()) throw new Error("Set SIGNUP_GAS_URL in the code first.");
+    if (!signupBackendConfigured()) throw new Error("Set SUPABASE_ACCOUNTS_URL in the code first.");
     const qs = "?action=listPendingAccounts" + (st.token ? "&token=" + encodeURIComponent(st.token) : "");
-    const res = await fetch(SIGNUP_GAS_URL + qs, { method: "GET", mode: "cors", redirect: "follow" });
+    const res = await fetch(SUPABASE_ACCOUNTS_URL + qs, { method: "GET", mode: "cors", redirect: "follow" });
     if (!res.ok) throw new Error("Backend returned status " + res.status + ".");
     const json = await res.json();
     if (!json || json.ok === false) throw new Error((json && json.error) || "Backend reported an error.");
@@ -3723,8 +3711,8 @@ async function decideRequest(id, decision) {
   const st = state.admin;
   st.pendingLoading = true; st.pendingError = null; render();
   try {
-    if (!signupBackendConfigured()) throw new Error("Set SIGNUP_GAS_URL in the code first.");
-    const res = await fetch(SIGNUP_GAS_URL, {
+    if (!signupBackendConfigured()) throw new Error("Set SUPABASE_ACCOUNTS_URL in the code first.");
+    const res = await fetch(SUPABASE_ACCOUNTS_URL, {
       method: "POST",
       mode: "cors",
       redirect: "follow",
