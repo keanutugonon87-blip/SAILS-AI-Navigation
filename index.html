@@ -783,7 +783,9 @@ let state = {
   schedule: {
     classes: [],
     form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" },
-    editingId: null
+    editingId: null,
+    importOpen: false, importText: "", importFile: null,
+    importLoading: false, importError: null, importPreview: null
   },
   assign: {
     items: [],
@@ -1376,7 +1378,7 @@ function resetSessionState() {
     chat: { messages: [], loading: false, error: null },
     uploading: false, uploadError: null, summarizingId: null
   };
-  state.schedule = { classes: [], form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }, editingId: null };
+  state.schedule = { classes: [], form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }, editingId: null, importOpen: false, importText: "", importFile: null, importLoading: false, importError: null, importPreview: null };
   state.assign = { items: [], form: { title: "", classId: "", dueDate: "", notes: "" }, editingId: null, filter: "active" };
   state.reminders = {
     email: "", dailyEnabled: true, dailyTime: "07:00", gasUrl: "", custom: [],
@@ -2669,10 +2671,68 @@ function renderStudy() {
 }
 
 /* ---------- render: class schedule ---------- */
+function renderImportSchedule() {
+  const sc = state.schedule;
+  const imp = sc;
+  let html = `<div class="settings-box" style="margin-bottom:22px;">
+    <div class="section-title" style="margin-top:0; font-size:0.9rem;">📥 Import schedule</div>`;
+
+  if (imp.importLoading) {
+    html += `<div class="loading-line" style="padding:16px 0;"><div class="spinner"></div>Reading your schedule and matching it to the class form…</div></div>`;
+    return html;
+  }
+
+  if (imp.importPreview) {
+    const items = imp.importPreview;
+    const includedCount = items.filter(i => i.include).length;
+    html += `<div class="subtle" style="margin-bottom:12px;">Found ${items.length} class${items.length === 1 ? "" : "es"} — uncheck any you don't want, then add. You can fix details afterward with the edit button.</div>`;
+    items.forEach((c, i) => {
+      html += `<div class="note-card" style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px;">
+        <input type="checkbox" data-action="toggle-import-item" data-val="${i}" ${c.include ? "checked" : ""} style="margin-top:3px;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:0.9rem;">${escapeHtml(c.name || "Untitled class")}</div>
+          <div class="subtle" style="font-size:0.78rem; margin-top:2px;">${escapeHtml(c.professor || "No professor")} · ${c.units || "—"} units · ${escapeHtml(c.room || "No room")} · ${formatTime12(c.start)}–${formatTime12(c.end)}</div>
+          <div class="subtle" style="font-size:0.78rem; margin-top:2px;">${(c.days || []).join(", ") || "No days set"} · ${c.type === "minor" ? "Minor" : "Major"}</div>
+        </div>
+      </div>`;
+    });
+    if (imp.importError) html += `<div class="error-box" style="margin:10px 0;"><span>${escapeHtml(imp.importError)}</span></div>`;
+    html += `<div style="display:flex; gap:10px; margin-top:14px;">
+      <button class="primary" data-action="add-imported-classes" ${includedCount ? "" : "disabled"}>Add ${includedCount} class${includedCount === 1 ? "" : "es"}</button>
+      <button class="ghost" data-action="cancel-import">Cancel</button>
+    </div></div>`;
+    return html;
+  }
+
+  html += `<div class="subtle" style="margin-bottom:12px;">Paste your schedule as text (from your SIS/registration portal) or attach a photo/screenshot of it — the Officer will read it and fill in the class form for you.</div>
+    <div class="field" style="margin-bottom:12px;">
+      <label class="field-label">Paste schedule text (optional)</label>
+      <textarea id="sch_import_text" rows="4" placeholder="e.g. Marine Eng 1 — Capt. Dela Cruz — MWF 8:00-9:30 — Room 204 — 3 units...">${escapeHtml(imp.importText)}</textarea>
+    </div>
+    <div class="dropzone" data-action="pick-import-file">
+      ${imp.importFile
+        ? `<div>📎 ${escapeHtml(imp.importFile.name)} <button class="icon-btn" data-action="remove-import-file" title="Remove" style="margin-left:6px;">✕</button></div>`
+        : `<div>Or drop/click to attach a photo or PDF of your schedule</div>`}
+    </div>
+    <input type="file" id="scheduleImportFileInput" accept=".pdf,image/*" style="display:none;">`;
+  if (imp.importError) html += `<div class="error-box" style="margin-bottom:12px;"><span>${escapeHtml(imp.importError)}</span></div>`;
+  html += `<div style="display:flex; gap:10px;">
+      <button class="primary" data-action="parse-import-schedule" ${(imp.importText.trim() || imp.importFile) ? "" : "disabled"}>Read schedule</button>
+      <button class="ghost" data-action="cancel-import">Cancel</button>
+    </div>
+  </div>`;
+  return html;
+}
+
 function renderSchedule() {
   const sc = state.schedule;
   const f = sc.form;
   let html = `<div class="panel-content">
+    <div class="toolbar" style="margin-bottom:${sc.importOpen ? "0" : "14px"};">
+      <div class="section-title" style="margin:0;">🧭 Class Schedule</div>
+      ${!sc.importOpen ? `<button class="ghost" data-action="toggle-import-schedule">📥 Import schedule</button>` : ""}
+    </div>
+    ${sc.importOpen ? renderImportSchedule() : ""}
     <div class="section-title">➕ ${sc.editingId ? "Edit class" : "Add a class"}</div>
     <div class="form-grid">
       <div class="field"><label class="field-label">Class name</label><input type="text" id="sch_name" placeholder="e.g. Marine Engineering 1" value="${escapeHtml(f.name)}"></div>
@@ -3488,6 +3548,116 @@ async function deleteClass(id) {
   render();
 }
 
+/* ---------- actions: import schedule (AI-assisted) ---------- */
+function toggleImportSchedule() {
+  const sc = state.schedule;
+  sc.importOpen = !sc.importOpen;
+  if (!sc.importOpen) {
+    sc.importText = ""; sc.importFile = null; sc.importError = null; sc.importPreview = null;
+  }
+  render();
+}
+function cancelImport() {
+  const sc = state.schedule;
+  sc.importOpen = false;
+  sc.importText = ""; sc.importFile = null; sc.importError = null; sc.importPreview = null;
+  render();
+}
+async function handleImportScheduleFile(fileList) {
+  const sc = state.schedule;
+  const file = fileList && fileList[0];
+  if (!file) return;
+  if (file.size > 9 * 1024 * 1024) { sc.importError = `"${file.name}" is over 9MB — attach a smaller file.`; render(); return; }
+  try {
+    const dataUrl = await fileToDataUrl(file);
+    const mime = file.type || "application/octet-stream";
+    sc.importFile = { name: file.name, mime, dataUrl, kind: mime === "application/pdf" ? "pdf" : "image" };
+    sc.importError = null;
+  } catch (e) {
+    sc.importError = "Couldn't read that file. Try again.";
+  }
+  render();
+}
+function removeImportFile() {
+  state.schedule.importFile = null;
+  render();
+}
+async function parseImportSchedule() {
+  const sc = state.schedule;
+  const textEl = document.getElementById("sch_import_text");
+  sc.importText = textEl ? textEl.value : sc.importText;
+  if (!sc.importText.trim() && !sc.importFile) return;
+  sc.importLoading = true; sc.importError = null; sc.importPreview = null;
+  render();
+  const sys = `You extract a student's class schedule into structured JSON. Read the provided text and/or image/PDF (a screenshot, photo, or export of a class schedule) and identify every class listed.
+For each class, determine:
+- name: the class/subject name
+- professor: instructor name if shown, else ""
+- units: number of units as a string if shown, else ""
+- type: "minor" if the subject sounds like a minor/elective/PE/NSTP-type subject, otherwise "major"
+- days: array using only these values: "Sun","Mon","Tue","Wed","Thu","Fri","Sat" — expand abbreviations like MWF or TTh
+- start: 24-hour "HH:MM" start time (best guess if only 12-hour time is shown)
+- end: 24-hour "HH:MM" end time
+- room: room/venue if shown, else ""
+- notes: leave ""
+
+Respond with ONLY a JSON object, no preamble, no markdown fences, matching exactly this shape:
+{"classes":[{"name":"...","professor":"...","units":"...","type":"major","days":["Mon"],"start":"08:00","end":"09:30","room":"...","notes":""}]}
+If you can't find any classes, return {"classes":[]}.`;
+  try {
+    const content = [];
+    if (sc.importFile) {
+      if (sc.importFile.kind === "pdf") content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64FromDataUrl(sc.importFile.dataUrl) } });
+      else content.push({ type: "image", source: { type: "base64", media_type: sc.importFile.mime, data: base64FromDataUrl(sc.importFile.dataUrl) } });
+    }
+    content.push({ type: "text", text: sc.importText.trim() ? `Schedule text:\n${sc.importText.trim()}` : "Extract the schedule from the attached file." });
+    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false });
+    const parsed = extractJSON(result.text);
+    const classes = Array.isArray(parsed.classes) ? parsed.classes : [];
+    if (!classes.length) {
+      sc.importError = "Couldn't find any classes in that — try pasting clearer text or a sharper photo.";
+      sc.importPreview = null;
+    } else {
+      sc.importPreview = classes.map(c => ({
+        include: true,
+        name: c.name || "",
+        professor: c.professor || "",
+        units: c.units || "",
+        type: c.type === "minor" ? "minor" : "major",
+        days: Array.isArray(c.days) ? c.days.filter(d => DAY_NAMES.includes(d)) : [],
+        start: /^\d{2}:\d{2}$/.test(c.start || "") ? c.start : "08:00",
+        end: /^\d{2}:\d{2}$/.test(c.end || "") ? c.end : "09:30",
+        room: c.room || "",
+        notes: ""
+      }));
+    }
+  } catch (e) {
+    sc.importError = e.message || "Couldn't read the schedule. Try again.";
+  } finally {
+    sc.importLoading = false;
+    render();
+  }
+}
+function toggleImportItem(idx) {
+  const item = state.schedule.importPreview && state.schedule.importPreview[Number(idx)];
+  if (item) item.include = !item.include;
+  render();
+}
+async function addImportedClasses() {
+  const sc = state.schedule;
+  if (!sc.importPreview) return;
+  const toAdd = sc.importPreview.filter(c => c.include);
+  toAdd.forEach(c => {
+    sc.classes.push({
+      id: uid(), name: c.name, professor: c.professor, units: c.units, type: c.type,
+      days: c.days, start: c.start, end: c.end, room: c.room, notes: c.notes || ""
+    });
+  });
+  await acctSet("bw_schedule_classes", sc.classes);
+  sc.importOpen = false; sc.importText = ""; sc.importFile = null; sc.importError = null; sc.importPreview = null;
+  render();
+}
+
 /* ---------- actions: assignments ---------- */
 async function saveAssign() {
   const a = state.assign;
@@ -3813,6 +3983,13 @@ document.addEventListener("click", (e) => {
     case "edit-class": editClass(val); break;
     case "delete-class": deleteClass(val); break;
     case "cancel-edit-class": state.schedule.editingId = null; state.schedule.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }; render(); break;
+    case "toggle-import-schedule": toggleImportSchedule(); break;
+    case "cancel-import": cancelImport(); break;
+    case "pick-import-file": document.getElementById("scheduleImportFileInput")?.click(); break;
+    case "remove-import-file": removeImportFile(); break;
+    case "parse-import-schedule": parseImportSchedule(); break;
+    case "toggle-import-item": toggleImportItem(val); break;
+    case "add-imported-classes": addImportedClasses(); break;
 
     /* -- assignments -- */
     case "save-assign": saveAssign(); break;
@@ -3857,6 +4034,11 @@ document.addEventListener("change", (e) => {
   const el = e.target;
   if (el.id === "fileInput" && el.files && el.files.length) {
     handleFiles(el.files);
+    el.value = "";
+    return;
+  }
+  if (el.id === "scheduleImportFileInput" && el.files && el.files.length) {
+    handleImportScheduleFile(el.files);
     el.value = "";
     return;
   }
