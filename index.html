@@ -820,7 +820,7 @@ function isAdminAccount(acc) {
    is revealed to them with instructions to paste it into Alerts. See the
    companion Code.gs additions (handleApprovalGet/handleApprovalPost) for
    the backend half of this. */
-const SIGNUP_GAS_URL = "PASTE_YOUR_DEPLOYED_APPS_SCRIPT_URL_HERE";
+const SIGNUP_GAS_URL = "https://script.google.com/macros/s/AKfycbxwhZK3gRL4os6MzvbLx0yB0wY7-P_xuhRADOOgfxV_40ohe_qnX2wx3XKK8oyCKd2dVg/exec";
 function signupBackendConfigured() {
   return !!SIGNUP_GAS_URL && SIGNUP_GAS_URL.indexOf("PASTE_YOUR") === -1;
 }
