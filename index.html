@@ -2805,7 +2805,7 @@ function renderPathMap() {
 function renderPathLesson() {
   const p = state.path;
   if (p.lessonLoading || !p.lesson || !p.lesson.exercises.length) {
-    return `<div class="panel-content loading-line" style="padding:60px 0; justify-content:center;"><div class="spinner"></div>Building "${escapeHtml((p.lesson && p.lesson.title) || "this lesson")}"…</div>`;
+    return `<div class="panel-content loading-line" style="padding:60px 0; justify-content:center;"><div class="spinner"></div>${escapeHtml(p.lessonLoadingNote || `Building "${(p.lesson && p.lesson.title) || "this lesson"}"…`)}</div>`;
   }
   const ex = p.lesson.exercises[p.lessonIdx];
   const heartsHtml = Array.from({ length: 5 }, (_, i) => i < p.hearts ? "❤️" : "🖤").join(" ");
@@ -3706,9 +3706,32 @@ Respond with ONLY a JSON object, no preamble, no markdown fences, matching exact
       }
     }
     content.push({ type: "text", text: userText });
-    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: true });
-    let parsed;
-    try { parsed = extractJSON(result.text); } catch (parseErr) { throw new Error("Couldn't generate this lesson from that reply. Try again."); }
+
+    // Six grounded MCQs with explanations routinely need more than the
+    // default budget, and the free backend behind this call is flaky —
+    // retry a few times with a growing token budget before giving up.
+    const attemptTokens = [2000, 2800, 3600];
+    let parsed = null;
+    let lastRawText = "";
+    for (let attempt = 0; attempt < attemptTokens.length; attempt++) {
+      p.lessonLoading = true;
+      p.lessonLoadingNote = attempt === 0 ? "Building your lesson…" : `Building your lesson… (retry ${attempt + 1}/${attemptTokens.length})`;
+      render();
+      try {
+        const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: true, maxTokens: attemptTokens[attempt] });
+        lastRawText = result.text || "";
+        parsed = extractJSON(lastRawText);
+        break;
+      } catch (e) {
+        parsed = null;
+      }
+    }
+    if (!parsed) {
+      const preview = lastRawText.trim().slice(0, 300);
+      throw new Error(preview
+        ? `Couldn't generate this lesson after ${attemptTokens.length} tries — the AI's reply wasn't valid JSON. Raw reply: "${preview}${lastRawText.length > 300 ? "…" : ""}"`
+        : `The AI backend didn't return a usable reply after ${attemptTokens.length} tries — it may be overloaded right now. Try again in a bit.`);
+    }
     const exercises = Array.isArray(parsed.exercises) ? parsed.exercises : [];
     if (!exercises.length) throw new Error("No exercises were returned. Try again.");
     p.lesson = { lessonId, title: lesson.title, exercises };
