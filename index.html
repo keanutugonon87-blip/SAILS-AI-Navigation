@@ -1404,6 +1404,31 @@ function base64FromDataUrl(dataUrl) {
   const idx = dataUrl.indexOf(",");
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1);
 }
+/* Downscale/compress a photo before sending it to the AI backend. Full-res
+   phone photos (often 3000px+, several MB) take noticeably longer for a
+   vision model to process, and the Supabase Edge Function has a hard gateway
+   timeout — a large image is a common cause of 504s. Capping the longest
+   side at 1600px and re-encoding as JPEG keeps schedules perfectly legible
+   while cutting payload size (and processing time) dramatically. */
+function resizeImageDataUrl(dataUrl, maxDim) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= maxDim && height <= maxDim) { resolve({ dataUrl, mime: "image/jpeg" }); return; }
+      const scale = maxDim / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve({ dataUrl: canvas.toDataURL("image/jpeg", 0.82), mime: "image/jpeg" });
+    };
+    img.onerror = () => resolve({ dataUrl, mime: null }); // fall back to original on any decode issue
+    img.src = dataUrl;
+  });
+}
 
 /* ---------- client-side PDF text extraction (pdf.js) ----------
    The AI backend (Supabase Edge Function → OpenRouter free models) can't accept raw
@@ -2372,7 +2397,10 @@ async function callAIProxy(anthropicBody) {
   } catch (networkErr) {
     throw new Error("Couldn't reach the AI backend — check your connection and try again.");
   }
-  if (!res.ok) throw new Error("The AI backend responded with an error (status " + res.status + ").");
+  if (!res.ok) {
+    if (res.status === 504) throw new Error("The AI backend timed out — this happens with large photos or long schedules. It should be less likely now that photos are auto-compressed, but if it keeps happening, try pasting the schedule as text instead (much faster to process than an image).");
+    throw new Error("The AI backend responded with an error (status " + res.status + ").");
+  }
   let json;
   try { json = await res.json(); } catch (e) { throw new Error("The AI backend responded but didn't return valid JSON."); }
   if (!json || json.ok === false) throw new Error((json && json.error) || "The AI backend reported an error handling the request.");
@@ -4021,7 +4049,8 @@ async function handleImportScheduleFile(fileList) {
         sc.importFile = { name: file.name, mime, kind: "pdf", dataUrl: null, extractedText: text };
       }
     } else {
-      sc.importFile = { name: file.name, mime, kind: "image", dataUrl, extractedText: "" };
+      const resized = await resizeImageDataUrl(dataUrl, 1600);
+      sc.importFile = { name: file.name, mime: resized.mime || mime, kind: "image", dataUrl: resized.dataUrl, extractedText: "" };
     }
   } catch (e) {
     sc.importFile = null;
@@ -4066,7 +4095,7 @@ If you can't find any classes, return {"classes":[]}.`;
       content.push({ type: "text", text: `Schedule PDF text ("${sc.importFile.name}"):\n${sc.importFile.extractedText}` });
     }
     content.push({ type: "text", text: sc.importText.trim() ? `Schedule text:\n${sc.importText.trim()}` : (sc.importFile ? "Extract the schedule from the content above." : "") });
-    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false, maxTokens: 4000 });
+    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false, maxTokens: 2200 });
     let parsed;
     try {
       parsed = extractJSON(result.text);
