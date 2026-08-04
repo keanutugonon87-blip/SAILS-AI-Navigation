@@ -878,7 +878,7 @@ let state = {
   },
   chat: { messages: [], loading: false, error: null, quickPrompts: [] },
   path: {
-    view: "courses",      // courses | map | lesson | result
+    view: "courses",      // courses | map | lesson | result | leaderboard
     selectedCourseId: null,
     courseMaterial: null, // { name, kind: "image"|"pdf", dataUrl, extractedText } — session-only, not synced
     materialLoading: false, materialError: null,
@@ -886,7 +886,10 @@ let state = {
     lesson: null,          // { title, exercises: [{question, options, correctIndex, explanation}] }
     lessonIdx: 0, selected: null,
     hearts: 5, correctCount: 0, wrongCount: 0, xpEarned: 0, lessonFailed: false,
-    totalXp: 0, completedLessons: {}  // lessonId -> { stars, completedAt }
+    totalXp: 0, completedLessons: {},  // lessonId -> { stars, completedAt }
+    dailyGoal: 30, xpByDay: {},        // dateKey -> xp earned that day
+    dailyGoalCelebratedDate: "",
+    leaderboard: null, leaderboardLoading: false, leaderboardError: null
   },
   study: {
     sources: [], activeIds: [], notes: [],
@@ -1211,6 +1214,42 @@ function playWaveWhoosh() {
     noise.start();
   } catch (e) { /* non-fatal */ }
 }
+/* ---------- Path lesson SFX: correct/wrong answer, lesson-complete ding ---------- */
+function playBuzz() {
+  if (!state.soundOn) return;
+  const ctx = getAudioCtx(); if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(110, now + 0.22);
+    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.25);
+  } catch (e) { /* non-fatal */ }
+}
+function playLessonDing() {
+  if (!state.soundOn) return;
+  const ctx = getAudioCtx(); if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    [660, 880, 1100].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const start = now + i * 0.09;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.2, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(start); osc.stop(start + 0.4);
+    });
+  } catch (e) { /* non-fatal */ }
+}
 
 /* ---------- global toast notifications (survive full re-renders) ---------- */
 function showToast(html, opts = {}) {
@@ -1489,10 +1528,11 @@ async function pushAccountDataSync() {
   if (json.length > 45000 && bundle.login_history && bundle.login_history.length > 100) { bundle.login_history = bundle.login_history.slice(0, 100); json = JSON.stringify(bundle); }
   if (json.length > 45000 && bundle.study_notes && bundle.study_notes.length > 30) { bundle.study_notes = bundle.study_notes.slice(0, 30); json = JSON.stringify(bundle); }
   try {
+    const pathXp = (bundle.path_progress && bundle.path_progress.totalXp) || 0;
     await fetch(SUPABASE_ACCOUNTS_URL, {
       method: "POST", mode: "cors", redirect: "follow",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "accountDataSync", id: acc.id, data: bundle })
+      body: JSON.stringify({ action: "accountDataSync", id: acc.id, data: bundle, pathXp })
     });
   } catch (e) { /* non-fatal — the next successful save queues another attempt */ }
 }
@@ -1541,7 +1581,9 @@ function resetSessionState() {
     lessonLoading: false, lessonError: null,
     lesson: null, lessonIdx: 0, selected: null,
     hearts: 5, correctCount: 0, wrongCount: 0, xpEarned: 0, lessonFailed: false,
-    totalXp: 0, completedLessons: {}
+    totalXp: 0, completedLessons: {},
+    dailyGoal: 30, xpByDay: {}, dailyGoalCelebratedDate: "",
+    leaderboard: null, leaderboardLoading: false, leaderboardError: null
   };
   state.study = {
     sources: [], activeIds: [], notes: [],
@@ -1564,6 +1606,8 @@ async function loadAccountData() {
   if (savedPath) {
     state.path.totalXp = savedPath.totalXp || 0;
     state.path.completedLessons = savedPath.completedLessons || {};
+    state.path.dailyGoal = savedPath.dailyGoal || 30;
+    state.path.xpByDay = savedPath.xpByDay || {};
   }
   state.study.sources = await acctGet("bw_study_sources", []);
   state.study.notes = await acctGet("bw_study_notes", []);
@@ -2298,8 +2342,8 @@ async function storageSet(key, value) {
   } catch (e) { /* non-fatal: session continues in-memory only */ }
 }
 
-async function callClaude({ system, messages, useSearch }) {
-  const body = { model: "claude-sonnet-4-6", max_tokens: 1500, system, messages };
+async function callClaude({ system, messages, useSearch, maxTokens }) {
+  const body = { model: "claude-sonnet-4-6", max_tokens: maxTokens || 1500, system, messages };
   if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
   const data = await callAIProxy(body);
   const textBlocks = (data.content || []).filter(b => b.type === "text").map(b => b.text);
@@ -2336,12 +2380,29 @@ async function callAIProxy(anthropicBody) {
 }
 
 function extractJSON(text) {
-  let t = text.trim();
+  let t = (text || "").trim();
   t = t.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
   const start = t.indexOf("{") === -1 ? t.indexOf("[") : t.indexOf("{");
+  if (start === -1) throw new Error("No JSON object found in response.");
   const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
-  if (start !== -1 && end !== -1) t = t.substring(start, end + 1);
-  return JSON.parse(t);
+  let candidate = end !== -1 ? t.substring(start, end + 1) : t.substring(start);
+  try {
+    return JSON.parse(candidate);
+  } catch (e) {
+    // Response likely got cut off mid-JSON (max_tokens hit). Try to repair by
+    // trimming back to the last fully-closed object in the "classes" array
+    // and re-closing the brackets, rather than failing outright.
+    let repaired = t.substring(start);
+    const lastCompleteObjEnd = repaired.lastIndexOf("},");
+    if (lastCompleteObjEnd !== -1) {
+      repaired = repaired.substring(0, lastCompleteObjEnd + 1);
+      const openBraces = (repaired.match(/{/g) || []).length - (repaired.match(/}/g) || []).length;
+      const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+      repaired += "]".repeat(Math.max(openBrackets, 0)) + "}".repeat(Math.max(openBraces, 0));
+      try { return JSON.parse(repaired); } catch (e2) { /* fall through */ }
+    }
+    throw e;
+  }
 }
 
 /* ---------- render: auth screen ---------- */
@@ -2611,8 +2672,27 @@ function renderPath() {
   const p = state.path;
   if (p.view === "lesson") return renderPathLesson();
   if (p.view === "result") return renderPathResult();
+  if (p.view === "leaderboard") return renderPathLeaderboard();
   if (p.view === "map" && p.selectedCourseId) return renderPathMap();
   return renderPathCourses();
+}
+
+function renderDailyGoalBox() {
+  const p = state.path;
+  const today = todayISO();
+  const todayXp = p.xpByDay[today] || 0;
+  const pct = Math.min(100, Math.round((todayXp / p.dailyGoal) * 100));
+  const reached = todayXp >= p.dailyGoal;
+  return `<div class="settings-box" style="margin-bottom:18px; padding:14px 16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <div style="font-weight:700; font-size:0.85rem;">🎯 Daily Goal</div>
+      <div class="mono" style="font-size:0.82rem; color: ${reached ? "var(--stbd-green)" : "var(--text-dim)"};">${todayXp}/${p.dailyGoal} XP${reached ? " ✓" : ""}</div>
+    </div>
+    <div class="progress-bar" style="margin-bottom:10px;"><div class="progress-fill" style="width:${pct}%; ${reached ? "background: var(--stbd-green);" : ""}"></div></div>
+    <div class="chip-row" style="margin:0;">
+      ${[10, 20, 30, 50, 100].map(n => `<button class="chip ${p.dailyGoal === n ? "selected" : ""}" data-action="set-daily-goal" data-val="${n}">${n} XP</button>`).join("")}
+    </div>
+  </div>`;
 }
 
 function renderPathCourses() {
@@ -2622,9 +2702,13 @@ function renderPathCourses() {
   let html = `<div class="panel-content">
     <div class="toolbar" style="margin-bottom:6px;">
       <div class="section-title" style="margin:0;">🧭 Officer's Path</div>
-      <div class="rank-chip" style="margin:0;" title="Total XP earned on the Path">⭐ ${p.totalXp} XP · Level ${totalPathLevel(p.totalXp)}</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div class="rank-chip" style="margin:0;" title="Total XP earned on the Path">⭐ ${p.totalXp} XP · Level ${totalPathLevel(p.totalXp)}</div>
+        <button class="ghost" data-action="open-leaderboard">🏆 Leaderboard</button>
+      </div>
     </div>
     <div class="subtle" style="margin-bottom:16px;">${totalDone}/${totalLessons} lessons completed across all subjects. Pick a subject to start.</div>
+    ${renderDailyGoalBox()}
     <div class="source-grid">`;
   COURSES.forEach(c => {
     const done = courseCompletedCount(c);
@@ -2748,6 +2832,40 @@ function renderPathResult() {
       </div>
     </div>
   </div>`;
+}
+
+function renderPathLeaderboard() {
+  const p = state.path;
+  const curAcc = state.auth.accounts.find(x => x.id === state.auth.activeId);
+  let html = `<div class="panel-content">
+    <div class="toolbar" style="margin-bottom:14px;">
+      <button class="ghost" data-action="path-back-to-courses">← Path</button>
+      <div class="section-title" style="margin:0;">🏆 Leaderboard</div>
+    </div>`;
+  if (p.leaderboardLoading) {
+    html += `<div class="loading-line" style="padding:30px 0; justify-content:center;"><div class="spinner"></div>Loading leaderboard…</div></div>`;
+    return html;
+  }
+  if (p.leaderboardError) {
+    html += `<div class="error-box"><span>${escapeHtml(p.leaderboardError)}</span><button class="ghost" data-action="open-leaderboard">Retry</button></div></div>`;
+    return html;
+  }
+  const list = p.leaderboard || [];
+  if (!list.length) {
+    html += `<div class="subtle">No approved cadets with XP yet — be the first to earn some!</div></div>`;
+    return html;
+  }
+  const medals = ["🥇", "🥈", "🥉"];
+  html += `<div class="subtle" style="margin-bottom:12px;">Top cadets by total Path XP, across everyone with an approved account.</div><div class="deck-history">`;
+  list.forEach((row, i) => {
+    const isMe = !!(curAcc && row.username === curAcc.username);
+    html += `<div class="hist-row" style="${isMe ? "font-weight:700; color: var(--accent-strong);" : ""}">
+      <span>${medals[i] || (i + 1) + "."} ${escapeHtml(row.username)}${isMe ? " (you)" : ""}</span>
+      <span class="mono">${row.xp} XP</span>
+    </div>`;
+  });
+  html += `</div></div>`;
+  return html;
 }
 
 /* ---------- render: personal study (NotebookLM-style) ---------- */
@@ -3582,8 +3700,8 @@ function pathChooseAnswer(i) {
   if (!p.lesson || p.selected !== null) return;
   p.selected = i;
   const ex = p.lesson.exercises[p.lessonIdx];
-  if (i === ex.correctIndex) p.correctCount += 1;
-  else { p.wrongCount += 1; p.hearts = Math.max(0, p.hearts - 1); }
+  if (i === ex.correctIndex) { p.correctCount += 1; playChirp(); }
+  else { p.wrongCount += 1; p.hearts = Math.max(0, p.hearts - 1); playBuzz(); }
   render();
 }
 
@@ -3601,7 +3719,7 @@ async function pathNextExercise() {
     render();
     return;
   }
-  // lesson complete — score stars, award XP, persist progress
+  // lesson complete — score stars, award XP, track daily goal, persist progress
   const stars = p.wrongCount === 0 ? 3 : p.wrongCount <= 2 ? 2 : 1;
   p.xpEarned = p.correctCount * 10 + (p.wrongCount === 0 ? 10 : 0);
   const prevBest = p.completedLessons[p.lesson.lessonId];
@@ -3609,9 +3727,35 @@ async function pathNextExercise() {
     p.completedLessons = { ...p.completedLessons, [p.lesson.lessonId]: { stars, completedAt: Date.now() } };
   }
   p.totalXp += p.xpEarned;
+
+  const today = todayISO();
+  const todayXpBefore = p.xpByDay[today] || 0;
+  const todayXpAfter = todayXpBefore + p.xpEarned;
+  p.xpByDay = { ...p.xpByDay, [today]: todayXpAfter };
+  // keep only the last ~30 days so this doesn't grow forever
+  const dayKeys = Object.keys(p.xpByDay).sort();
+  if (dayKeys.length > 30) { const trimmed = {}; dayKeys.slice(-30).forEach(k => trimmed[k] = p.xpByDay[k]); p.xpByDay = trimmed; }
+
   p.lessonFailed = false;
   p.view = "result";
-  await acctSet("bw_path_progress", { totalXp: p.totalXp, completedLessons: p.completedLessons });
+  playLessonDing();
+  fireConfetti(1800);
+  await acctSet("bw_path_progress", { totalXp: p.totalXp, completedLessons: p.completedLessons, dailyGoal: p.dailyGoal, xpByDay: p.xpByDay });
+
+  if (todayXpBefore < p.dailyGoal && todayXpAfter >= p.dailyGoal && p.dailyGoalCelebratedDate !== today) {
+    p.dailyGoalCelebratedDate = today;
+    setTimeout(() => {
+      fireConfetti(2600);
+      playBell();
+      showToast(`🎯 <b>Daily goal reached!</b><br>${todayXpAfter} XP earned today. Fair winds!`, { kind: "milestone", duration: 6000 });
+    }, 400);
+  }
+  render();
+}
+function setDailyGoal(n) {
+  const p = state.path;
+  p.dailyGoal = Number(n);
+  acctSet("bw_path_progress", { totalXp: p.totalXp, completedLessons: p.completedLessons, dailyGoal: p.dailyGoal, xpByDay: p.xpByDay });
   render();
 }
 
@@ -3621,6 +3765,27 @@ function pathRetryLesson() {
   p.lessonIdx = 0; p.selected = null; p.hearts = 5; p.correctCount = 0; p.wrongCount = 0; p.lessonFailed = false;
   p.view = "lesson";
   render();
+}
+
+function openLeaderboard() {
+  state.path.view = "leaderboard";
+  render();
+  fetchLeaderboard();
+}
+async function fetchLeaderboard() {
+  const p = state.path;
+  p.leaderboardLoading = true; p.leaderboardError = null; render();
+  try {
+    const res = await fetch(SUPABASE_ACCOUNTS_URL + "?action=leaderboard&limit=20", { method: "GET", mode: "cors", redirect: "follow" });
+    const json = await res.json().catch(() => null);
+    if (!json || !json.ok) throw new Error((json && json.error) || "Couldn't load the leaderboard.");
+    p.leaderboard = json.leaderboard || [];
+  } catch (e) {
+    p.leaderboardError = e.message || "Couldn't reach the leaderboard. Try again.";
+  } finally {
+    p.leaderboardLoading = false;
+    render();
+  }
 }
 
 /* ---------- actions: personal study ---------- */
@@ -3901,12 +4066,16 @@ If you can't find any classes, return {"classes":[]}.`;
       content.push({ type: "text", text: `Schedule PDF text ("${sc.importFile.name}"):\n${sc.importFile.extractedText}` });
     }
     content.push({ type: "text", text: sc.importText.trim() ? `Schedule text:\n${sc.importText.trim()}` : (sc.importFile ? "Extract the schedule from the content above." : "") });
-    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false });
+    const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false, maxTokens: 4000 });
     let parsed;
     try {
       parsed = extractJSON(result.text);
     } catch (parseErr) {
-      throw new Error("The AI couldn't read a schedule from that — try a clearer photo or pasting the text instead.");
+      const preview = (result.text || "").trim().slice(0, 300);
+      const err = new Error(preview
+        ? `The AI's reply wasn't valid JSON, so the schedule couldn't be read. Raw reply (for debugging): "${preview}${(result.text || "").length > 300 ? "…" : ""}"`
+        : "The AI returned an empty reply — try again, or paste the schedule as text instead.");
+      throw err;
     }
     const classes = Array.isArray(parsed.classes) ? parsed.classes : [];
     if (!classes.length) {
@@ -4248,6 +4417,8 @@ document.addEventListener("click", (e) => {
     case "path-choose": pathChooseAnswer(Number(val)); break;
     case "path-next-exercise": pathNextExercise(); break;
     case "path-retry-lesson": pathRetryLesson(); break;
+    case "open-leaderboard": openLeaderboard(); break;
+    case "set-daily-goal": setDailyGoal(val); break;
     case "noop": break;
 
     /* -- personal study -- */
