@@ -782,9 +782,9 @@ let state = {
   },
   schedule: {
     classes: [],
-    form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" },
+    form: { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" },
     editingId: null,
-    importOpen: false, importText: "", importFile: null,
+    importOpen: false, importText: "", importFile: null, importFileLoading: false,
     importLoading: false, importError: null, importPreview: null
   },
   assign: {
@@ -825,6 +825,16 @@ const SUPABASE_ACCOUNTS_URL = "https://ndhrtzbfdbeibvgjnbml.supabase.co/function
 function signupBackendConfigured() {
   return !!SUPABASE_ACCOUNTS_URL;
 }
+
+/* ---------- AI proxy backend ----------
+   Ask the Officer, Quiz, Flashcards, and Personal Study all route through
+   this Supabase Edge Function instead of Apps Script — it holds the
+   OpenRouter API key server-side and translates requests/responses so the
+   front end's Anthropic-shaped calls need no changes. No user setup
+   required; this always just works. The Apps Script URL configured in the
+   Alerts tab is now only used for email reminders — a separate, optional
+   backend. */
+const AI_PROXY_URL = "https://ndhrtzbfdbeibvgjnbml.supabase.co/functions/v1/bridge-watch-ai";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -1242,6 +1252,49 @@ function base64FromDataUrl(dataUrl) {
   return idx === -1 ? dataUrl : dataUrl.slice(idx + 1);
 }
 
+/* ---------- client-side PDF text extraction (pdf.js) ----------
+   The AI backend (Supabase Edge Function → OpenRouter free models) can't accept raw
+   PDF bytes — it silently strips document blocks. So instead of sending
+   a PDF to the AI, we extract its text right here in the browser with
+   pdf.js and send that as plain text instead. This works for normal
+   (text-layer) PDFs; scanned/image-only PDFs won't yield any text, and
+   the caller should fall back to suggesting a photo upload in that case. */
+let pdfJsLoadPromise = null;
+function ensurePdfJsLoaded() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (pdfJsLoadPromise) return pdfJsLoadPromise;
+  pdfJsLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      try {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve();
+      } catch (e) { reject(e); }
+    };
+    script.onerror = () => reject(new Error("Couldn't load the PDF reader library — check your connection and try again."));
+    document.head.appendChild(script);
+  });
+  return pdfJsLoadPromise;
+}
+const PDF_TEXT_MAX_PAGES = 40; // safety cap so a huge PDF can't blow up the payload sent to the AI
+async function extractPdfText(dataUrl) {
+  await ensurePdfJsLoaded();
+  const raw = atob(base64FromDataUrl(dataUrl));
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  const pdf = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+  const pageCount = Math.min(pdf.numPages, PDF_TEXT_MAX_PAGES);
+  let text = "";
+  for (let p = 1; p <= pageCount; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(" ") + "\n\n";
+  }
+  if (pdf.numPages > PDF_TEXT_MAX_PAGES) text += `\n[...${pdf.numPages - PDF_TEXT_MAX_PAGES} more page(s) truncated...]`;
+  return text.trim();
+}
+
 /* ---------- account authentication helpers ---------- */
 const MAX_ACCOUNTS = 1; // one local account per device — see routeAuthScreen()
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -1378,7 +1431,7 @@ function resetSessionState() {
     chat: { messages: [], loading: false, error: null },
     uploading: false, uploadError: null, summarizingId: null
   };
-  state.schedule = { classes: [], form: { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }, editingId: null, importOpen: false, importText: "", importFile: null, importLoading: false, importError: null, importPreview: null };
+  state.schedule = { classes: [], form: { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }, editingId: null, importOpen: false, importText: "", importFile: null, importFileLoading: false, importLoading: false, importError: null, importPreview: null };
   state.assign = { items: [], form: { title: "", classId: "", dueDate: "", notes: "" }, editingId: null, filter: "active" };
   state.reminders = {
     email: "", dailyEnabled: true, dailyTime: "07:00", gasUrl: "", custom: [],
@@ -2129,27 +2182,7 @@ async function storageSet(key, value) {
 async function callClaude({ system, messages, useSearch }) {
   const body = { model: "claude-sonnet-4-6", max_tokens: 1500, system, messages };
   if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
-
-  const proxyUrl = (state.reminders && state.reminders.gasUrl) || "";
-  let data;
-  if (proxyUrl) {
-    data = await callClaudeViaProxy(proxyUrl, body);
-  } else {
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) throw new Error("The API returned an error (status " + res.status + "). Please try again.");
-      data = await res.json();
-    } catch (e) {
-      // Direct browser calls to api.anthropic.com only work inside the Claude.ai artifact
-      // preview, where Anthropic injects credentials transparently. Outside that sandbox
-      // (e.g. deployed to GitHub Pages) there's no key and no CORS permission, so this fails.
-      throw new Error("AI features need a backend once this page is deployed outside the Claude preview — direct browser calls to Anthropic aren't possible without one. Paste your Apps Script Web App URL into the Reminders tab (Code.gs proxies AI calls through Gemini, using a GEMINI_API_KEY you set in its Script Properties), then try again.");
-    }
-  }
+  const data = await callAIProxy(body);
   const textBlocks = (data.content || []).filter(b => b.type === "text").map(b => b.text);
   const usedSearch = (data.content || []).some(b => b.type === "server_tool_use" && b.name === "web_search");
   const sources = [];
@@ -2163,23 +2196,23 @@ async function callClaude({ system, messages, useSearch }) {
   return { text: textBlocks.join("\n\n").trim(), usedSearch, sources: [...new Set(sources)].slice(0, 6) };
 }
 
-async function callClaudeViaProxy(url, anthropicBody) {
+async function callAIProxy(anthropicBody) {
   let res;
   try {
-    res = await fetch(url, {
+    res = await fetch(AI_PROXY_URL, {
       method: "POST",
       mode: "cors",
       redirect: "follow",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight, per project convention
-      body: JSON.stringify({ action: "ask", payload: anthropicBody })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(anthropicBody)
     });
   } catch (networkErr) {
-    throw new Error("Couldn't reach your Apps Script backend (\"Failed to fetch\"). Open the Web App URL directly in a browser tab to confirm it's live, and check the deployment's access is set to \"Anyone.\"");
+    throw new Error("Couldn't reach the AI backend — check your connection and try again.");
   }
-  if (!res.ok) throw new Error("The backend responded with an error (status " + res.status + ").");
+  if (!res.ok) throw new Error("The AI backend responded with an error (status " + res.status + ").");
   let json;
-  try { json = await res.json(); } catch (e) { throw new Error("The backend responded but didn't return valid JSON — make sure Code.gs is fully pasted in and redeployed."); }
-  if (!json || json.ok === false) throw new Error((json && json.error) || "The backend reported an error handling the AI request.");
+  try { json = await res.json(); } catch (e) { throw new Error("The AI backend responded but didn't return valid JSON."); }
+  if (!json || json.ok === false) throw new Error((json && json.error) || "The AI backend reported an error handling the request.");
   return json.data;
 }
 
@@ -2286,7 +2319,7 @@ function renderAuthScreen() {
     inner = `
       <div class="auth-card panel" style="max-width:480px;">
         <div class="display" style="font-size:1.2rem; margin-bottom:4px; color: var(--stbd-green, var(--brass));">✅ Approved — welcome aboard, ${escapeHtml((acc && acc.username) || "")}!</div>
-        <div class="subtle" style="margin-bottom:18px;">Your account is set up and will sync automatically across any device you sign into it from. If AI chat, quizzes, and email reminders aren't working yet, open the <b>Alerts</b> tab and confirm your Apps Script Web App URL is set there — that's a separate one-time setup, unrelated to your account.</div>
+        <div class="subtle" style="margin-bottom:18px;">Your account is set up and will sync automatically across any device you sign into it from. AI chat, quizzes, and flashcards work automatically — no setup needed. If you want email reminders too, open the <b>Alerts</b> tab for that one-time (optional) setup.</div>
         <button class="primary" style="width:100%;" data-action="auth-enter-app">Continue to Bridge Watch →</button>
       </div>`;
   } else if (a.mode === "rejected") {
@@ -2690,7 +2723,7 @@ function renderImportSchedule() {
       html += `<div class="note-card" style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px;">
         <input type="checkbox" data-action="toggle-import-item" data-val="${i}" ${c.include ? "checked" : ""} style="margin-top:3px;">
         <div style="flex:1; min-width:0;">
-          <div style="font-weight:700; font-size:0.9rem;">${escapeHtml(c.name || "Untitled class")}</div>
+          <div style="font-weight:700; font-size:0.9rem;">${c.code ? `<span class="mono" style="color: var(--accent-strong); margin-right:6px;">${escapeHtml(c.code)}</span>` : ""}${escapeHtml(c.name || "Untitled class")}</div>
           <div class="subtle" style="font-size:0.78rem; margin-top:2px;">${escapeHtml(c.professor || "No professor")} · ${c.units || "—"} units · ${escapeHtml(c.room || "No room")} · ${formatTime12(c.start)}–${formatTime12(c.end)}</div>
           <div class="subtle" style="font-size:0.78rem; margin-top:2px;">${(c.days || []).join(", ") || "No days set"} · ${c.type === "minor" ? "Minor" : "Major"}</div>
         </div>
@@ -2710,14 +2743,16 @@ function renderImportSchedule() {
       <textarea id="sch_import_text" rows="4" placeholder="e.g. Marine Eng 1 — Capt. Dela Cruz — MWF 8:00-9:30 — Room 204 — 3 units...">${escapeHtml(imp.importText)}</textarea>
     </div>
     <div class="dropzone" data-action="pick-import-file">
-      ${imp.importFile
+      ${imp.importFileLoading
+        ? `<div>⏳ Reading file…</div>`
+        : imp.importFile
         ? `<div>📎 ${escapeHtml(imp.importFile.name)} <button class="icon-btn" data-action="remove-import-file" title="Remove" style="margin-left:6px;">✕</button></div>`
-        : `<div>Or drop/click to attach a photo or screenshot of your schedule</div>`}
+        : `<div>Or drop/click to attach a photo, screenshot, or PDF of your schedule</div>`}
     </div>
-    <input type="file" id="scheduleImportFileInput" accept="image/*" style="display:none;">`;
+    <input type="file" id="scheduleImportFileInput" accept="image/*,.pdf" style="display:none;">`;
   if (imp.importError) html += `<div class="error-box" style="margin-bottom:12px;"><span>${escapeHtml(imp.importError)}</span></div>`;
   html += `<div style="display:flex; gap:10px;">
-      <button class="primary" data-action="parse-import-schedule" ${(imp.importText.trim() || imp.importFile) ? "" : "disabled"}>Read schedule</button>
+      <button class="primary" data-action="parse-import-schedule" ${(!imp.importFileLoading && (imp.importText.trim() || imp.importFile)) ? "" : "disabled"}>Read schedule</button>
       <button class="ghost" data-action="cancel-import">Cancel</button>
     </div>
   </div>`;
@@ -2735,6 +2770,7 @@ function renderSchedule() {
     ${sc.importOpen ? renderImportSchedule() : ""}
     <div class="section-title">➕ ${sc.editingId ? "Edit class" : "Add a class"}</div>
     <div class="form-grid">
+      <div class="field"><label class="field-label">Class code</label><input type="text" id="sch_code" placeholder="e.g. GEC 4, NAV 2, ICT 101" value="${escapeHtml(f.code || "")}"></div>
       <div class="field"><label class="field-label">Class name</label><input type="text" id="sch_name" placeholder="e.g. Marine Engineering 1" value="${escapeHtml(f.name)}"></div>
       <div class="field"><label class="field-label">Professor</label><input type="text" id="sch_prof" placeholder="e.g. Capt. Dela Cruz" value="${escapeHtml(f.professor)}"></div>
       <div class="field"><label class="field-label">Units</label><input type="number" id="sch_units" min="0" step="0.5" placeholder="3" value="${escapeHtml(f.units)}"></div>
@@ -2772,7 +2808,7 @@ function renderSchedule() {
     sorted.forEach(c => {
       html += `<div class="class-card ${c.type === "minor" ? "minor" : ""}">
         <div>
-          <div class="c-name">${escapeHtml(c.name)} <span class="chip" style="pointer-events:none; padding:2px 9px; font-size:0.65rem;">${c.type === "major" ? "Major" : "Minor"}</span></div>
+          <div class="c-name">${c.code ? `<span class="mono" style="color: var(--accent-strong); margin-right:6px;">${escapeHtml(c.code)}</span>` : ""}${escapeHtml(c.name)} <span class="chip" style="pointer-events:none; padding:2px 9px; font-size:0.65rem;">${c.type === "major" ? "Major" : "Minor"}</span></div>
           <div class="c-meta">${escapeHtml(c.professor || "No professor set")} · ${c.units || "—"} units · ${escapeHtml(c.room || "No room set")} · ${formatTime12(c.start)}–${formatTime12(c.end)}</div>
           <div class="c-days">${DAY_NAMES.map(d => `<span class="day-dot ${c.days.includes(d) ? "on" : ""}">${d[0]}</span>`).join("")}</div>
           ${c.notes ? `<div class="c-notes subtle" style="margin-top:6px; font-size:0.8rem; white-space:pre-wrap;">📝 ${escapeHtml(c.notes)}</div>` : ""}
@@ -2902,15 +2938,15 @@ function renderReminders() {
   const r = state.reminders;
   let html = `<div class="panel-content">
     ${renderAccountSection()}
-    <div class="section-title">🔔 Backend &amp; daily reminder email <span class="important-badge">Important</span></div>
-    <div class="info-banner">One small <b>Google Apps Script</b> backend does two jobs: it sends your assignment &amp; daily reminder emails on a timer even when this page is closed, <em>and</em> it proxies the AI calls for Ask the Officer, Quiz, Flashcards, and Personal Study (since a browser can't safely hold an API key on its own once this page is deployed outside the Claude preview). One-time setup — see the guide below.</div>
+    <div class="section-title">🔔 Daily reminder email <span class="important-badge">Important</span></div>
+    <div class="info-banner">AI chat, quizzes, flashcards, and Personal Study all work automatically — no setup needed there. This section is only for <b>email reminders</b> (assignment alerts + daily digest), which need a small always-on <b>Google Apps Script</b> backend since a static page can't send scheduled email once you close the tab. Optional — skip this if you don't want email reminders. One-time setup — see the guide below.</div>
 
     <div class="settings-box">
       <div class="form-grid">
         <div class="field"><label class="field-label">Reminder email address</label><input type="email" id="rem_email" value="${escapeHtml(r.email)}"></div>
         <div class="field"><label class="field-label">Daily send time</label><input type="time" id="rem_time" value="${r.dailyTime}"></div>
         <div class="field" style="grid-column: 1 / -1;">
-          <label class="field-label">Apps Script Web App URL (backend + AI proxy)</label>
+          <label class="field-label">Apps Script Web App URL (email reminders only)</label>
           <input type="url" id="rem_gasurl" placeholder="https://script.google.com/macros/s/…/exec" value="${escapeHtml(r.gasUrl)}">
         </div>
       </div>
@@ -2950,13 +2986,12 @@ function renderReminders() {
   }
 
   html += `<hr class="divider">
-    <div class="section-title">⚙️ One-time backend setup</div>
+    <div class="section-title">⚙️ One-time email backend setup (optional)</div>
     <div class="subtle" style="margin-bottom:10px;">
-      A static page can't send scheduled email, and can't safely hold an API key, once you close the tab — both need a small always-on backend, same as your other Apps Script proxies:
+      Only needed if you want assignment &amp; daily digest emails. AI chat/quizzes/flashcards already work without any of this.
     </div>
     <ol class="subtle" style="padding-left:18px; line-height:1.9;">
       <li>Create a new Apps Script project (script.google.com) and paste in the <b>Code.gs</b> provided alongside this app.</li>
-      <li>In the editor: <b>Project Settings → Script Properties → Add script property</b>, name it <code>GEMINI_API_KEY</code>, and paste in a free key from <b>aistudio.google.com/apikey</b> (same Google account). (Skip this step if you only want the reminder emails, not the AI features.)</li>
       <li>Run the <code>sendDailyCheck</code> function once manually from the editor (▶️ Run) and approve the permission prompts — this authorizes Gmail sending before the trigger relies on it.</li>
       <li>Deploy it as a <b>Web App</b> ("Execute as: me", "Who has access: Anyone"), then paste the deployment URL above and click <b>Save settings</b>.</li>
       <li>Click <b>Test connection</b> to confirm the browser can actually reach it, then <b>Sync data to Apps Script</b>.</li>
@@ -3388,7 +3423,17 @@ async function handleFiles(fileList) {
       const dataUrl = await fileToDataUrl(file);
       const mime = file.type || "application/octet-stream";
       const kind = mime.startsWith("image/") ? "image" : mime === "application/pdf" ? "pdf" : "text";
-      s.sources.push({ id: uid(), name: file.name, mime, kind, dataUrl, size: file.size, addedAt: Date.now() });
+      const entry = { id: uid(), name: file.name, mime, kind, dataUrl, size: file.size, addedAt: Date.now() };
+      if (kind === "pdf") {
+        try {
+          entry.extractedText = await extractPdfText(dataUrl);
+          if (!entry.extractedText) s.uploadError = `"${file.name}" looks like a scanned PDF with no selectable text — try attaching a photo of it instead for best results.`;
+        } catch (pdfErr) {
+          entry.extractedText = "";
+          s.uploadError = `Couldn't read text from "${file.name}" (${(pdfErr && pdfErr.message) || "unknown error"}). Try attaching a photo instead.`;
+        }
+      }
+      s.sources.push(entry);
     } catch (e) {
       s.uploadError = "Couldn't read one of the files. Try again.";
     }
@@ -3410,8 +3455,15 @@ async function removeSource(id) {
 }
 function sourceContentBlock(src) {
   if (src.kind === "image") return { type: "image", source: { type: "base64", media_type: src.mime, data: base64FromDataUrl(src.dataUrl) } };
-  if (src.kind === "pdf") return { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64FromDataUrl(src.dataUrl) } };
-  return null; // plain text sources are inlined into the prompt text instead
+  return null; // pdf (text extracted client-side at upload time) and plain text sources are inlined into the prompt text instead
+}
+function sourceInlineText(src) {
+  if (src.kind === "pdf") {
+    return (src.extractedText && src.extractedText.trim())
+      ? src.extractedText
+      : "[No selectable text could be extracted from this PDF — it's likely a scanned/image-based PDF. Ask the cadet to re-upload it as a photo instead.]";
+  }
+  try { return atob(base64FromDataUrl(src.dataUrl)); } catch (e) { return ""; }
 }
 async function saveNoteFromAI(sourceId, title, body) {
   const s = state.study;
@@ -3430,7 +3482,7 @@ async function summarizeSource(id) {
     const content = [];
     const block = sourceContentBlock(src);
     if (block) content.push(block);
-    else content.push({ type: "text", text: `Source text content ("${src.name}"):\n${atob(base64FromDataUrl(src.dataUrl))}` });
+    else content.push({ type: "text", text: `Source text content ("${src.name}"):\n${sourceInlineText(src)}` });
     content.push({ type: "text", text: "Summarize this into structured study notes." });
     const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false });
     await saveNoteFromAI(id, `Summary: ${src.name}`, result.text);
@@ -3494,7 +3546,7 @@ async function sendStudyChat(text) {
     activeSources.forEach(src => {
       const block = sourceContentBlock(src);
       if (block) content.push(block);
-      else { try { content.push({ type: "text", text: `Source "${src.name}":\n${atob(base64FromDataUrl(src.dataUrl))}` }); } catch (e) {} }
+      else { try { content.push({ type: "text", text: `Source "${src.name}":\n${sourceInlineText(src)}` }); } catch (e) {} }
     });
     content.push({ type: "text", text: q });
     const sys = activeSources.length
@@ -3514,6 +3566,7 @@ async function sendStudyChat(text) {
 async function saveClass() {
   const sc = state.schedule;
   const f = sc.form;
+  f.code = (document.getElementById("sch_code")?.value || "").trim();
   f.name = (document.getElementById("sch_name")?.value || "").trim();
   f.professor = (document.getElementById("sch_prof")?.value || "").trim();
   f.units = (document.getElementById("sch_units")?.value || "").trim();
@@ -3529,7 +3582,7 @@ async function saveClass() {
   } else {
     sc.classes.push({ id: uid(), ...JSON.parse(JSON.stringify(f)) });
   }
-  sc.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" };
+  sc.form = { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" };
   await acctSet("bw_schedule_classes", sc.classes);
   render();
 }
@@ -3538,7 +3591,7 @@ function editClass(id) {
   const c = sc.classes.find(x => x.id === id);
   if (!c) return;
   sc.editingId = id;
-  sc.form = { name: c.name, professor: c.professor, units: c.units, type: c.type, days: [...c.days], start: c.start, end: c.end, room: c.room, notes: c.notes || "" };
+  sc.form = { code: c.code || "", name: c.name, professor: c.professor, units: c.units, type: c.type, days: [...c.days], start: c.start, end: c.end, room: c.room, notes: c.notes || "" };
   render();
 }
 async function deleteClass(id) {
@@ -3569,19 +3622,35 @@ async function handleImportScheduleFile(fileList) {
   if (!file) return;
   if (file.size > 9 * 1024 * 1024) { sc.importError = `"${file.name}" is over 9MB — attach a smaller file.`; render(); return; }
   const mime = file.type || "application/octet-stream";
-  if (!mime.startsWith("image/")) {
-    sc.importError = "PDFs aren't supported for import right now — the AI backend can't read them. Please attach a photo/screenshot instead, or paste the text above.";
+  if (!mime.startsWith("image/") && mime !== "application/pdf") {
+    sc.importError = "Attach an image (photo/screenshot) or a PDF of your schedule.";
     render();
     return;
   }
+  sc.importError = null;
+  sc.importFile = null;
+  sc.importFileLoading = true;
+  render();
   try {
     const dataUrl = await fileToDataUrl(file);
-    sc.importFile = { name: file.name, mime, dataUrl, kind: "image" };
-    sc.importError = null;
+    if (mime === "application/pdf") {
+      const text = await extractPdfText(dataUrl);
+      if (!text) {
+        sc.importFile = null;
+        sc.importError = `"${file.name}" looks like a scanned PDF with no selectable text — attach a photo of it instead.`;
+      } else {
+        sc.importFile = { name: file.name, mime, kind: "pdf", dataUrl: null, extractedText: text };
+      }
+    } else {
+      sc.importFile = { name: file.name, mime, kind: "image", dataUrl, extractedText: "" };
+    }
   } catch (e) {
-    sc.importError = "Couldn't read that file. Try again.";
+    sc.importFile = null;
+    sc.importError = `Couldn't read "${file.name}" (${(e && e.message) || "unknown error"}).`;
+  } finally {
+    sc.importFileLoading = false;
+    render();
   }
-  render();
 }
 function removeImportFile() {
   state.schedule.importFile = null;
@@ -3596,6 +3665,7 @@ async function parseImportSchedule() {
   render();
   const sys = `You extract a student's class schedule into structured JSON. Read the provided text and/or image/PDF (a screenshot, photo, or export of a class schedule) and identify every class listed.
 For each class, determine:
+- code: the short subject/course code if shown (e.g. "GEC 4", "NAV 2", "ICT 101", "MT1A"), else ""
 - name: the class/subject name
 - professor: instructor name if shown, else ""
 - units: number of units as a string if shown, else ""
@@ -3607,14 +3677,16 @@ For each class, determine:
 - notes: leave ""
 
 Respond with ONLY a JSON object, no preamble, no markdown fences, matching exactly this shape:
-{"classes":[{"name":"...","professor":"...","units":"...","type":"major","days":["Mon"],"start":"08:00","end":"09:30","room":"...","notes":""}]}
+{"classes":[{"code":"...","name":"...","professor":"...","units":"...","type":"major","days":["Mon"],"start":"08:00","end":"09:30","room":"...","notes":""}]}
 If you can't find any classes, return {"classes":[]}.`;
   try {
     const content = [];
-    if (sc.importFile) {
+    if (sc.importFile && sc.importFile.kind === "image") {
       content.push({ type: "image", source: { type: "base64", media_type: sc.importFile.mime, data: base64FromDataUrl(sc.importFile.dataUrl) } });
+    } else if (sc.importFile && sc.importFile.kind === "pdf") {
+      content.push({ type: "text", text: `Schedule PDF text ("${sc.importFile.name}"):\n${sc.importFile.extractedText}` });
     }
-    content.push({ type: "text", text: sc.importText.trim() ? `Schedule text:\n${sc.importText.trim()}` : "Extract the schedule from the attached image." });
+    content.push({ type: "text", text: sc.importText.trim() ? `Schedule text:\n${sc.importText.trim()}` : (sc.importFile ? "Extract the schedule from the content above." : "") });
     const result = await callClaude({ system: sys, messages: [{ role: "user", content }], useSearch: false });
     let parsed;
     try {
@@ -3629,6 +3701,7 @@ If you can't find any classes, return {"classes":[]}.`;
     } else {
       sc.importPreview = classes.map(c => ({
         include: true,
+        code: c.code || "",
         name: c.name || "",
         professor: c.professor || "",
         units: c.units || "",
@@ -3658,7 +3731,7 @@ async function addImportedClasses() {
   const toAdd = sc.importPreview.filter(c => c.include);
   toAdd.forEach(c => {
     sc.classes.push({
-      id: uid(), name: c.name, professor: c.professor, units: c.units, type: c.type,
+      id: uid(), code: c.code || "", name: c.name, professor: c.professor, units: c.units, type: c.type,
       days: c.days, start: c.start, end: c.end, room: c.room, notes: c.notes || ""
     });
   });
@@ -3991,7 +4064,7 @@ document.addEventListener("click", (e) => {
     case "save-class": saveClass(); break;
     case "edit-class": editClass(val); break;
     case "delete-class": deleteClass(val); break;
-    case "cancel-edit-class": state.schedule.editingId = null; state.schedule.form = { name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }; render(); break;
+    case "cancel-edit-class": state.schedule.editingId = null; state.schedule.form = { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }; render(); break;
     case "toggle-import-schedule": toggleImportSchedule(); break;
     case "cancel-import": cancelImport(); break;
     case "pick-import-file": document.getElementById("scheduleImportFileInput")?.click(); break;
