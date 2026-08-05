@@ -509,6 +509,27 @@
   .day-dot { font-size:0.62rem; font-weight:700; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; background: var(--bg-raised); color: var(--text-dim); border:1px solid var(--border); }
   .day-dot.on { background: var(--accent); color: var(--navy-950); border-color: var(--accent); }
 
+  /* ---- Class Schedule: week grid (Google-Calendar-style) ---- */
+  .week-toggle { display:flex; border:1px solid var(--border); border-radius:999px; padding:4px; background: var(--bg-raised); gap:2px; }
+  .week-toggle button { border:none; background:transparent; color: var(--text-dim); padding:6px 14px; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; font-family:inherit; }
+  .week-toggle button.active { background: var(--accent); color: var(--navy-950); }
+  .week-grid-wrap { border:1px solid var(--border); border-radius:12px; overflow:hidden; background: var(--bg-panel); margin-bottom:22px; }
+  .week-grid-scroll { overflow-x:auto; }
+  .week-grid { display:grid; grid-template-columns: 52px repeat(7, minmax(92px, 1fr)); min-width:720px; }
+  .week-grid-headcell { position:sticky; top:0; z-index:2; background: var(--bg-raised); border-bottom:1px solid var(--border); border-left:1px solid var(--border); padding:8px 4px; text-align:center; font-size:0.68rem; font-weight:700; letter-spacing:0.04em; color: var(--text-dim); text-transform:uppercase; }
+  .week-grid-headcell.today { color: var(--accent-strong); }
+  .week-grid-corner { position:sticky; top:0; left:0; z-index:3; background: var(--bg-raised); border-bottom:1px solid var(--border); }
+  .week-hour-label { grid-column:1; font-size:0.62rem; color: var(--text-dim); text-align:right; padding:2px 8px 0 0; position:relative; top:-6px; }
+  .week-hour-row-bg { grid-column: 2 / -1; border-top:1px solid var(--border); }
+  .week-day-col { position:relative; border-left:1px solid var(--border); }
+  .week-block { position:absolute; left:3px; right:3px; border-radius:7px; padding:4px 7px; overflow:hidden; cursor:pointer; border-left:3px solid var(--accent-strong); background: color-mix(in srgb, var(--accent) 20%, var(--bg-panel)); transition: filter 0.15s; }
+  .week-block:hover { filter: brightness(1.08); }
+  .week-block.minor { border-left-color: var(--fog); background: color-mix(in srgb, var(--fog) 22%, var(--bg-panel)); }
+  .week-block .wb-title { font-size:0.72rem; font-weight:700; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color: var(--text); }
+  .week-block .wb-meta { font-size:0.64rem; color: var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sched-toolbar-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+  .sched-actions-row { display:flex; gap:8px; flex-wrap:wrap; }
+
   /* ---- Assignments ---- */
   .assign-row {
     border:1px solid var(--border); border-radius:10px; padding:14px 16px; background: var(--bg-panel);
@@ -901,6 +922,7 @@ let state = {
     classes: [],
     form: { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" },
     editingId: null,
+    viewMode: "week",
     importOpen: false, importText: "", importFile: null, importFileLoading: false,
     importLoading: false, importError: null, importPreview: null
   },
@@ -975,6 +997,40 @@ function formatTime12(t) {
   h = h % 12;
   if (h === 0) h = 12;
   return `${h}:${m} ${suffix}`;
+}
+/** "HH:MM" -> minutes since midnight. NaN if unparseable. */
+function timeToMinutes(t) {
+  if (!t) return NaN;
+  const parts = String(t).split(":");
+  if (parts.length < 2) return NaN;
+  const h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return NaN;
+  return h * 60 + m;
+}
+/** 24-hour integer hour -> "5 AM" / "12 PM" style label for the week-grid rail. */
+function hourLabel12(h) {
+  const suffix = h >= 12 ? "PM" : "AM";
+  let hh = h % 12;
+  if (hh === 0) hh = 12;
+  return `${hh} ${suffix}`;
+}
+/** Assigns non-overlapping classes on the same day to side-by-side columns
+ *  (rare, but two classes can technically share a timeslot). Simple greedy
+ *  interval-column packing, same idea most calendar UIs use. */
+function layoutDayBlocks(blocks) {
+  blocks.sort((a, b) => a.startMin - b.startMin);
+  const colEnds = [];
+  blocks.forEach(b => {
+    let placedCol = -1;
+    for (let i = 0; i < colEnds.length; i++) {
+      if (colEnds[i] <= b.startMin) { placedCol = i; colEnds[i] = b.endMin; break; }
+    }
+    if (placedCol === -1) { placedCol = colEnds.length; colEnds.push(b.endMin); }
+    b.col = placedCol;
+  });
+  const totalCols = Math.max(1, colEnds.length);
+  blocks.forEach(b => b.totalCols = totalCols);
+  return blocks;
 }
 function daysUntil(dateStr) {
   if (!dateStr) return null;
@@ -1616,7 +1672,7 @@ function resetSessionState() {
     chat: { messages: [], loading: false, error: null },
     uploading: false, uploadError: null, summarizingId: null
   };
-  state.schedule = { classes: [], form: { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }, editingId: null, importOpen: false, importText: "", importFile: null, importFileLoading: false, importLoading: false, importError: null, importPreview: null };
+  state.schedule = { classes: [], form: { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }, editingId: null, viewMode: "week", importOpen: false, importText: "", importFile: null, importFileLoading: false, importLoading: false, importError: null, importPreview: null };
   state.assign = { items: [], form: { title: "", classId: "", dueDate: "", notes: "" }, editingId: null, filter: "active" };
   state.reminders = {
     email: "", dailyEnabled: true, dailyTime: "07:00", gasUrl: "", custom: [],
@@ -3052,6 +3108,68 @@ function renderImportSchedule() {
   return html;
 }
 
+function renderScheduleWeekGrid(classes) {
+  const withDays = classes.filter(c => c.days && c.days.length);
+  if (!withDays.length) {
+    return `<div class="subtle" style="padding:24px 4px;">No classes with days set yet — add one above, or import your schedule.</div>`;
+  }
+  const HOUR_PX = 52;
+  let minMin = Infinity, maxMin = -Infinity;
+  withDays.forEach(c => {
+    const s = timeToMinutes(c.start), e = timeToMinutes(c.end);
+    if (!isNaN(s)) minMin = Math.min(minMin, s);
+    if (!isNaN(e)) maxMin = Math.max(maxMin, e);
+  });
+  if (!isFinite(minMin)) { minMin = 7 * 60; maxMin = 18 * 60; }
+  let startHour = Math.max(5, Math.floor(minMin / 60) - 1);
+  let endHour = Math.min(22, Math.ceil(maxMin / 60) + 1);
+  if (endHour <= startHour) endHour = startHour + 1;
+  const hourRows = [];
+  for (let h = startHour; h < endHour; h++) hourRows.push(h);
+  const totalMinutes = (endHour - startHour) * 60;
+  const contentPx = hourRows.length * HOUR_PX;
+  const todayIdx = new Date().getDay();
+
+  const hourLabelsHtml = hourRows.map(h =>
+    `<div style="height:${HOUR_PX}px; font-size:0.62rem; color:var(--text-dim); text-align:right; padding-right:6px; position:relative; top:-6px;">${hourLabel12(h)}</div>`
+  ).join("");
+
+  const dayColsHtml = DAY_NAMES.map((d, di) => {
+    const dayBlocks = withDays.filter(c => c.days.includes(d)).map(c => ({
+      c, startMin: timeToMinutes(c.start), endMin: timeToMinutes(c.end)
+    })).filter(b => !isNaN(b.startMin) && !isNaN(b.endMin) && b.endMin > b.startMin);
+    layoutDayBlocks(dayBlocks);
+    const blocksHtml = dayBlocks.map(b => {
+      const top = ((b.startMin - startHour * 60) / totalMinutes) * contentPx;
+      const height = Math.max(20, ((b.endMin - b.startMin) / totalMinutes) * contentPx - 2);
+      const widthPct = 100 / b.totalCols;
+      const leftPct = b.col * widthPct;
+      return `<div class="week-block ${b.c.type === "minor" ? "minor" : ""}" data-action="edit-class" data-val="${b.c.id}"
+        style="top:${top}px; height:${height}px; left:calc(${leftPct}% + 3px); width:calc(${widthPct}% - 6px);"
+        title="${escapeHtml(b.c.name)} · ${formatTime12(b.c.start)}–${formatTime12(b.c.end)}${b.c.room ? " · " + escapeHtml(b.c.room) : ""}">
+        <div class="wb-title">${b.c.code ? escapeHtml(b.c.code) + " · " : ""}${escapeHtml(b.c.name)}</div>
+        <div class="wb-meta">${formatTime12(b.c.start)}–${formatTime12(b.c.end)}${b.c.room ? " · " + escapeHtml(b.c.room) : ""}</div>
+      </div>`;
+    }).join("");
+    return `<div style="flex:1; min-width:92px; display:flex; flex-direction:column;">
+      <div class="week-grid-headcell ${di === todayIdx ? "today" : ""}" style="height:30px; display:flex; align-items:center; justify-content:center;">${d}</div>
+      <div class="week-day-col" style="height:${contentPx}px; background-image: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent ${HOUR_PX}px);">${blocksHtml}</div>
+    </div>`;
+  }).join("");
+
+  return `<div class="week-grid-wrap">
+    <div class="week-grid-scroll">
+      <div style="display:flex;">
+        <div style="width:44px; flex-shrink:0;">
+          <div style="height:30px;"></div>
+          ${hourLabelsHtml}
+        </div>
+        <div style="flex:1; display:flex; min-width:644px;">${dayColsHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderSchedule() {
   const sc = state.schedule;
   const f = sc.form;
@@ -3086,11 +3204,28 @@ function renderSchedule() {
       ${sc.editingId ? `<button class="ghost" data-action="cancel-edit-class">Cancel</button>` : ""}
     </div>
     <hr class="divider">
-    <div class="section-title">🧭 Your schedule</div>`;
+    <div class="sched-toolbar-row">
+      <div class="section-title" style="margin:0;">🧭 Your schedule</div>
+      <div class="week-toggle">
+        <button class="${sc.viewMode !== "list" ? "active" : ""}" data-action="set-schedule-view" data-val="week">📅 Week</button>
+        <button class="${sc.viewMode === "list" ? "active" : ""}" data-action="set-schedule-view" data-val="list">📋 List</button>
+      </div>
+    </div>
+    ${sc.classes.length ? `<div class="sched-actions-row" style="margin-bottom:16px;">
+      <button class="ghost" data-action="export-schedule-json" title="Save a backup file you can import on another device">⬇️ Export backup (.json)</button>
+      <button class="ghost" data-action="export-schedule-ics" title="Add to Google Calendar, Apple Calendar, or Outlook">📆 Export to Calendar (.ics)</button>
+      <button class="ghost" data-action="pick-schedule-backup" title="Restore a schedule backup on this device">⬆️ Import backup (.json)</button>
+      <input type="file" id="scheduleBackupFileInput" accept="application/json,.json" style="display:none;">
+    </div>` : `<div class="sched-actions-row" style="margin-bottom:16px;">
+      <button class="ghost" data-action="pick-schedule-backup" title="Restore a schedule backup on this device">⬆️ Import backup (.json)</button>
+      <input type="file" id="scheduleBackupFileInput" accept="application/json,.json" style="display:none;">
+    </div>`}
+    ${sc.backupError ? `<div class="error-box" style="margin-bottom:16px;"><span>${escapeHtml(sc.backupError)}</span></div>` : ""}
+    ${sc.backupNotice ? `<div class="subtle" style="margin-bottom:16px;">✅ ${escapeHtml(sc.backupNotice)}</div>` : ""}`;
 
   if (!sc.classes.length) {
     html += `<div class="subtle">No classes added yet.</div>`;
-  } else {
+  } else if (sc.viewMode === "list") {
     const dayOrder = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
     const sorted = [...sc.classes].sort((a,b) => {
       const da = Math.min(...(a.days.length ? a.days.map(d=>dayOrder.indexOf(d)) : [7]));
@@ -3112,6 +3247,9 @@ function renderSchedule() {
         </div>
       </div>`;
     });
+  } else {
+    html += renderScheduleWeekGrid(sc.classes);
+    html += `<div class="subtle" style="font-size:0.76rem; margin-top:-8px;">Tap a class block to edit it. Switch to <b>List</b> view for the full detail cards, or add notes there.</div>`;
   }
   html += `</div>`;
   return html;
@@ -4030,6 +4168,155 @@ async function deleteClass(id) {
   await acctSet("bw_schedule_classes", sc.classes);
   render();
 }
+function setScheduleView(mode) {
+  state.schedule.viewMode = mode;
+  render();
+}
+
+/* ---------- actions: schedule backup export/import (device-to-device) ---------- */
+function triggerFileDownload(filename, mimeType, content) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+/** Exports the raw schedule data as JSON — a full-fidelity backup that can be
+ *  re-imported into Bridge Watch on any device via "Import backup (.json)". */
+function exportScheduleJSON() {
+  const sc = state.schedule;
+  sc.backupError = null; sc.backupNotice = null;
+  const payload = {
+    app: "bridge-watch",
+    kind: "schedule-backup",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    classes: sc.classes
+  };
+  const stamp = todayISO();
+  triggerFileDownload(`bridgewatch-schedule-${stamp}.json`, "application/json", JSON.stringify(payload, null, 2));
+  sc.backupNotice = "Backup downloaded. Save it somewhere you can reach on your other device (Drive, email to yourself, etc.), then use \"Import backup\" there.";
+  render();
+}
+/** Escapes text per RFC5545 (iCalendar) so it's safe inside an .ics field. */
+function icsEscape(s) {
+  return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+function icsDateStamp(date) {
+  return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+/** Finds the next calendar date (>= today) that falls on the given weekday
+ *  name, to use as the DTSTART of a weekly-recurring event. */
+function nextDateForDay(dayName) {
+  const idx = DAY_NAMES.indexOf(dayName);
+  if (idx === -1) return new Date();
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const diff = (idx - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+const ICS_BYDAY = { Sun: "SU", Mon: "MO", Tue: "TU", Wed: "WE", Thu: "TH", Fri: "FR", Sat: "SA" };
+/** Exports the schedule as a standard .ics calendar file — one weekly-
+ *  recurring event per class, importable into Google Calendar, Apple
+ *  Calendar, Outlook, or any other calendar app (matches the reference
+ *  Google Calendar screenshot the cadet asked for). */
+function exportScheduleICS() {
+  const sc = state.schedule;
+  sc.backupError = null; sc.backupNotice = null;
+  const withDays = sc.classes.filter(c => c.days && c.days.length && c.start && c.end);
+  if (!withDays.length) {
+    sc.backupError = "No classes with days and times set yet — add some first.";
+    render();
+    return;
+  }
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Bridge Watch//Class Schedule//EN", "CALSCALE:GREGORIAN"];
+  const now = new Date();
+  withDays.forEach(c => {
+    const earliestDay = c.days.reduce((best, d) => {
+      const dt = nextDateForDay(d);
+      return (!best || dt < best.date) ? { day: d, date: dt } : best;
+    }, null);
+    const [sh, sm] = c.start.split(":").map(Number);
+    const [eh, em] = c.end.split(":").map(Number);
+    const dtStart = new Date(earliestDay.date); dtStart.setHours(sh, sm, 0, 0);
+    const dtEnd = new Date(earliestDay.date); dtEnd.setHours(eh, em, 0, 0);
+    const byday = c.days.map(d => ICS_BYDAY[d]).filter(Boolean).join(",");
+    const title = (c.code ? c.code + " – " : "") + c.name;
+    const descParts = [];
+    if (c.professor) descParts.push(`Professor: ${c.professor}`);
+    if (c.units) descParts.push(`Units: ${c.units}`);
+    if (c.notes) descParts.push(c.notes);
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${c.id}@bridgewatch`,
+      `DTSTAMP:${icsDateStamp(now)}`,
+      `DTSTART:${icsDateStamp(dtStart).replace("Z", "")}`,
+      `DTEND:${icsDateStamp(dtEnd).replace("Z", "")}`,
+      `RRULE:FREQ=WEEKLY;BYDAY=${byday}`,
+      `SUMMARY:${icsEscape(title)}`,
+      c.room ? `LOCATION:${icsEscape(c.room)}` : null,
+      descParts.length ? `DESCRIPTION:${icsEscape(descParts.join(" · "))}` : null,
+      `CATEGORIES:${c.type === "minor" ? "Minor" : "Major"}`,
+      "END:VEVENT"
+    );
+  });
+  lines.push("END:VCALENDAR");
+  const icsContent = lines.filter(Boolean).join("\r\n");
+  const stamp = todayISO();
+  triggerFileDownload(`bridgewatch-schedule-${stamp}.ics`, "text/calendar;charset=utf-8", icsContent);
+  sc.backupNotice = "Calendar file downloaded — open it (or import it in Google/Apple/Outlook Calendar) to add all your classes as recurring weekly events.";
+  render();
+}
+function pickScheduleBackup() {
+  document.getElementById("scheduleBackupFileInput")?.click();
+}
+/** Validates and normalizes an item from an imported backup file into a
+ *  proper class record — defensive against a hand-edited or partial file. */
+function normalizeImportedClass(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const name = String(raw.name || "").trim();
+  if (!name) return null;
+  const days = Array.isArray(raw.days) ? raw.days.filter(d => DAY_NAMES.includes(d)) : [];
+  return {
+    id: uid(),
+    code: String(raw.code || "").trim(),
+    name,
+    professor: String(raw.professor || "").trim(),
+    units: raw.units != null ? String(raw.units).trim() : "",
+    type: raw.type === "minor" ? "minor" : "major",
+    days,
+    start: /^\d{2}:\d{2}$/.test(raw.start) ? raw.start : "08:00",
+    end: /^\d{2}:\d{2}$/.test(raw.end) ? raw.end : "09:30",
+    room: String(raw.room || "").trim(),
+    notes: String(raw.notes || "").trim()
+  };
+}
+async function handleScheduleBackupFile(files) {
+  const sc = state.schedule;
+  sc.backupError = null; sc.backupNotice = null;
+  const file = files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const rawClasses = Array.isArray(data) ? data : Array.isArray(data.classes) ? data.classes : null;
+    if (!rawClasses) throw new Error("This file doesn't look like a Bridge Watch schedule backup.");
+    const normalized = rawClasses.map(normalizeImportedClass).filter(Boolean);
+    if (!normalized.length) throw new Error("No valid classes were found in that file.");
+    sc.classes = sc.classes.concat(normalized);
+    await acctSet("bw_schedule_classes", sc.classes);
+    sc.backupNotice = `Imported ${normalized.length} class${normalized.length === 1 ? "" : "es"} from backup.`;
+  } catch (e) {
+    sc.backupError = e.message && e.message.includes("JSON") ? "That file isn't valid JSON — make sure you selected a Bridge Watch schedule backup (.json) file." : (e.message || "Couldn't read that backup file.");
+  } finally {
+    render();
+  }
+}
 
 /* ---------- actions: import schedule (AI-assisted) ---------- */
 function toggleImportSchedule() {
@@ -4516,6 +4803,10 @@ document.addEventListener("click", (e) => {
     case "save-class": saveClass(); break;
     case "edit-class": editClass(val); break;
     case "delete-class": deleteClass(val); break;
+    case "set-schedule-view": setScheduleView(val); break;
+    case "export-schedule-json": exportScheduleJSON(); break;
+    case "export-schedule-ics": exportScheduleICS(); break;
+    case "pick-schedule-backup": pickScheduleBackup(); break;
     case "cancel-edit-class": state.schedule.editingId = null; state.schedule.form = { code: "", name: "", professor: "", units: "", type: "major", days: [], start: "08:00", end: "09:30", room: "", notes: "" }; render(); break;
     case "toggle-import-schedule": toggleImportSchedule(); break;
     case "cancel-import": cancelImport(); break;
@@ -4573,6 +4864,11 @@ document.addEventListener("change", (e) => {
   }
   if (el.id === "scheduleImportFileInput" && el.files && el.files.length) {
     handleImportScheduleFile(el.files);
+    el.value = "";
+    return;
+  }
+  if (el.id === "scheduleBackupFileInput" && el.files && el.files.length) {
+    handleScheduleBackupFile(el.files);
     el.value = "";
     return;
   }
